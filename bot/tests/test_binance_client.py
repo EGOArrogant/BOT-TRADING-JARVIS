@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import hmac
-import json
 from decimal import Decimal
 from urllib.parse import parse_qs, urlencode, urlparse
 

@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 import time
 
 import numpy as np

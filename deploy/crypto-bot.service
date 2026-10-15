@@ -1,0 +1,26 @@
+# systemd: copiar a /etc/systemd/system/crypto-bot.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now crypto-bot
+# Ajusta User y WorkingDirectory. NO usar este servicio para `live` (requiere confirmación en consola):
+# arranca `live` a mano dentro de tmux/screen la primera vez.
+[Unit]
+Description=Bot de trading de perpetuos (paper/testnet/record)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bot
+WorkingDirectory=/opt/crypto-bot
+EnvironmentFile=/opt/crypto-bot/.env
+ExecStart=/opt/crypto-bot/.venv/bin/python -m bot.main --mode paper
+Restart=always
+RestartSec=10
+# Si reinicia más de 5 veces en 5 minutos, systemd se detiene: revisar logs
+StartLimitIntervalSec=300
+StartLimitBurst=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

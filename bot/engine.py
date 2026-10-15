@@ -72,7 +72,7 @@ class Components:
     journal: Journal
     macro: MacroCalendar | None = None
     news: NewsFeed | None = None
-    extra_tasks: list[Any] = field(default_factory=list)
+    extra_tasks: list[Any] = field(default_factory=list)  # fábricas sin argumentos que devuelven corrutinas
 
 
 class Engine:
@@ -516,7 +516,7 @@ class Engine:
             self._loop(1.0, self.tick),
             self._loop(self.s.execution.reconcile_interval_s, self.reconcile),
             self._loop(60.0, self.housekeeping),
-            *self.c.extra_tasks,
+            *(make() for make in self.c.extra_tasks),
         )
 
 
@@ -564,15 +564,16 @@ def build_components(settings: Settings, secrets: Secrets) -> tuple[Components, 
         recorder.record(stream, d) if d.get("e") in RECORD_RAW_EVENTS and (d.get("e") != "kline" or d["k"]["x"])
         else None))
     market = BinanceMarketData(ep.rest, ep.ws_public, ep.ws_market, states, http, dispatcher)
+    poll = settings.data.poll_s
     pollers = [
-        DerivativesPoller(ep.rest, symbols, store, http).run(settings.data.poll_s["open_interest"]),
-        DvolPoller(settings.endpoints.deribit, store, http).run(settings.data.poll_s["dvol"]),
-        HyperliquidPoller(settings.endpoints.hyperliquid, symbols, store, http).run(settings.data.poll_s["dex"]),
-        FearGreedPoller(settings.endpoints.alternative_me, store, http).run(settings.data.poll_s["sentiment"]),
-        OnchainPoller(settings.endpoints.defillama_stablecoins, settings.endpoints.stellar_horizon, store,
-                      http).run(settings.data.poll_s["onchain"]),
-        macro.run(settings.data.poll_s["macro"]),
-        news.run(settings.data.poll_s["news"]),
+        lambda: DerivativesPoller(ep.rest, symbols, store, http).run(poll["open_interest"]),
+        lambda: DvolPoller(settings.endpoints.deribit, store, http).run(poll["dvol"]),
+        lambda: HyperliquidPoller(settings.endpoints.hyperliquid, symbols, store, http).run(poll["dex"]),
+        lambda: FearGreedPoller(settings.endpoints.alternative_me, store, http).run(poll["sentiment"]),
+        lambda: OnchainPoller(settings.endpoints.defillama_stablecoins, settings.endpoints.stellar_horizon, store,
+                              http).run(poll["onchain"]),
+        lambda: macro.run(poll["macro"]),
+        lambda: news.run(poll["news"]),
     ]
     comps.extra_tasks = pollers
     return comps, market, recorder
@@ -617,7 +618,7 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
                 bids, asks = st.book.top(20)
                 recorder.record(f"{sym.lower()}@book20", {"bids": bids, "asks": asks, "E": st.book.event_ts_ms}, now)
 
-    comps.extra_tasks += [market.run(), engine._loop(5.0, heartbeat), engine._loop(1.0, book_sampler)]
+    comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler)]
     await engine.run()
 
 
@@ -640,4 +641,5 @@ async def run_record(settings: Settings, secrets: Secrets, alert: Alerter) -> No
                 bids, asks = st.book.top(20)
                 recorder.record(f"{sym.lower()}@book20", {"bids": bids, "asks": asks, "E": st.book.event_ts_ms}, now)
 
-    await asyncio.gather(market.run(), engine._loop(30.0, stats), engine._loop(1.0, book_sampler), *comps.extra_tasks)
+    await asyncio.gather(market.run(), engine._loop(30.0, stats), engine._loop(1.0, book_sampler),
+                         *(make() for make in comps.extra_tasks))

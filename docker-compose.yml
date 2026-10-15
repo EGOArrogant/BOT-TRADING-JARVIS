@@ -1,0 +1,17 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      BOT_MODE: ${BOT_MODE:-paper}
+    volumes:
+      - ./bot/data:/app/bot/data
+      - ./bot/reports:/app/bot/reports
+      - ./bot/strategy_overrides.yaml:/app/bot/strategy_overrides.yaml
+    # Para `live`: docker compose run --rm -it bot (la confirmación en consola necesita TTY)
+    stdin_open: true
+    tty: true
+    logging:
+      driver: json-file
+      options: {max-size: "50m", max-file: "5"}

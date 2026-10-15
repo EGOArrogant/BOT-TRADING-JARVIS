@@ -342,7 +342,16 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 ## Notas de implementación (mantener al día)
 
 - Desarrollo: `uv venv -p 3.12 .venv && uv pip install -p .venv -e '.[dev]'`; tests: `.venv/bin/python -m pytest`.
-- Arranque: `python -m bot.main --mode paper` (desde la raíz del repo).
+- Arranque: `python -m bot.main --mode paper` (desde la raíz del repo). Ver `README.md` para comandos y despliegue.
 - El módulo de logging se llama `core/logging_setup.py` para no tapar el `logging` de la stdlib.
 - Topes duros en código: `bot/core/config.py` (`HARD_*`). config.yaml no puede superarlos; las claves desconocidas se rechazan.
-- Convención de deslizamiento: positivo = en contra (costo).
+- Convención de deslizamiento: positivo = en contra (costo). Funding en `Trade`: positivo = cobrado.
+- Orquestador: `bot/engine.py`. Reglas de gestión compartidas por vivo y backtest: `bot/position/rules.py`.
+- Cada modo usa su propia base de datos/estado/reportes (`bot_<modo>.sqlite`).
+- Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
+- Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
+  - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).
+  - Órdenes condicionales (STOP_MARKET…) por `/fapi/v1/algoOrder` desde 2025-12-09; `/fapi/v1/order` las rechaza (-4120).
+  - Testnet REST: `https://testnet.binancefuture.com`.
+  - CryptoPanic dejó el plan gratuito en 2026: RSS es la fuente principal; CryptoPanic es opcional.
+  - Re-verificar todo en la doc oficial antes de `testnet`/`live`.

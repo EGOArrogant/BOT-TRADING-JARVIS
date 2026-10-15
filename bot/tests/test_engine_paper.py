@@ -1,6 +1,6 @@
 """Prueba de punta a punta del orquestador en modo papel, sin red."""
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 
