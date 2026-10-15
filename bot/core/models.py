@@ -138,6 +138,9 @@ class Signal(_Model):
     regime: Regime
     urgent: bool = False
     invalidation: str = ""
+    # Invalidación estructurada evaluada por código: cierre de 15m más allá de este nivel.
+    invalidation_price: float | None = Field(default=None, gt=0)
+    max_hold_hours: float = Field(default=6.0, gt=0)
     created_at: AwareDatetime
 
     @model_validator(mode="after")
@@ -300,6 +303,22 @@ class Position(_Model):
     signal_id: str
     opened_at: AwareDatetime
     invalidation: str = ""
+    invalidation_price: Decimal | None = None
+    max_hold_hours: float = 6.0
+    regime: Regime = Regime.INSUFFICIENT
+    expected_entry_price: Decimal | None = None
+    entry_maker: bool = True
+    entry_fee: Decimal = Decimal(0)
+    realized_pnl: Decimal = Decimal(0)     # de cierres parciales
+    exit_fees: Decimal = Decimal(0)
+    funding: Decimal = Decimal(0)
+    initial_qty: Decimal | None = None
+    partial_taken: bool = False
+    mae_r: float = 0.0
+    mfe_r: float = 0.0
+    tp_order_id: str | None = None
+    ai_confidence: float | None = None
+    ai_size_multiplier: float | None = None
 
     @property
     def notional(self) -> Decimal:
