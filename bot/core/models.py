@@ -265,7 +265,7 @@ class Order(_Model):
     symbol: str
     side: OrderSide
     type: OrderType
-    qty: Decimal = Field(gt=0)
+    qty: Decimal = Field(ge=0)          # 0 solo con close_position
     price: Decimal | None = Field(default=None, gt=0)
     stop_price: Decimal | None = Field(default=None, gt=0)
     reduce_only: bool = False
@@ -273,8 +273,16 @@ class Order(_Model):
     status: OrderStatus = OrderStatus.PENDING
     filled_qty: Decimal = Decimal(0)
     avg_fill_price: Decimal | None = None
+    close_position: bool = False       # stop que cierra toda la posición (sin qty)
+    is_algo: bool = False              # condicional: Binance lo enruta por /fapi/v1/algoOrder
+    fee: Decimal = Decimal(0)
+    maker: bool | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime | None = None
+
+    @property
+    def is_open(self) -> bool:
+        return self.status in (OrderStatus.PENDING, OrderStatus.NEW, OrderStatus.PARTIALLY_FILLED)
 
     @model_validator(mode="after")
     def _type_fields(self) -> Order:
@@ -283,10 +291,12 @@ class Order(_Model):
         if self.type in (OrderType.STOP_MARKET, OrderType.TAKE_PROFIT_MARKET):
             if self.stop_price is None:
                 raise ValueError(f"{self.type} requiere stop_price")
-            if not self.reduce_only:
+            if not (self.reduce_only or self.close_position):
                 raise ValueError("stops y take-profits deben ser reduce-only")
         if self.post_only and self.type is not OrderType.LIMIT:
             raise ValueError("post_only solo aplica a LIMIT")
+        if self.qty == 0 and not self.close_position:
+            raise ValueError("qty debe ser > 0")
         return self
 
 
