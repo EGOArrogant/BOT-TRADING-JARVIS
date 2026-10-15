@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta, UTC
 from pathlib import Path
 
 from bot.learning.journal import AI_REJECTED, TRADED, Journal
+from bot.metrics import discipline
 from bot.metrics.performance import summarize
 
 
@@ -58,6 +59,17 @@ def build_zone(journal: Journal, day: date, capital: float) -> str:
     wins = sum(1 for t in trades if float(t["r"]) > 0)
     lines.append(f"- Aprobadas: {len(ai_ok)} (ganadoras {wins}/{len(trades)})")
     lines.append(f"- Rechazadas con contrafactual: {len(ai_no)} (acertó al rechazar {right_rej}/{len(ai_no)})")
+    lines.append("")
+
+    lines.append("## Disciplina (últimos 30 días)")
+    d = discipline.evaluate(journal.trades(end - timedelta(days=30), end), journal.candidates(end - timedelta(days=30), end),
+                            journal.events(end - timedelta(days=30)), capital)
+    marks = {"ok": "✓", "alerta": "⚠", "sin_datos": "·"}
+    lines += [f"- {marks[c['state']]} {c['title']}: {c['detail']}" for c in d["checks"]]
+    p = d["practice"]
+    if p.get("n"):
+        lines.append(f"- Práctica: {p['n']} operaciones simuladas con precios reales · acierto {p['acierto'] * 100:.0f}% "
+                     f"· {p['expectativa_r']:+.2f}R promedio")
     lines.append("")
 
     lesson = "Sin evidencia suficiente para una lección nueva."

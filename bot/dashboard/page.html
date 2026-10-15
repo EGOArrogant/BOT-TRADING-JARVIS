@@ -55,6 +55,12 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--grid);vertic
 td.w{white-space:normal;min-width:220px}
 th{color:var(--ink2);font-weight:500;white-space:nowrap}td.n,th.n{text-align:right;white-space:nowrap}
 .empty{color:var(--ink2);padding:14px 4px}
+.disc{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,1fr);gap:10px 24px}
+@media (max-width:820px){.disc{grid-template-columns:1fr}}
+.disc li{display:grid;grid-template-columns:22px 1fr;gap:2px 8px}
+.disc .ic{font-weight:700;text-align:center;border-radius:50%;width:20px;height:20px;line-height:20px;font-size:12px}
+.disc .ok{color:var(--good);background:var(--good-bg)}.disc .alerta{color:var(--warn);background:var(--warn-bg)}
+.disc .sin_datos{color:var(--ink3);background:var(--off-bg)}
 .bias{position:relative;width:120px;height:8px;border-radius:4px;background:var(--grid);display:inline-block;vertical-align:middle}
 .bias i{position:absolute;top:0;height:100%;border-radius:4px}
 .bias::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--ink3)}
@@ -172,6 +178,12 @@ background:var(--series);color:#fff;cursor:pointer}
   </div>
 
   <section class="card">
+    <h2>Disciplina <span class="muted small">(últimos 30 días: ¿decide con el mismo estándar, sin "miedo" ni "euforia"?)</span></h2>
+    <div class="muted small" id="discSummary" style="margin-bottom:8px"></div>
+    <ul class="disc" id="discList"></ul>
+  </section>
+
+  <section class="card">
     <h2>Decisiones recientes <span class="muted small">(qué vio y por qué operó o no)</span></h2>
     <div class="scroll" id="decisions"></div>
   </section>
@@ -222,11 +234,13 @@ function renderKpis() {
     kpi("Capital", money(k.equity), "empezó con " + money(k.capital_inicial)) +
     kpi("Ganancia hoy", money(k.pnl_hoy, true), pct(k.pnl_hoy_pct, true) + " del capital", cls(k.pnl_hoy)) +
     kpi("Ganancia total", money(k.pnl_total, true), pct(k.capital_inicial ? k.pnl_total / k.capital_inicial : 0, true), cls(k.pnl_total)) +
-    kpi("Operaciones hoy", k.entradas_hoy + " / " + k.techo_hoy, "máximo permitido hoy") +
-    kpi("Acierto", k.acierto == null ? "—" : pct(k.acierto), k.operaciones + " operaciones en total") +
+    kpi("Operaciones hoy", k.entradas_hoy + " / " + k.techo_hoy, "máximo de hoy · IA consultada " + k.llamadas_ia_hoy + " veces") +
+    kpi("Acierto", k.acierto == null ? "—" : pct(k.acierto), k.operaciones + " operaciones · comisiones " + money(k.comisiones)) +
     kpi("Posiciones abiertas", String(D.positions.length), D.positions.length ? "flotante " + money(k.unrealized, true) : "ninguna", cls(k.unrealized)) +
     kpi("Caída desde el máximo", pct(k.drawdown), "se detiene al 10%", k.drawdown > 0.05 ? "neg" : "") +
-    kpi("Consultas a la IA hoy", String(k.llamadas_ia_hoy), "comisiones totales " + money(k.comisiones));
+    kpi("Operaciones de práctica", String((D.discipline.practice || {}).n || 0),
+        (D.discipline.practice || {}).n ? "simuladas con precios reales (30 días) · acierto " + pct(D.discipline.practice.acierto) :
+        "simuladas con precios reales, para aprender");
 }
 
 function renderTabs() {
@@ -483,7 +497,17 @@ function renderTopTraders() {
   ], (t.events || []).slice(0, 15), "Sin movimientos todavía en estas monedas (se detectan entre una lectura y la siguiente).");
 }
 
-function render() { renderHeader(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function renderDiscipline() {
+  var d = D.discipline, icons = {ok: "✓", alerta: "!", sin_datos: "·"};
+  $("discSummary").textContent = d.judged ? (d.ok + " de " + d.judged + " chequeos en orden. Los que dicen 'hacen falta' se activan cuando hay muestra suficiente.")
+    : "Todavía sin muestra suficiente: los chequeos se activan solos a medida que el bot opere y practique.";
+  $("discList").innerHTML = d.checks.map(function (c) {
+    return '<li><span class="ic ' + esc(c.state) + '" aria-label="' + esc(c.state) + '">' + icons[c.state] + "</span><b>" + esc(c.title) +
+      '</b><span></span><span class="muted small">' + esc(c.detail) + "</span></li>";
+  }).join("");
+}
+
+function render() { renderHeader(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

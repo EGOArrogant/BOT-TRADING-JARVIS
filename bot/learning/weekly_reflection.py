@@ -20,6 +20,7 @@ from bot.core.config import AIConfig
 from bot.core.logging_setup import get_logger
 from bot.learning.hypotheses import TUNABLE_PARAMS, Hypothesis
 from bot.learning.journal import Journal
+from bot.metrics import discipline
 from bot.metrics.performance import ai_calibration, by_dimension, rejection_stats, summarize
 
 log = get_logger("bot.reflection")
@@ -30,6 +31,7 @@ perpetuos cripto. Tu objetivo es mejorar la ganancia neta después de costos.
 Propón como máximo 3 hipótesis concretas, medibles y reversibles. Cada una se probará en paralelo \
 en papel (campeón vs retador) antes de aplicarse, así que no tienen que ser seguras: tienen que \
 estar respaldadas por los datos que ves. Señala el tamaño de muestra: con n pequeño, sé prudente.
+Revisa también "disciplina": si la IA rechaza oportunidades que habrían ganado, o decide distinto tras ganar que tras perder, es un sesgo a corregir con reglas medibles, no con más o menos cautela.
 
 Solo puedes proponer estos tipos (cualquier otro se descarta):
 - min_edge: subir la ventaja mínima (entre 3 y 8) para una moneda y/o estrategia.
@@ -104,6 +106,7 @@ def build_week_payload(journal: Journal, start: datetime, end: datetime, capital
         "calibracion_ia": ai_calibration(trades),
         "candidatos": rejection_stats(cands_list),
         "contraste_top_bottom": _feature_contrast(trades, cands),
+        "disciplina": discipline.evaluate(trades, cands_list, journal.events(start), capital)["checks"],
         "parametros_ajustables": {k: sorted(v) for k, v in TUNABLE_PARAMS.items()},
     }
 

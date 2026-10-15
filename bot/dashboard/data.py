@@ -15,6 +15,7 @@ from bot.core import control
 from bot.core.config import Settings
 from bot.core.state import BotState
 from bot.dashboard import snapshot
+from bot.metrics import discipline
 from bot.metrics.performance import equity_curve, summarize
 from bot.risk.engine import RiskEngine
 
@@ -131,6 +132,10 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
                           "WHERE ts >= ? ORDER BY ts DESC LIMIT 60", ((now - timedelta(hours=48)).isoformat(),))
         ai_today = _rows(db, "SELECT COUNT(*) AS n FROM ai_calls WHERE ts >= ?", (day_start.isoformat(),))
         learning = _learning(db, settings.learning.challenger_min_cases, settings.learning.challenger_min_trades)
+        since30 = (now - timedelta(days=30)).isoformat()
+        cands30 = [{**c, "ai": json.loads(c["ai"] or "null"), "counterfactual": json.loads(c["counterfactual"] or "null")}
+                   for c in _rows(db, "SELECT ts, status, ai, counterfactual FROM candidates WHERE ts >= ?", (since30,))]
+        events30 = _rows(db, "SELECT ts, kind FROM events WHERE ts >= ?", (since30,))
     finally:
         if db is not None:
             db.close()
@@ -142,6 +147,8 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
     positions = (live or {}).get("positions", [])
     unrealized = sum(p["pnl_unrealized"] or 0 for p in positions)
     s = summarize(trades, capital)
+    trades30 = [t for t in trades if t["closed_at"] >= since30]
+    disc = discipline.evaluate(trades30, cands30, events30, capital)
     curve = equity_curve(trades, capital)
     risk = RiskEngine(eff.risk, eff.limits, settings.exchange)
     decisions = []
@@ -177,5 +184,6 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "top_traders": (live or {}).get("top_traders"),
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],
         "decisions": decisions,
+        "discipline": disc,
         **learning,
     }

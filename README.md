@@ -64,6 +64,13 @@ python -m bot.main panel --mode paper  # abre el panel en el navegador (http://1
   `dex.smart_net_usd`, que la IA ve como contexto y que el aprendizaje puede usar en sus hipótesis. Sus
   movimientos (abrió, cerró, aumentó, redujo, giró) se graban en `data/raw/smart_events/` y se ven en el panel.
   **No se copian operaciones.**
+- **Disciplina** (`metrics/discipline.py`, en el panel, la zona diaria y la reflexión semanal): busca en los
+  datos los sesgos que en una persona serían emociones: rechazar oportunidades que habrían ganado (miedo),
+  aprobar perdedoras (exceso de confianza), decidir distinto tras ganar que tras perder (miedo o revancha),
+  arriesgar distinto según la racha y cerrar antes de tiempo (nerviosismo). Solo opina con ≥ 10 casos por grupo.
+  La IA tiene además una regla explícita de "mismo estándar siempre" y nunca recibe el resultado del día.
+  **Operaciones de práctica**: cada candidato no operado se simula con los precios reales posteriores
+  (contrafactual); son decenas al día, gratis y sin consultar a la IA, y alimentan el aprendizaje.
 - **Controles del panel** (lo único que el panel puede cambiar, guardado en `reports/<modo>/control.json`):
   - *Operar / Solo cierre*: con "Solo cierre" no abre nada nuevo (los candidatos se siguen registrando para
     aprender) y sigue gestionando y cerrando lo abierto. Se revisa también justo antes de ejecutar.
