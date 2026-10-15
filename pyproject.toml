@@ -1,0 +1,16 @@
+[project]
+name = "crypto-perp-bot"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+  "python-dotenv>=1.0",
+  # Se añadirán por hito: websockets/httpx (2), duckdb/pyarrow (2), anthropic (7).
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["bot/tests"]

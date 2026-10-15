@@ -1,0 +1,119 @@
+# Configuración del bot. Los secretos van en .env, nunca aquí.
+# Las secciones `risk` y `limits` están protegidas: el módulo de aprendizaje
+# no puede modificarlas (CLAUDE.md §1.7 y §9). Además, core/config.py impone
+# topes duros en código que este archivo no puede superar.
+
+mode: paper            # record | backtest | paper | testnet | live
+
+exchange:
+  name: binance        # binance | bybit (capa abstracta)
+  market: usdm_futures
+  symbols: [BTCUSDT, ETHUSDT, SOLUSDT, XRPUSDT, DOGEUSDT, XLMUSDT]
+  verify_symbols_on_start: true
+  fees:                # nivel base Binance USDⓈ-M (verificar en la doc oficial)
+    maker: 0.0002
+    taker: 0.0005
+    bnb_discount: 0.0  # 0.10 si se pagan comisiones con BNB
+  recv_window_ms: 5000
+
+risk:
+  risk_per_trade: 0.005          # 0.5 % del capital
+  max_daily_loss: 0.02           # 2 % -> sin entradas hasta 00:00 UTC
+  max_drawdown: 0.10             # 10 % desde el pico -> bot detenido, reinicio manual
+  max_consecutive_losses: 4
+  consecutive_loss_pause_hours: 4
+  max_leverage: 3
+  max_concurrent_positions: 2
+  max_net_exposure: 1.5          # nocional neto en una dirección / capital
+  max_positions_per_symbol: 1
+  min_stop_atr_multiple: 1.0     # stop mínimo = 1.0 × ATR(15m)
+  high_vol_percentile: 90
+  high_vol_size_factor: 0.5
+  correlation_threshold: 0.8
+  correlation_size_factor: 0.5
+  max_fee_share_of_target: 0.25
+
+limits:
+  max_trades_per_day: 5          # techo duro; nunca > 5 sin aprobación humana
+  base_trades_per_day: 3         # entradas 1..3 con filtros normales
+  extra_trade_min_edge: 4.0      # entradas 4 y 5: ventaja ≥ 4× costo
+  extra_trade_min_confidence: 0.75
+  losing_day_trade_cap: 3
+  losing_day_loss_count: 2       # 2 pérdidas en el día -> techo 3
+  losing_day_loss_pct: 0.01      # o −1 % en el día -> techo 3
+  max_trades_per_symbol_per_day: 2
+  symbol_cooldown_minutes: 60
+  reversal_cooldown_minutes: 240
+  candidate_window_minutes: 15
+
+filters:
+  min_edge_cost_multiple: 3.0
+  macro_block_before_min: 30
+  macro_block_after_min: 60
+  dangerous_funding_z: 2.5
+  oi_high_lookback_days: 30
+  extreme_vol_percentile: 98
+  max_spread_bps: 5
+  min_depth_multiple: 5          # profundidad top-10 ≥ 5× tamaño de la orden
+
+execution:
+  post_only_timeout_s: 20
+  post_only_retries: 1
+  market_entry_min_edge: 4.0
+  stop_confirm_timeout_s: 5      # si el stop no se confirma -> cerrar a mercado
+  reconcile_interval_s: 30
+
+position:
+  partial_take_r: 1.5
+  partial_take_fraction: 0.5
+  trailing_atr_multiple: 2.0
+  time_exit_hours: 6
+  time_exit_min_r: 0.5
+
+ai:
+  decision_model: claude-sonnet-5-5
+  reflection_model: claude-sonnet-5-5
+  news_model: claude-haiku-5-5
+  timeout_s: 30
+  max_calls_per_hour: 10
+  max_calls_per_day: 60
+  max_news_headlines: 8
+  max_active_lessons: 10
+  schema_retries: 1
+
+data:
+  ttl_s:
+    market: 5
+    funding: 60
+    open_interest: 900
+    dvol: 900
+    onchain: 43200
+    dex: 300
+    sentiment: 129600
+    news: 1800
+    macro: 86400
+  poll_s:
+    open_interest: 300
+    dvol: 120
+    onchain: 3600
+    dex: 60
+    sentiment: 3600
+    news: 90
+    macro: 86400
+  news_max_age_min: 30
+  dir: bot/data
+
+learning:
+  require_human_approval: true
+  challenger_min_cases: 50
+  challenger_min_trades: 20
+  lesson_expiry_days: 30
+  max_hypotheses_per_week: 3
+
+alerts:
+  telegram_enabled: false
+
+logging:
+  dir: bot/data/logs
+  level: INFO
+  backup_days: 30
