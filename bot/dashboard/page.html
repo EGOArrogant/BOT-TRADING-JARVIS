@@ -62,6 +62,21 @@ th{color:var(--ink2);font-weight:500;white-space:nowrap}td.n,th.n{text-align:rig
 .tag.ok{background:var(--good-bg);color:var(--good)}
 code{font-size:12px;background:var(--off-bg);padding:1px 5px;border-radius:4px}
 #err{display:none;margin-top:12px}
+.st-solo_cierre{color:var(--warn);background:var(--warn-bg)}
+.controls{display:grid;grid-template-columns:auto 1fr;gap:12px 28px;align-items:start;margin-top:12px}
+@media (max-width:820px){.controls{grid-template-columns:1fr}}
+.seg{display:inline-flex;border:1px solid var(--grid);border-radius:999px;padding:3px;gap:3px}
+.seg button{font:inherit;font-size:14px;padding:7px 16px;border-radius:999px;border:0;background:transparent;
+color:var(--ink2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--card);font-weight:600}
+.seg button:disabled,.btn:disabled{opacity:.5;cursor:default}
+.lvl-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lvl-row input[type=range]{flex:1;min-width:180px;accent-color:var(--series)}
+.lvl-num{font-size:22px;font-variant-numeric:tabular-nums;min-width:2.2em;text-align:center}
+.btn{font:inherit;font-size:13px;padding:6px 14px;border-radius:8px;border:1px solid var(--series);
+background:var(--series);color:#fff;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink2);border-color:var(--grid)}
+.ctl-label{color:var(--ink2);font-size:12px;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -77,6 +92,28 @@ code{font-size:12px;background:var(--off-bg);padding:1px 5px;border-radius:4px}
     </div>
   </header>
   <div class="card small" id="statusDetail" style="margin-top:12px"></div>
+  <section class="card controls" aria-label="Controles">
+    <div>
+      <div class="ctl-label">¿Abrir operaciones nuevas?</div>
+      <div class="seg" role="group" aria-label="Modo de operación">
+        <button type="button" id="btnOperar" aria-pressed="false">Operar</button>
+        <button type="button" id="btnCierre" aria-pressed="false">Solo cierre</button>
+      </div>
+      <div class="muted small" style="margin-top:6px;max-width:300px">Con "Solo cierre" no abre nada nuevo,
+        pero sigue cuidando y cerrando lo que ya está abierto.</div>
+    </div>
+    <div>
+      <div class="ctl-label">Agresividad (1 = muy prudente · 10 = el máximo que permiten las reglas de seguridad)</div>
+      <div class="lvl-row">
+        <span class="lvl-num" id="lvlNum">—</span>
+        <input type="range" id="lvl" min="1" max="10" step="1" aria-label="Agresividad">
+        <button type="button" class="btn" id="lvlSave" hidden>Guardar nivel</button>
+        <button type="button" class="btn ghost" id="lvlCancel" hidden>Cancelar</button>
+      </div>
+      <div class="small" id="lvlInfo" style="margin-top:6px"></div>
+      <div class="muted small" id="ctlMsg" style="margin-top:4px"></div>
+    </div>
+  </section>
   <div class="card neg" id="err"></div>
 
   <div class="kpis" id="kpis"></div>
@@ -132,7 +169,7 @@ code{font-size:12px;background:var(--off-bg);padding:1px 5px;border-radius:4px}
 </main>
 <script>
 "use strict";
-var D = null, SEL = null;
+var D = null, SEL = null, PENDING_LVL = null;
 var $ = function (id) { return document.getElementById(id); };
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
   return {"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]; }); }
@@ -351,7 +388,60 @@ function renderLearning() {
     '<div class="empty">Aún no ha aprendido nada confirmado. Una idea necesita al menos 50 casos para probarse.</div>';
 }
 
-function render() { renderHeader(); renderKpis(); renderTabs(); renderPrice(); renderEquity(); renderTables(); renderLearning(); }
+function levelInfo(lv) {
+  var L = (D.control.levels || [])[lv - 1];
+  if (!L) return "";
+  return "Arriesga " + (L.risk_per_trade * 100).toFixed(2).replace(".", ",") + "% del capital por operación · " +
+    "solo entra si lo esperado es ≥ " + String(L.min_edge).replace(".", ",") + "× el costo · " +
+    "máximo " + L.max_trades + " operaciones al día · " +
+    (L.min_ai_confidence > 0 ? "la IA debe estar al menos " + Math.round(L.min_ai_confidence * 100) + "% segura" :
+     "confianza de la IA según las reglas normales");
+}
+
+function renderControls() {
+  var c = D.control, solo = c.mode === "solo_cierre";
+  $("btnOperar").setAttribute("aria-pressed", String(!solo));
+  $("btnCierre").setAttribute("aria-pressed", String(solo));
+  var lv = PENDING_LVL != null ? PENDING_LVL : c.aggressiveness;
+  $("lvl").value = lv; $("lvlNum").textContent = lv;
+  $("lvlInfo").textContent = levelInfo(lv);
+  $("lvlSave").hidden = $("lvlCancel").hidden = PENDING_LVL == null;
+}
+
+function sendControl(body, msg) {
+  $("btnOperar").disabled = $("btnCierre").disabled = $("lvlSave").disabled = true;
+  return fetch("/api/control", {method: "POST", headers: {"Content-Type": "application/json", "X-Jarvis-Panel": "1"},
+    body: JSON.stringify(body)}).then(function (r) {
+      return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; });
+    }).then(function () { PENDING_LVL = null; $("ctlMsg").textContent = msg; load(); })
+    .catch(function (e) { $("ctlMsg").textContent = "No se pudo guardar: " + e.message; })
+    .finally(function () { $("btnOperar").disabled = $("btnCierre").disabled = $("lvlSave").disabled = false; });
+}
+
+$("btnCierre").onclick = function () {
+  if (D && D.control.mode === "solo_cierre") return;
+  sendControl({mode: "solo_cierre"}, "Listo: no abrirá operaciones nuevas. Las abiertas se siguen cuidando.");
+};
+$("btnOperar").onclick = function () {
+  if (!D || D.control.mode === "operar") return;
+  if (!confirm("¿Permitir que el bot vuelva a abrir operaciones nuevas?")) return;
+  sendControl({mode: "operar"}, "Listo: puede volver a abrir operaciones (a partir de su próxima revisión, máx. 15 min).");
+};
+$("lvl").oninput = function () {
+  PENDING_LVL = Number(this.value);
+  if (D && PENDING_LVL === D.control.aggressiveness) PENDING_LVL = null;
+  $("lvlNum").textContent = this.value; $("lvlInfo").textContent = levelInfo(Number(this.value));
+  $("lvlSave").hidden = $("lvlCancel").hidden = PENDING_LVL == null;
+};
+$("lvlCancel").onclick = function () { PENDING_LVL = null; renderControls(); $("ctlMsg").textContent = ""; };
+$("lvlSave").onclick = function () {
+  var lv = PENDING_LVL;
+  if (lv == null) return;
+  if (lv > D.control.aggressiveness && !confirm("Subir la agresividad a " + lv + " aumenta el riesgo. ¿Continuar?")) return;
+  sendControl({aggressiveness: lv}, "Nivel " + lv + " guardado. Se aplica en la próxima revisión del bot (máx. 15 min).");
+};
+
+function render() { renderHeader(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

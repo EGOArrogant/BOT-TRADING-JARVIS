@@ -357,6 +357,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Panel (`bot/dashboard/`, `python -m bot.main panel`): proceso aparte, solo lectura (SQLite en modo `ro`),
   solo `127.0.0.1`. Lo que solo vive en memoria (posiciones, precios) lo publica el motor cada minuto en
   `reports/<modo>/panel_vivo.json`; foto con > 3 min = "apagado".
+- Controles del panel (`core/control.py`, `reports/<modo>/control.json`): Operar/Solo cierre y agresividad 1–10.
+  Nivel 10 = config.yaml; niveles menores solo endurecen (`control.apply` re-valida). El motor los relee en cada
+  ventana y antes de ejecutar; ilegible = solo cierre. El POST exige Host local + cabecera `X-Jarvis-Panel`.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

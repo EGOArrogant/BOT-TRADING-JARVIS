@@ -19,6 +19,7 @@ from bot.ai_analyst.client import Analyst
 from bot.ai_analyst.prompt_builder import build_exit_prompt, build_user_prompt
 from bot.core.alerts import Alerter
 from bot.core.clock import Clock, ms_to_dt
+from bot.core import control
 from bot.core.config import Mode, Secrets, Settings
 from bot.core.health import HealthMonitor
 from bot.core.logging_setup import get_logger
@@ -56,7 +57,7 @@ from bot.metrics.exchange_reconcile import adopt_position, reconcile_income, rec
 from bot.metrics.performance import summarize
 from bot.metrics.report_html import write_report
 from bot.position.manager import PositionManager
-from bot.risk.engine import OpenExposure, RiskEngine, SymbolRules
+from bot.risk.engine import Check, OpenExposure, RiskEngine, SymbolRules
 
 log = get_logger("bot.engine")
 
@@ -86,6 +87,10 @@ class Engine:
         self.clock = clock or Clock()
         self.alert = alert or Alerter(False, None, None)
         self.risk = RiskEngine(settings.risk, settings.limits, settings.exchange)
+        # Controles del panel (Operar/Solo cierre, agresividad): `eff` es la config efectiva, nunca más laxa que `s`
+        self.eff = settings
+        self.control = control.Control()
+        self.profile = control.profile(control.MAX_LEVEL, settings)
         self.state = BotState.load_or_new(settings.storage.state_path, settings.paper.initial_capital,
                                           self.clock.trading_day())
         self.journal = comps.journal
@@ -161,6 +166,7 @@ class Engine:
         if self._last_window == window:
             return None
         self._last_window = window
+        ctl = self.refresh_control()
         self.risk.update_guards(self.state, now)
         events, macro_ok, macro_upd = self._macro()
         strategies = effective_strategies(self.s.strategies, self.overrides)
@@ -171,10 +177,12 @@ class Engine:
             fields, quality = self._fields(sym, now)
             snapshots[sym] = fields
             for sig in generate(sym, fields, strategies, self.s.exchange.fees, now, quality):
-                out = run_filters(sig, fields, now, self.state, self.risk, self.s.risk, self.s.filters, events,
+                out = run_filters(sig, fields, now, self.state, self.risk, self.eff.risk, self.eff.filters, events,
                                   macro_ok, macro_upd, exposures)
                 ok_learned, why = overrides_allow(self.overrides, sig, fields)
                 reasons = out.reasons + ([why] if not ok_learned else [])
+                if ctl.close_only:
+                    reasons.append("solo cierre: activado desde el panel")
                 self.journal.record_candidate(sig, REJECTED if reasons else NOT_SELECTED, reasons,
                                               self._flat(fields))
                 if not reasons:
@@ -191,11 +199,25 @@ class Engine:
         await self._decide_and_execute(best, fields, now)
         return best
 
+    def refresh_control(self) -> control.Control:
+        """Relee control.json; si cambió, recalcula la config efectiva y el motor de riesgo."""
+        ctl = control.load(control.path_for(self.s))
+        if (ctl.mode, ctl.aggressiveness) != (self.control.mode, self.control.aggressiveness) or self.eff is self.s:
+            self.eff, self.profile = control.apply(self.s, ctl)
+            self.risk = RiskEngine(self.eff.risk, self.eff.limits, self.s.exchange)
+            if (ctl.mode, ctl.aggressiveness) != (self.control.mode, self.control.aggressiveness):
+                log.info("controles del panel", extra={"mode": ctl.mode, "level": ctl.aggressiveness,
+                                                        "risk_per_trade": self.eff.risk.risk_per_trade,
+                                                        "min_edge": self.profile.min_edge,
+                                                        "max_trades": self.profile.max_trades})
+        self.control = ctl
+        return ctl
+
     def _shadow(self, sym, fields, strategies, now, events, macro_ok, macro_upd, exposures) -> None:
         for h in self.cc.active():
             for sig in generate(sym, fields, h.apply_params(strategies), self.s.exchange.fees, now,
                                 data_quality_from(fields)):
-                out = run_filters(sig, fields, now, self.state, self.risk, self.s.risk, self.s.filters, events,
+                out = run_filters(sig, fields, now, self.state, self.risk, self.eff.risk, self.eff.filters, events,
                                   macro_ok, macro_upd, exposures)
                 if out.passed and overrides_allow(self.overrides, sig, fields)[0]:
                     self.cc.record_shadow(h, sig, fields)
@@ -255,7 +277,11 @@ class Engine:
             exec_now = self.clock.now()
             fresh, _ = self._fields(sig.symbol, exec_now)
             m_events, m_ok, m_upd = self._macro()
-            for name, chk in (("techo_diario", self.risk.slot_check(self.state, exec_now, sig.edge_ratio, d.confidence)),
+            ctl, p = self.refresh_control(), self.profile
+            for name, chk in (("solo_cierre", Check(not ctl.close_only, "activado desde el panel")),
+                              ("agresividad", Check(d.confidence >= p.min_ai_confidence,
+                                                    f"nivel {p.level} exige confianza IA ≥ {p.min_ai_confidence:.2f}")),
+                              ("techo_diario", self.risk.slot_check(self.state, exec_now, sig.edge_ratio, d.confidence)),
                               ("guardias", self.risk.global_guard(self.state, exec_now)),
                               ("datos_al_ejecutar", check_data(fresh)),
                               ("macro_al_ejecutar", check_macro(exec_now, m_events, self.s.filters, m_ok, m_upd))):

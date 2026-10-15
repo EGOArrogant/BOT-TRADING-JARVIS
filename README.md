@@ -46,6 +46,13 @@ python -m bot.main panel --mode paper  # abre el panel en el navegador (http://1
   gráfico de precio de las últimas 48 h con entradas y cierres, posiciones abiertas con su stop, operaciones
   cerradas, decisiones recientes con el motivo, y las zonas "Aprendiendo" y "Aprendido". Solo lectura, solo
   en `127.0.0.1`, se actualiza cada 15 s. El bot le deja una foto cada minuto en `reports/<modo>/panel_vivo.json`.
+- **Controles del panel** (lo único que el panel puede cambiar, guardado en `reports/<modo>/control.json`):
+  - *Operar / Solo cierre*: con "Solo cierre" no abre nada nuevo (los candidatos se siguen registrando para
+    aprender) y sigue gestionando y cerrando lo abierto. Se revisa también justo antes de ejecutar.
+  - *Agresividad 1–10*: el 10 es exactamente `config.yaml` (el máximo que permiten las reglas). Bajar el nivel
+    reduce el riesgo por operación (hasta 40 %), sube la ventaja mínima (hasta +2×), exige más confianza a la IA
+    (hasta 0,70) y baja el techo diario (hasta 2). Nunca supera la configuración ni los topes duros.
+  - Se aplican en la siguiente ventana de 15 min, sin reiniciar. Un `control.json` ilegible = solo cierre.
 - `bot/reports/<modo>/reporte.html`: cada hora. Muestra KPIs, curva de capital, drawdown, tablas por moneda, dirección, estrategia, régimen, hora y salida, calibración de la IA, candidatos y contrafactuales. No se expone a internet.
 - `bot/reports/<modo>/zona_YYYY-MM-DD.md`: la zona de aprendizaje diaria, generada a las 00:05 UTC.
 - `bot/reports/<modo>/reflexion_YYYY-Www.md`: la reflexión semanal (lunes 00:30 UTC), con un máximo de 3 hipótesis.

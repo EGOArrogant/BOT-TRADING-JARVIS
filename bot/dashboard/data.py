@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from bot.core import control
 from bot.core.config import Settings
 from bot.core.state import BotState
 from bot.dashboard import snapshot
@@ -52,13 +53,29 @@ def _rows(db: sqlite3.Connection | None, sql: str, args: tuple = ()) -> list[dic
         return []
 
 
-def _status(settings: Settings, state: BotState | None, live: dict | None, now: datetime) -> dict[str, Any]:
+def control_view(settings: Settings) -> dict[str, Any]:
+    """Controles actuales y lo que significa cada nivel de agresividad (para el panel)."""
+    ctl = control.load(control.path_for(settings))
+    levels = []
+    for lv in range(1, control.MAX_LEVEL + 1):
+        eff, p = control.apply(settings, control.Control(aggressiveness=lv))
+        levels.append({"level": lv, "risk_per_trade": eff.risk.risk_per_trade, "min_edge": p.min_edge,
+                       "max_trades": p.max_trades, "min_ai_confidence": p.min_ai_confidence})
+    return {"mode": ctl.mode, "aggressiveness": ctl.aggressiveness,
+            "updated_at": ctl.updated_at.isoformat() if ctl.updated_at else None, "levels": levels}
+
+
+def _status(settings: Settings, state: BotState | None, live: dict | None, now: datetime,
+            close_only: bool = False) -> dict[str, Any]:
     if live is None or now - datetime.fromisoformat(live["updated_at"]) > STALE_AFTER:
         return {"code": "apagado", "label": "Apagado o sin conexión",
                 "detail": "El bot no ha actualizado el panel en los últimos minutos. Revisa que siga corriendo."}
     if state is None:
         return {"code": "operando", "label": "Operando", "detail": "Arrancando."}
     guard = RiskEngine(settings.risk, settings.limits, settings.exchange).global_guard(state, now)
+    if guard.ok and close_only:
+        return {"code": "solo_cierre", "label": "Solo cierre",
+                "detail": "No abre operaciones nuevas; sigue vigilando y cerrando las abiertas. Cámbialo con el botón."}
     if guard.ok:
         return {"code": "operando", "label": "Operando", "detail": "Buscando oportunidades."}
     code = "detenido" if state.halted else "pausado"
@@ -118,13 +135,15 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         if db is not None:
             db.close()
 
+    ctl = control_view(settings)
+    eff, _ = control.apply(settings, control.Control(aggressiveness=ctl["aggressiveness"]))
     capital = settings.paper.initial_capital
     equity = state.equity if state else capital
     positions = (live or {}).get("positions", [])
     unrealized = sum(p["pnl_unrealized"] or 0 for p in positions)
     s = summarize(trades, capital)
     curve = equity_curve(trades, capital)
-    risk = RiskEngine(settings.risk, settings.limits, settings.exchange)
+    risk = RiskEngine(eff.risk, eff.limits, settings.exchange)
     decisions = []
     for c in cands:
         reasons = json.loads(c["reasons"] or "[]")
@@ -136,7 +155,8 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "now": now.isoformat(),
         "mode": settings.mode.value,
         "symbols": settings.exchange.symbols,
-        "status": _status(settings, state, live, now),
+        "status": _status(settings, state, live, now, ctl["mode"] == "solo_cierre"),
+        "control": ctl,
         "updated_at": (live or {}).get("updated_at"),
         "kpis": {
             "capital_inicial": capital, "equity": equity, "unrealized": unrealized,
@@ -145,7 +165,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
             "pnl_hoy_pct": state.day_pnl_pct if state else 0.0,
             "drawdown": state.drawdown if state else 0.0,
             "entradas_hoy": len(state.entries_on(now.date())) if state else 0,
-            "techo_hoy": risk.daily_cap(state, now) if state else settings.limits.max_trades_per_day,
+            "techo_hoy": risk.daily_cap(state, now) if state else eff.limits.max_trades_per_day,
             "operaciones": s.get("n", 0), "acierto": s.get("win_rate"), "factor_beneficio": s.get("profit_factor"),
             "comisiones": s.get("fees", 0.0), "llamadas_ia_hoy": ai_today[0]["n"] if ai_today else 0,
             "cerradas_hoy": len(today), "pnl_cerradas_hoy": sum(float(t["pnl_net"]) for t in today),
