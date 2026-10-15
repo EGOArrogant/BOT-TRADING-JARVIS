@@ -96,3 +96,29 @@ XLMUSDT; vacío si ninguno) y direction (UP, DOWN, NEUTRAL). Responde solo con e
 
 def build_news_prompt(headlines: list[Headline]) -> str:
     return "\n".join(f"{i}. [{h.source}] {h.title}" for i, h in enumerate(headlines))
+
+
+EXIT_SYSTEM = """Eres el analista de riesgo de un bot de trading de perpetuos cripto. Revisas UNA \
+posición abierta porque llegó información nueva (una noticia relevante o la operación no avanza).
+
+Solo puedes recomendar CLOSE (cerrar ya, antes del stop o del objetivo) o HOLD (dejar que las reglas \
+del código sigan gestionándola). No puedes mover el stop, ampliar el riesgo ni mantener la posición \
+más allá del stop: eso no está en tu mano.
+
+Recomienda CLOSE solo si la tesis original quedó claramente invalidada por la información nueva \
+(por ejemplo, una noticia de alto impacto en contra). Los datos marcados "unknown" o "stale" son \
+desconocidos: no los supongas. Responde solo con el JSON del esquema."""
+
+
+def build_exit_prompt(position: dict, fields: dict[str, DataPoint], headlines: list[Headline],
+                      macro: list[MacroEvent], trigger: str, now: datetime) -> str:
+    payload = {
+        "hora_utc": now.isoformat(timespec="seconds"),
+        "motivo_de_revision": trigger,
+        "posicion": position,
+        "datos": summarize_fields(fields),
+        "titulares": [{"hora": h.published.isoformat(timespec="minutes"), "fuente": h.source, "titulo": h.title,
+                       "direccion_estimada": h.ai_direction} for h in headlines[:8]],
+        "eventos_macro_proximos": [{"evento": e.title, "hora": e.ts.isoformat(timespec="minutes")} for e in macro],
+    }
+    return "Revisa esta posición abierta:\n" + json.dumps(payload, ensure_ascii=False, indent=1, default=str)

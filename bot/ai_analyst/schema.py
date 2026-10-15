@@ -48,4 +48,14 @@ NEWS_SCHEMA = {
     "additionalProperties": False,
 }
 
-__all__ = ["DECISION_SCHEMA", "NEWS_SCHEMA", "Decision", "parse_decision"]
+EXIT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "action": {"type": "string", "enum": ["CLOSE", "HOLD"]},
+        "reason": {"type": "string"},
+    },
+    "required": ["action", "reason"],
+    "additionalProperties": False,
+}
+
+__all__ = ["EXIT_SCHEMA", "DECISION_SCHEMA", "NEWS_SCHEMA", "Decision", "parse_decision"]

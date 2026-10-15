@@ -109,3 +109,12 @@ def test_news_scoring_reorders_and_fails_safe():
     assert fake.calls[0]["model"] == "claude-haiku-5-5" and "fallbacks" not in fake.calls[0]
     broken = Analyst(S.ai, client=Fake([resp("xx")]))
     assert asyncio.run(broken.score_news(hs)) == hs
+
+
+def test_review_exit_fails_safe_to_hold():
+    a = Analyst(S.ai, client=Fake([resp(json.dumps({"action": "CLOSE", "reason": "noticia"}))]))
+    assert asyncio.run(a.review_exit("p")) == (True, "noticia")
+    for bad in (resp("roto"), resp("", stop="refusal"), RuntimeError("red")):
+        a = Analyst(S.ai, client=Fake([bad]))
+        close, _ = asyncio.run(a.review_exit("p"))
+        assert close is False

@@ -1,5 +1,6 @@
 """Prueba de punta a punta del orquestador en modo papel, sin red."""
 import asyncio
+from types import SimpleNamespace
 from datetime import datetime, timedelta
 
 import pytest
@@ -216,3 +217,55 @@ def test_data_going_stale_during_ai_call_blocks_execution(setup):
     cand = [c for c in eng.journal.candidates(now - timedelta(hours=1)) if c["id"] == sig.id][0]
     assert cand["status"] == "rechazado_riesgo" and "datos_al_ejecutar" in cand["reasons"][0]
     assert ex.orders == {}
+
+
+def _open_eth(eng, ex, states, now):
+    eth = states["ETHUSDT"]
+
+    async def run():
+        t = asyncio.create_task(_fill(eth, ex, eth.book.best_bid() - 0.5))
+        await eng.evaluate_window(now)
+        await t
+    asyncio.run(run())
+    assert "ETHUSDT" in eng.manager.positions
+
+
+class ExitAnalyst(FakeAnalyst):
+    def __init__(self, close):
+        super().__init__()
+        self.close, self.exit_calls = close, 0
+
+    async def review_exit(self, prompt):
+        self.exit_calls += 1
+        assert "Revisa esta posición" in prompt and "hack" in prompt.lower()
+        return self.close, "hackeo del puente de ETH, tesis invalidada"
+
+
+def _news(now):
+    from bot.data_engine.news import Headline
+    return SimpleNamespace(items=[Headline(title="Ethereum bridge hack drains funds", source="coindesk",
+                                           published=now - timedelta(minutes=2))])
+
+
+def test_ai_early_exit_on_high_impact_news(setup):
+    s, states, ex, now = setup
+    analyst = ExitAnalyst(close=True)
+    eng = make_engine(s, states, ex, analyst, now)
+    _open_eth(eng, ex, states, now)
+    eng.c.news = _news(now)
+    asyncio.run(eng.review_exits(now))
+    assert analyst.exit_calls == 1
+    asyncio.run(eng.tick(utc_now()))
+    trades = eng.journal.trades(now - timedelta(hours=1))
+    assert len(trades) == 1 and trades[0]["exit_reason"] == "ai_early_exit"
+
+
+def test_ai_early_exit_hold_and_no_repeat(setup):
+    s, states, ex, now = setup
+    analyst = ExitAnalyst(close=False)
+    eng = make_engine(s, states, ex, analyst, now)
+    _open_eth(eng, ex, states, now)
+    eng.c.news = _news(now)
+    asyncio.run(eng.review_exits(now))
+    asyncio.run(eng.review_exits(now + timedelta(minutes=31)))  # mismo titular: no se vuelve a consultar
+    assert analyst.exit_calls == 1 and "ETHUSDT" in eng.manager.positions

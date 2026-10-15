@@ -15,8 +15,8 @@ from typing import Any
 
 import anthropic
 
-from bot.ai_analyst.prompt_builder import NEWS_SYSTEM, SYSTEM_PROMPT, build_news_prompt
-from bot.ai_analyst.schema import DECISION_SCHEMA, NEWS_SCHEMA
+from bot.ai_analyst.prompt_builder import EXIT_SYSTEM, NEWS_SYSTEM, SYSTEM_PROMPT, build_news_prompt
+from bot.ai_analyst.schema import DECISION_SCHEMA, EXIT_SCHEMA, NEWS_SCHEMA
 from bot.core.config import AIConfig
 from bot.core.logging_setup import get_logger
 from bot.core.models import AIAction, Decision, Signal, parse_decision
@@ -126,6 +126,25 @@ class Analyst:
             return res
         return AnalystResult(Decision.no_trade("JSON inválido tras reintento"), False, "schema", raws, model_used,
                              tokens_in, tokens_out, time.monotonic() - t0)
+
+    async def review_exit(self, user_prompt: str) -> tuple[bool, str]:
+        """¿Cerrar antes? Ante cualquier falla: no cerrar (el stop y las reglas siguen protegiendo)."""
+        if not self.budget.available():
+            return False, "presupuesto de IA agotado"
+        self.budget.consume()
+        try:
+            resp = await asyncio.wait_for(
+                self._call(self.cfg.decision_model, EXIT_SYSTEM, user_prompt, EXIT_SCHEMA, self.cfg.decision_effort,
+                           2000),
+                timeout=self.cfg.timeout_s)
+            if getattr(resp, "stop_reason", None) == "refusal":
+                return False, "rechazo del modelo"
+            data = json.loads(_text_of(resp))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("revisión de salida falló", extra={"err": repr(exc)})
+            return False, "falla de la IA"
+        action, reason = data.get("action"), str(data.get("reason", ""))[:300]
+        return action == "CLOSE", reason
 
     async def score_news(self, headlines: list[Headline]) -> list[Headline]:
         """Clasificación barata (Haiku). Si falla, se devuelven los titulares sin puntuación IA."""

@@ -12,10 +12,11 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from bot.ai_analyst.client import Analyst
-from bot.ai_analyst.prompt_builder import build_user_prompt
+from bot.ai_analyst.prompt_builder import build_exit_prompt, build_user_prompt
 from bot.core.alerts import Alerter
 from bot.core.clock import Clock, ms_to_dt
 from bot.core.config import Mode, Secrets, Settings
@@ -110,6 +111,7 @@ class Engine:
         self._last_weekly: str | None = None
         self._pending_closed_15m: dict[str, float] = {}
         self._tasks: set[asyncio.Task] = set()
+        self._exit_reviews: dict[str, tuple[datetime, set[str]]] = {}  # símbolo -> (última, titulares vistos)
 
     # ------------------------------------------------------------ eventos de mercado
 
@@ -413,12 +415,69 @@ class Engine:
             self.alert(f"posición adoptada al arrancar: {ep.symbol} {ep.side.value} {ep.qty} stop="
                        f"{'sí' if stop else 'NO'}", level="warning")
 
+    # ------------------------------------------------------------ salida anticipada por IA
+
+    EXIT_REVIEW_MIN_INTERVAL = timedelta(minutes=30)
+    EXIT_NEWS_MIN_SCORE = 2.0
+
+    def _exit_trigger(self, pos: Position, headlines: list, now: datetime) -> tuple[str | None, set[str]]:
+        """Motivo para consultar a la IA: titular de alto impacto nuevo sobre la moneda, o
+        la operación lleva la mitad de su tiempo máximo en pérdida (una sola vez)."""
+        last, seen = self._exit_reviews.get(pos.signal_id, (None, set()))
+        if last is not None and now - last < self.EXIT_REVIEW_MIN_INTERVAL:
+            return None, seen
+        fresh = [h for h in headlines if pos.symbol in h.symbols and h.high_impact and h.score >= self.EXIT_NEWS_MIN_SCORE
+                 and h.title not in seen]
+        if fresh:
+            return f"noticia: {fresh[0].title}", seen | {h.title for h in fresh}
+        st = self.c.states[pos.symbol]
+        px = st.mark_price or st.last_price
+        half = now - pos.opened_at >= timedelta(hours=pos.max_hold_hours / 2)
+        if half and last is None and px is not None and float(pos.r_multiple(Decimal(str(px)))) < 0:
+            return "mitad del tiempo máximo en pérdida", seen
+        return None, seen
+
+    async def review_exits(self, now: datetime) -> None:
+        if self.manager is None or self.c.analyst is None or not self.manager.positions:
+            return
+        headlines = []
+        if self.c.news is not None:
+            headlines = score_headlines(self.c.news.items, now, self.s.news.symbol_keywords,
+                                        self.s.news.trusted_sources, self.s.news.high_impact_keywords,
+                                        self.s.data.news_max_age_min, self.s.news.dedupe_similarity, top_n=20)
+        events, _, _ = self._macro()
+        for sym, pos in list(self.manager.positions.items()):
+            trigger, seen = self._exit_trigger(pos, headlines, now)
+            if trigger is None:
+                continue
+            self._exit_reviews[pos.signal_id] = (now, seen)
+            st = self.c.states[sym]
+            px = st.mark_price or st.last_price
+            summary = {"simbolo": sym, "lado": pos.side.value, "estrategia": pos.strategy,
+                       "entrada": str(pos.entry_price), "stop": str(pos.stop_price),
+                       "r_actual": round(float(pos.r_multiple(Decimal(str(px)))), 3) if px else None,
+                       "horas_abierta": round((now - pos.opened_at).total_seconds() / 3600, 2),
+                       "tesis_invalidacion": pos.invalidation}
+            fields, _ = self._fields(sym, now)
+            prompt = build_exit_prompt(summary, fields, [h for h in headlines if sym in h.symbols],
+                                       upcoming(now, events, 12), trigger, now)
+            close, reason = await self.c.analyst.review_exit(prompt)
+            self.journal.record_event(now, "revision_salida_ia", {"symbol": sym, "trigger": trigger,
+                                                                   "close": close, "reason": reason})
+            if close and sym in self.manager.positions:
+                self.alert(f"IA recomienda cerrar {sym} antes: {reason}", level="warning")
+                await self.manager.request_close(sym, "ia")
+
     async def housekeeping(self, now: datetime) -> None:
         self.state.roll_day(now.date())
         await self._refresh_equity()
         self.risk.update_guards(self.state, now)
         self.state.save(self.s.storage.state_path)
         self._resolve_counterfactuals(now)
+        try:
+            await self.review_exits(now)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("revisión de salidas falló", extra={"err": repr(exc)})
         down, up = self.health.check(now)
         for src in down:
             self.alert(f"fuente caída: {src}", level="warning")
