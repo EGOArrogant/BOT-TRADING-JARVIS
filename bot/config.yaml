@@ -139,8 +139,8 @@ endpoints:
     ws_public: wss://fstream.binance.com/public     # depth, bookTicker
     ws_market: wss://fstream.binance.com/market     # aggTrade, kline, markPrice
     ws_private: wss://fstream.binance.com/private   # user data (listenKey)
-  binance_testnet:
-    rest: https://demo-fapi.binance.com
+  binance_testnet:    # los datos de mercado se toman siempre de producción; aquí solo órdenes
+    rest: https://testnet.binancefuture.com    # verificado en doc oficial (vía búsqueda)
     ws_public: wss://fstream.binancefuture.com/public
     ws_market: wss://fstream.binancefuture.com/market
     ws_private: wss://fstream.binancefuture.com/private
