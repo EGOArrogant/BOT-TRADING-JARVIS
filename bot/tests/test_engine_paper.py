@@ -198,3 +198,21 @@ def test_hourly_report_and_daily_zone(setup):
     assert (s.storage.reports_dir / "reporte.html").exists()
     asyncio.run(eng.daily_tasks(now))
     assert list(s.storage.reports_dir.glob("zona_*.md"))
+
+
+def test_data_going_stale_during_ai_call_blocks_execution(setup):
+    s, states, ex, now = setup
+
+    class SlowAnalyst(FakeAnalyst):
+        async def decide(self, sig, prompt):
+            # mientras "piensa", el WebSocket se cae: el precio deja de actualizarse
+            for st in states.values():
+                st.last_trade_ms -= 60_000
+                st.mark_ms -= 60_000
+            return await super().decide(sig, prompt)
+
+    eng = make_engine(s, states, ex, SlowAnalyst(), now)
+    sig = asyncio.run(eng.evaluate_window(now))
+    cand = [c for c in eng.journal.candidates(now - timedelta(hours=1)) if c["id"] == sig.id][0]
+    assert cand["status"] == "rechazado_riesgo" and "datos_al_ejecutar" in cand["reasons"][0]
+    assert ex.orders == {}

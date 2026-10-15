@@ -39,7 +39,7 @@ from bot.data_engine.volatility import DvolPoller
 from bot.execution.base import Exchange
 from bot.execution.executor import Executor
 from bot.execution.paper import PaperExchange
-from bot.filters.checks import run_filters, select_best
+from bot.filters.checks import check_data, check_macro, run_filters, select_best
 from bot.filters.strategies import generate
 from bot.indicators import ta
 from bot.indicators.features import compute_features
@@ -246,9 +246,14 @@ class Engine:
             if d.action is AIAction.NO_TRADE:
                 self.journal.update_candidate(sig.id, status=AI_REJECTED, reasons=[f"IA: {res.reason}: {d.thesis}"])
                 return
-            # Re-chequeos con la confianza de la IA y el estado actual
-            for name, chk in (("techo_diario", self.risk.slot_check(self.state, now, sig.edge_ratio, d.confidence)),
-                              ("guardias", self.risk.global_guard(self.state, now))):
+            # Re-chequeos tras la IA (puede tardar hasta 30 s): confianza, guardias y datos aún frescos
+            exec_now = self.clock.now()
+            fresh, _ = self._fields(sig.symbol, exec_now)
+            m_events, m_ok, m_upd = self._macro()
+            for name, chk in (("techo_diario", self.risk.slot_check(self.state, exec_now, sig.edge_ratio, d.confidence)),
+                              ("guardias", self.risk.global_guard(self.state, exec_now)),
+                              ("datos_al_ejecutar", check_data(fresh)),
+                              ("macro_al_ejecutar", check_macro(exec_now, m_events, self.s.filters, m_ok, m_upd))):
                 if not chk.ok:
                     self.journal.update_candidate(sig.id, status=RISK_REJECTED, reasons=[f"{name}: {chk.reason}"])
                     return
@@ -272,6 +277,14 @@ class Engine:
                 self._in_flight.discard(sig.symbol)
             if result.position is None:
                 self.journal.update_candidate(sig.id, status=NO_FILL, reasons=[result.reason])
+                eo = result.entry_order
+                if eo is not None and eo.filled_qty > 0:
+                    # Se llenó pero se cerró por falta de stop: consumió riesgo y cupo -> cuenta como entrada
+                    self.state.record_entry(EntryRecord(symbol=sig.symbol, side=sig.side, ts=now,
+                                                        edge_ratio=sig.edge_ratio, signal_id=sig.id))
+                    self.state.save(self.s.storage.state_path)
+                    self.journal.record_event(now, "entrada_sin_stop", {"symbol": sig.symbol, "signal": sig.id,
+                                                                         "qty": str(eo.filled_qty)})
                 return
             self.manager.add(result.position, rules)
             self.state.record_entry(EntryRecord(symbol=sig.symbol, side=sig.side, ts=now, edge_ratio=sig.edge_ratio,

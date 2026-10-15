@@ -109,8 +109,11 @@ class Executor:
 
         if use_market:
             cid = client_id("ent", sig.id, 9)
-            filled = await self._place_idempotent(
-                sig.symbol, cid, lambda: self.ex.place_market(sig.symbol, side, qty_d, cid))
+            try:
+                filled = await self._place_idempotent(
+                    sig.symbol, cid, lambda: self.ex.place_market(sig.symbol, side, qty_d, cid))
+            except ExchangeError as exc:
+                return EntryResult(None, f"entrada a mercado rechazada: {exc}")
         else:
             for attempt in range(1 + self.cfg.post_only_retries):
                 if attempt > 0 and not still_valid():

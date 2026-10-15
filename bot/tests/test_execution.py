@@ -201,3 +201,35 @@ def test_post_only_rejected_if_crossing():
     st, ex, exe, _ = setup()
     o = asyncio.run(ex.place_limit("ETHUSDT", OrderSide.BUY, Decimal(1), Decimal("100.02"), "x1", post_only=True))
     assert o.status is OrderStatus.EXPIRED
+
+
+def test_trailing_does_not_spam_stop_orders():
+    st, ex, exe, _ = setup()
+    pos = _open(ex, exe, st)
+    pm = PositionManager(ex, exe, {"ETHUSDT": st}, S.position, on_closed=lambda t, p: None)
+    pm.add(pos, RULES)
+    trade(st, 101.6, ex)  # parcial -> stop a equilibrio (siempre permitido)
+    t0 = utc_now()
+    asyncio.run(pm.tick(t0, {"ETHUSDT": 0.5}, {}, macro_soon=False))
+    first_stop = pos.stop_price
+    assert first_stop >= pos.entry_price
+    # 60 ticks de 1 s con el precio subiendo un poco en cada uno
+    for i in range(60):
+        px = 101.6 + 0.01 * (i + 1)
+        st.mark_price = px
+        asyncio.run(pm.tick(t0 + timedelta(seconds=i + 1), {"ETHUSDT": 0.5}, {}, macro_soon=False))
+    stops = [o for o in ex.orders.values() if o.type.value == "STOP_MARKET"]
+    assert len(stops) <= 3  # inicial + equilibrio + a lo sumo 1 trailing en el minuto
+    assert sum(1 for o in stops if o.is_open) == 1  # nunca más de un stop vivo
+
+
+def test_market_entry_rejection_is_reported():
+    class Broken(PaperExchange):
+        async def place_market(self, *a, **k):
+            raise ExchangeError("insufficient margin")
+
+    st = market()
+    ex = Broken({"ETHUSDT": st}, S.exchange.fees, 10_000, latency_ms=0)
+    exe = Executor(ex, {"ETHUSDT": st}, FAST, S.position, poll_s=0.02)
+    res = asyncio.run(exe.open_position(sig(urgent=True), 10, RULES, edge_ratio=5, still_valid=lambda: True))
+    assert res.position is None and "rechazada" in res.reason

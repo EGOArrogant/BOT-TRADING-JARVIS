@@ -28,6 +28,9 @@ D = Decimal
 # Pagar más que esto en un solo cobro de funding sin ganancia -> evaluar cierre
 FUNDING_ALERT_RATE = 0.0005
 FUNDING_LOOKAHEAD = timedelta(minutes=15)
+# Mover el stop cuesta una orden nueva: como mucho 1 vez por minuto y con mejora mínima
+STOP_MOVE_MIN_INTERVAL = timedelta(seconds=60)
+STOP_MOVE_MIN_ATR = 0.1
 
 REASON_MAP = {
     "invalidacion": ExitReason.INVALIDATION, "tiempo": ExitReason.TIME, "tiempo_max": ExitReason.TIME,
@@ -72,10 +75,32 @@ class PositionManager:
         self.positions: dict[str, Position] = {}
         self.rules: dict[str, SymbolRules] = {}
         self._pending_reason: dict[str, str] = {}
+        self._last_stop_move: dict[str, datetime] = {}
 
     def add(self, pos: Position, rules: SymbolRules) -> None:
         self.positions[pos.symbol] = pos
         self.rules[pos.symbol] = rules
+
+    def _stop_move_allowed(self, pos: Position, new_stop: float, atr: float | None, reason: str,
+                           now: datetime) -> bool:
+        """Evita una orden de stop nueva por cada tick: intervalo mínimo y mejora mínima.
+
+        El primer movimiento a equilibrio (tras el parcial o antes de un evento macro) siempre pasa.
+        """
+        cur = float(pos.stop_price)
+        gain = new_stop - cur if pos.side is Side.LONG else cur - new_stop
+        if gain <= 0:
+            return False
+        reaches_be = (new_stop >= float(pos.entry_price)) if pos.side is Side.LONG else \
+            (new_stop <= float(pos.entry_price))
+        at_or_past_be = (cur >= float(pos.entry_price)) if pos.side is Side.LONG else (cur <= float(pos.entry_price))
+        if reaches_be and not at_or_past_be:
+            return True
+        last = self._last_stop_move.get(pos.symbol)
+        if last is not None and now - last < STOP_MOVE_MIN_INTERVAL:
+            return False
+        min_step = STOP_MOVE_MIN_ATR * atr if atr else float(self.rules[pos.symbol].tick_size) * 2
+        return gain >= min_step
 
     def _exit_reason(self, pos: Position, fills: list[Fill]) -> ExitReason:
         pending = self._pending_reason.pop(pos.symbol, None)
@@ -95,6 +120,7 @@ class PositionManager:
         trade = build_trade(pos, fills, funding, self._exit_reason(pos, fills), now)
         await self.executor.cancel_all(pos.symbol)
         self.positions.pop(pos.symbol, None)
+        self._last_stop_move.pop(pos.symbol, None)
         log.info("posición cerrada", extra={"symbol": pos.symbol, "reason": trade.exit_reason.value,
                                             "pnl_net": str(trade.pnl_net), "r": str(round(trade.r_multiple, 3))})
         res = self.on_closed(trade, pos)
@@ -145,5 +171,8 @@ class PositionManager:
                     await self.request_close(sym, act.reason)
                     break
                 if act.kind is ActionKind.MOVE_STOP and act.price is not None:
-                    await self.executor.replace_stop(pos, D(str(act.price)), self.rules[sym],
-                                                     tag=f"{act.reason}-{int(now.timestamp())}")
+                    if not self._stop_move_allowed(pos, act.price, atr_15m.get(sym), act.reason, now):
+                        continue
+                    if await self.executor.replace_stop(pos, D(str(act.price)), self.rules[sym],
+                                                        tag=f"{act.reason}-{int(now.timestamp())}"):
+                        self._last_stop_move[sym] = now
