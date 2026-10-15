@@ -80,6 +80,10 @@ ai:
   max_news_headlines: 8
   max_active_lessons: 10
   schema_retries: 1
+  decision_effort: medium
+  news_effort: low
+  refusal_fallback: true
+  max_news_calls_per_hour: 20
 
 data:
   ttl_s:

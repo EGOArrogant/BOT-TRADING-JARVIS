@@ -128,6 +128,10 @@ class AIConfig(_Strict):
     max_news_headlines: int = Field(ge=0, le=8)
     max_active_lessons: int = Field(ge=0, le=10)
     schema_retries: int = Field(ge=0, le=1)
+    decision_effort: str = Field(default="medium", pattern="^(low|medium|high|xhigh|max)$")
+    news_effort: str = Field(default="low", pattern="^(low|medium|high|xhigh|max)$")
+    refusal_fallback: bool = True      # fallback server-side ante rechazos de seguridad
+    max_news_calls_per_hour: int = Field(default=20, ge=0)
 
 
 class DataConfig(_Strict):
