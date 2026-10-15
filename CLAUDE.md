@@ -297,7 +297,7 @@ PnL neto, expectativa en R, factor de beneficio, tasa de acierto, ganancia/pérd
 |---|---|---|
 | `record` | Solo graba datos | 7 días seguidos con < 1% de datos perdidos y reconexión probada |
 | `backtest` | Prueba la parte determinista con costos reales, walk-forward | Expectativa positiva fuera de muestra |
-| `paper` | Todo en vivo, órdenes simuladas, IA real | ≥ 6 semanas y ≥ 60 operaciones (lo que tarde más), factor de beneficio > 1.3, drawdown < 15% |
+| `paper` | Todo en vivo, órdenes simuladas, IA real | ≥ 6 semanas y ≥ 60 operaciones (lo que tarde más), factor de beneficio > 1.3, drawdown < 8% (antes 15%: nunca podía fallar con la detención al 10%) |
 | `testnet` | Órdenes reales en testnet de Binance | 1–2 semanas sin órdenes huérfanas ni posiciones sin stop |
 | `live` | Dinero real, capital mínimo, apalancamiento ≤ 3× | 4 semanas con resultados similares a `paper`; escalar en pasos de 25% |
 
@@ -352,6 +352,8 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   `AsOfStore` (cada barra solo ve datos con fecha ≤ su cierre). Puertas en `bot/gates.py`.
 - Salida anticipada por IA: solo puede cerrar antes (noticia de alto impacto o mitad del tiempo en pérdida);
   ante falla, mantener. El trailing mueve el stop como mucho 1 vez/min y con mejora ≥ 0.1×ATR.
+- Stream privado de usuario (`execution/user_stream.py`, `/private/ws/<listenKey>`): cualquier evento de cuenta
+  despierta al gestor; con el stream sano se consulta cada 5 s, sin él cada 1 s. La verdad sigue siendo el REST.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

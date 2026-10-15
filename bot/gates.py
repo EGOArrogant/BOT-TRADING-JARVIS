@@ -17,7 +17,7 @@ from bot.metrics.performance import summarize
 PAPER_MIN_DAYS = 42
 PAPER_MIN_TRADES = 60
 PAPER_MIN_PF = 1.3
-PAPER_MAX_DD = 0.15
+PAPER_MAX_DD = 0.08   # < 10 % de la detención: la spec decía 15 %, que nunca podía fallar
 TESTNET_MIN_DAYS = 7
 TESTNET_BAD_EVENTS = ("posicion_sin_stop", "posicion_huerfana", "orden_huerfana")
 RECORD_DAYS = 7

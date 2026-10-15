@@ -111,7 +111,9 @@ class Engine:
         self._last_weekly: str | None = None
         self._pending_closed_15m: dict[str, float] = {}
         self._tasks: set[asyncio.Task] = set()
-        self._exit_reviews: dict[str, tuple[datetime, set[str]]] = {}  # símbolo -> (última, titulares vistos)
+        self._exit_reviews: dict[str, tuple[datetime, set[str]]] = {}
+        self.user_stream: Any = None          # UserStream si el exchange es real
+        self._wake = asyncio.Event()          # lo dispara un evento de cuenta  # símbolo -> (última, titulares vistos)
 
     # ------------------------------------------------------------ eventos de mercado
 
@@ -578,6 +580,32 @@ class Engine:
                 log.error("bucle falló", extra={"fn": fn.__name__, "err": repr(exc)})
             await asyncio.sleep(every_s)
 
+    # ------------------------------------------------------------ stream de usuario
+
+    def on_account_event(self, event: str, data: dict) -> None:
+        """Evento del stream privado (orden, algo orden, posición): revisar posiciones ya."""
+        self._wake.set()
+
+    def tick_interval(self) -> float:
+        """Papel: 1 s (simula llenados). Real con stream sano: 5 s + despertar por eventos. Sin stream: 1 s."""
+        if isinstance(self.c.exchange, PaperExchange):
+            return 1.0
+        if self.user_stream is not None and self.user_stream.connected:
+            return 5.0
+        return 1.0
+
+    async def _tick_loop(self) -> None:
+        while True:
+            try:
+                await self.tick(self.clock.now())
+            except Exception as exc:  # noqa: BLE001
+                log.error("bucle falló", extra={"fn": "tick", "err": repr(exc)})
+            self._wake.clear()
+            try:
+                await asyncio.wait_for(self._wake.wait(), timeout=self.tick_interval())
+            except TimeoutError:
+                pass
+
     async def run(self) -> None:
         now = self.clock.now()
         if self.state.halted:
@@ -585,7 +613,7 @@ class Engine:
         await self.adopt_existing(now)
         await self.reconcile(now)
         await asyncio.gather(
-            self._loop(1.0, self.tick),
+            self._tick_loop(),
             self._loop(self.s.execution.reconcile_interval_s, self.reconcile),
             self._loop(60.0, self.housekeeping),
             *(make() for make in self.c.extra_tasks),
@@ -670,6 +698,10 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
         await ex.load_rules()
         for s in settings.exchange.symbols:
             await ex.set_leverage(s, int(settings.risk.max_leverage))
+        from bot.execution.user_stream import UserStream
+        eps = settings.endpoints.binance_testnet if settings.mode is Mode.TESTNET else settings.endpoints.binance
+        engine.user_stream = UserStream(ex, eps.ws_private, engine.on_account_event)
+        comps.extra_tasks.append(engine.user_stream.run)
     elif isinstance(ex, PaperExchange):
         for sym, meta in info.items():
             f = {x["filterType"]: x for x in meta.get("filters", [])}
