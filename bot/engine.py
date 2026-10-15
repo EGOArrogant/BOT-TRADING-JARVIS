@@ -606,12 +606,14 @@ def build_components(settings: Settings, secrets: Secrets) -> tuple[Components, 
 
     symbols = settings.exchange.symbols
     states = {s: MarketState(s) for s in symbols}
-    store = FeedStore()
+    recorder = Recorder(settings.data.dir)
+    # Todo valor de las fuentes REST se graba: así el backtest puede reproducir OI/funding/DEX/sentimiento
+    store = FeedStore(on_set=lambda k, v, src, ts: recorder.record(
+        "store", {"k": k, "v": v, "src": src, "ts": ts.isoformat()}, ts))
     http = HttpClient(RateLimiter({"binance": (1500, 60.0), "binance_data": (800, 300.0), "deribit": (20, 1.0),
                                    "hyperliquid": (100, 60.0), "alternative_me": (30, 60.0), "defillama": (30, 60.0),
                                    "horizon": (60, 60.0), "forexfactory": (5, 60.0), "rss": (60, 60.0),
                                    "cryptopanic": (5, 60.0)}))
-    recorder = Recorder(settings.data.dir)
     ep = settings.endpoints.binance  # datos de mercado siempre de producción (públicos)
     journal = Journal(settings.storage.db_path)
 
@@ -701,8 +703,13 @@ async def run_record(settings: Settings, secrets: Secrets, alert: Alerter) -> No
     await market.load_funding_intervals()
     engine = Engine(settings, secrets, comps, alert=alert)
 
+    seen_reconnects = {"n": 0}
+
     async def stats(now: datetime) -> None:
         recorder.flush()
+        if market.reconnects > seen_reconnects["n"]:
+            engine.journal.record_event(now, "reconexion", {"total": market.reconnects})
+            seen_reconnects["n"] = market.reconnects
         gaps = {s: st.candles["1m"].gaps(60_000) for s, st in comps.states.items()}
         engine.health.write(now, {"mode": "record", "counts": dict(recorder.counts), "kline_1m_gaps": gaps,
                                   "reconnects": market.reconnects, "connected": market.connected})

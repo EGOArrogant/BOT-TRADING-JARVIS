@@ -17,7 +17,7 @@ from bot.core.config import Settings
 from bot.core.models import DataPoint, Side, Signal
 from bot.core.state import BotState, CloseRecord, EntryRecord
 from bot.data_engine.market_state import INTERVAL_MS, Candle, MarketState
-from bot.data_engine.store import FeedStore
+from bot.data_engine.store import AsOfStore, FeedStore
 from bot.filters.checks import check_dangerous_leverage, check_edge, check_extreme_vol, select_best
 from bot.filters.strategies import generate
 from bot.indicators.features import compute_features
@@ -125,7 +125,29 @@ class Backtester:
         self.spread_bps = assumed_spread_bps
         self.funding_1h = funding_rate_1h
         self.store = store or FeedStore()
+        self._scratch: dict[str, FeedStore] = {}
         self.warmup = warmup_bars_15m
+
+    def _funding_1h(self, sym: str, asof: datetime) -> float:
+        """Funding por hora a la fecha: el grabado si existe, si no el supuesto."""
+        rate = self.store.value_at_or_before(f"deriv.funding_hist.{sym}", asof)
+        return rate / 8.0 if rate is not None else self.funding_1h
+
+    def _features(self, sym: str, state: MarketState, asof: datetime) -> dict[str, DataPoint]:
+        """Indicadores con una vista del almacén congelada en `asof` (sin mirar al futuro)."""
+        view = AsOfStore(self.store, asof, self._scratch.setdefault(sym, FeedStore()))
+        rate = view.value_at_or_before(f"deriv.funding_hist.{sym}", asof)
+        state.funding_rate = rate
+        state.mark_ms = int(asof.timestamp() * 1000) if rate is not None else None
+        f = compute_features(state, view, asof)  # type: ignore[arg-type]
+        f["market.spread_bps"] = DataPoint.ok(self.spread_bps, "assumed", asof)
+        f["funding.rate_1h"] = DataPoint.ok(self._funding_1h(sym, asof), "replay" if rate is not None else "assumed",
+                                            asof)
+        for key in ("sent.fng", "dex.funding_1h"):
+            dp = view.get(key if key == "sent.fng" else f"{key}.{sym}")
+            if dp.is_ok and dp.ts is not None and asof - dp.ts <= timedelta(hours=36):
+                f[key] = dp
+        return f
 
     def _fees(self, maker: bool) -> float:
         return fee_rate(self.s.exchange.fees, maker)
@@ -190,9 +212,7 @@ class Backtester:
             for sym in symbols:
                 if by_time[sym].get(t) is None:
                     continue
-                f = compute_features(states[sym], self.store, bar_close)
-                f["market.spread_bps"] = DataPoint.ok(self.spread_bps, "assumed", bar_close)
-                f["funding.rate_1h"] = DataPoint.ok(self.funding_1h, "assumed", bar_close)
+                f = self._features(sym, states[sym], bar_close)
                 for sig in generate(sym, f, strategies, self.s.exchange.fees, bar_close, quality=1.0):
                     candidates += 1
                     checks = [check_edge(sig, self.s.filters), check_extreme_vol(f, self.s.filters),
@@ -250,7 +270,7 @@ class Backtester:
     def _manage(self, p: _OpenPos, bar: Candle, ts: datetime, state: MarketState) -> BtTrade | None:
         side, v = p.sig.side, p.view
         long = side is Side.LONG
-        p.funding += p.qty * bar.close * self.funding_1h * 0.25 * (1 if long else -1)
+        p.funding += p.qty * bar.close * self._funding_1h(p.sig.symbol, ts) * 0.25 * (1 if long else -1)
         # Stop primero (conservador)
         stop_hit = bar.low <= v.stop if long else bar.high >= v.stop
         if stop_hit:

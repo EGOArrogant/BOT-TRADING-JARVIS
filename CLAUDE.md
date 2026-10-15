@@ -348,6 +348,10 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Convención de deslizamiento: positivo = en contra (costo). Funding en `Trade`: positivo = cobrado.
 - Orquestador: `bot/engine.py`. Reglas de gestión compartidas por vivo y backtest: `bot/position/rules.py`.
 - Cada modo usa su propia base de datos/estado/reportes (`bot_<modo>.sqlite`).
+- Todo valor de fuentes REST se graba (fuente `store` del recorder) y el backtest lo reproduce con
+  `AsOfStore` (cada barra solo ve datos con fecha ≤ su cierre). Puertas en `bot/gates.py`.
+- Salida anticipada por IA: solo puede cerrar antes (noticia de alto impacto o mitad del tiempo en pérdida);
+  ante falla, mantener. El trailing mueve el stop como mucho 1 vez/min y con mejora ≥ 0.1×ATR.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

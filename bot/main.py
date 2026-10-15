@@ -95,20 +95,27 @@ async def run_backtest(settings: Settings, days: int = 120) -> int:
         data[sym] = await cached_klines(http, settings.endpoints.binance.rest, settings.data.dir / "klines", sym,
                                         "15m", start, end)
     await http.close()
-    bt = Backtester(settings)
+    from bot.data_engine.store import load_recorded_store
+    day_list = [(start + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days + 1)]
+    store = load_recorded_store(settings.data.dir / "raw", day_list)
+    bt = Backtester(settings, store=store)
     total = bt.run(data).summary()
     folds = walk_forward(bt, data, folds=4)
     out = settings.storage.reports_dir / f"backtest_{end:%Y%m%d}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     lines = [f"# Backtest {start:%Y-%m-%d} → {end:%Y-%m-%d} (parte determinista, sin IA)", "",
              "Supuestos: entrada maker solo si el precio atraviesa el límite; stop gana si coincide con objetivo;"
-             " salidas taker con deslizamiento; funding 0.01%/8h. Sin datos de OI históricos completos la"
-             " estrategia de ruptura y la de funding no generan señales (requieren datos grabados).", "",
+             " salidas taker con deslizamiento; funding grabado si existe (si no, 0.01%/8h). Las estrategias de"
+             " ruptura y de funding solo generan señales donde hay OI/funding/DEX/sentimiento grabados"
+             " (modo record).", "",
              "## Total", "```", json.dumps(total, indent=1, default=str), "```", "", "## Walk-forward (tramos)"]
     for i, f in enumerate(folds):
         lines.append(f"- tramo {i + 1}: n={f['trades']} pnl={f['pnl_net']:+.2f} expectativa={f['expectancy_r']:+.3f}R "
                      f"PF={f['profit_factor']:.2f} DD={f['max_drawdown']:.2%}")
     passed = all(f["expectancy_r"] > 0 for f in folds if f["trades"] > 0) and any(f["trades"] for f in folds)
+    (settings.data.dir / "backtest_gate.json").write_text(json.dumps(
+        {"ok": passed, "fecha": end.isoformat(), "dias": days, "tramos": folds, "total": total}, default=str, indent=1),
+        encoding="utf-8")
     lines += ["", f"**Puerta de fase (expectativa positiva fuera de muestra en todos los tramos): "
                   f"{'PASA' if passed else 'NO PASA'}**"]
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -120,9 +127,9 @@ def cmd_gates(settings: Settings, do_approve: bool) -> int:
     from bot import gates
 
     data_dir = settings.data.dir
-    res = gates.approve(data_dir, settings.paper.initial_capital) if do_approve else {
-        "paper": gates.paper_gate(data_dir / "bot_paper.sqlite", settings.paper.initial_capital),
-        "testnet": gates.testnet_gate(data_dir / "bot_testnet.sqlite")}
+    symbols = settings.exchange.symbols
+    res = gates.approve(data_dir, settings.paper.initial_capital, symbols) if do_approve else \
+        gates.all_gates(data_dir, settings.paper.initial_capital, symbols)
     print(json.dumps({k: {kk: vv for kk, vv in v.items() if kk != "resumen"} for k, v in res.items()},
                      indent=1, ensure_ascii=False, default=str))
     print("live permitido:", gates.live_allowed(data_dir))

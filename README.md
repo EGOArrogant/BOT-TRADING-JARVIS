@@ -19,8 +19,8 @@ cp .env.example .env    # rellena las llaves (sin permiso de retiro, con lista b
 
 | Comando | Qué hace |
 |---|---|
-| `python -m bot.main --mode record` | Solo graba datos (JSONL por fuente y día en `bot/data/raw/`) y mide completitud en `bot/data/health.json`. |
-| `python -m bot.main --mode backtest` | Descarga 120 días de velas de 15m, corre la parte determinista con costos y walk-forward en 4 tramos. Reporte en `bot/reports/`. |
+| `python -m bot.main --mode record` | Solo graba datos (JSONL por fuente y día en `bot/data/raw/`, incluidas las series REST: OI, funding, DEX, sentimiento). Puerta: 7 días seguidos con < 1 % de velas perdidas y una reconexión registrada. |
+| `python -m bot.main --mode backtest` | Descarga 120 días de velas de 15m y usa lo grabado (sin mirar al futuro) para OI/funding/DEX. Walk-forward en 4 tramos; la puerta pasa si todos los tramos tienen expectativa positiva. |
 | `python -m bot.main --mode paper` | Todo en vivo con IA real; órdenes simuladas sobre el libro real. |
 | `python -m bot.main --mode testnet` | Órdenes reales en el testnet de Binance (datos de mercado de producción). |
 | `python -m bot.main --mode live` | Dinero real. Exige puertas aprobadas, `CONFIRM_LIVE_TRADING=true` y escribir la frase de confirmación. |
@@ -31,7 +31,7 @@ y sus reportes (`bot/reports/<modo>/`): papel, testnet y live nunca se mezclan.
 ### Otros comandos
 
 ```bash
-python -m bot.main gates               # estado de las puertas de fase (paper y testnet)
+python -m bot.main gates               # estado de las 4 puertas: record, backtest, paper, testnet
 python -m bot.main gates --approve     # registra la aprobación SOLO si las métricas pasan
 python -m bot.main approve <id>        # aprueba un cambio aprendido pendiente (ver reports/<modo>/cambios.md)
 python -m bot.main reset-halt --mode live   # reinicio manual tras detención por drawdown del 10 %

@@ -1,4 +1,4 @@
-"""Puertas de fase (CLAUDE.md §14). `live` no arranca sin que paper y testnet las hayan pasado.
+"""Puertas de fase (CLAUDE.md §14): record, backtest, paper y testnet. `live` exige las cuatro.
 
 Cada modo tiene su propia base de datos (bot_<modo>.sqlite), así que los
 resultados de papel, testnet y live nunca se mezclan.
@@ -6,8 +6,9 @@ resultados de papel, testnet y live nunca se mezclan.
 
 from __future__ import annotations
 
+import gzip
 import json
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from bot.learning.journal import Journal
@@ -19,6 +20,67 @@ PAPER_MIN_PF = 1.3
 PAPER_MAX_DD = 0.15
 TESTNET_MIN_DAYS = 7
 TESTNET_BAD_EVENTS = ("posicion_sin_stop", "posicion_huerfana", "orden_huerfana")
+RECORD_DAYS = 7
+RECORD_MAX_LOSS = 0.01
+KLINES_PER_DAY = 1440
+
+
+def _count_lines(path: Path) -> int:
+    if path.exists():
+        with open(path, encoding="utf-8") as fh:
+            return sum(1 for line in fh if line.strip())
+    gz = path.with_suffix(".jsonl.gz")
+    if gz.exists():
+        with gzip.open(gz, "rt", encoding="utf-8") as fh:
+            return sum(1 for line in fh if line.strip())
+    return 0
+
+
+def record_day_loss(raw_dir: Path, symbols: list[str], day: date) -> float:
+    """Peor fracción de velas de 1m perdidas entre los símbolos ese día (0 = completo)."""
+    worst = 0.0
+    for sym in symbols:
+        n = _count_lines(raw_dir / f"{sym.lower()}@kline_1m" / f"{day.isoformat()}.jsonl")
+        worst = max(worst, 1 - min(n, KLINES_PER_DAY) / KLINES_PER_DAY)
+    return worst
+
+
+def record_gate(data_dir: Path, symbols: list[str], today: date | None = None) -> dict:
+    """7 días seguidos con < 1 % de datos perdidos y al menos una reconexión registrada (probada)."""
+    raw = data_dir / "raw"
+    today = today or datetime.now(UTC).date()
+    days_dir = raw / f"{symbols[0].lower()}@kline_1m"
+    if not days_dir.exists():
+        return {"ok": False, "motivo": "sin datos grabados"}
+    days = sorted({date.fromisoformat(p.name[:10]) for p in days_dir.iterdir()
+                   if p.name[:10] < today.isoformat()})
+    losses = {d: record_day_loss(raw, symbols, d) for d in days}
+    best_run, run, run_end = 0, 0, None
+    prev = None
+    for d in days:
+        good = losses[d] < RECORD_MAX_LOSS
+        run = run + 1 if good and prev is not None and d - prev == timedelta(days=1) and run > 0 else (1 if good else 0)
+        if run > best_run:
+            best_run, run_end = run, d
+        prev = d
+    reconnects = 0
+    db = data_dir / "bot_record.sqlite"
+    if db.exists():
+        j = Journal(db)
+        reconnects = sum(1 for e in j.events(datetime(2000, 1, 1, tzinfo=UTC)) if e["kind"] == "reconexion")
+        j.close()
+    checks = {f"{RECORD_DAYS} días seguidos con < {RECORD_MAX_LOSS:.0%} perdido": best_run >= RECORD_DAYS,
+              "reconexión probada": reconnects > 0}
+    return {"ok": all(checks.values()), "checks": checks, "mejor_racha_dias": best_run,
+            "fin_racha": run_end.isoformat() if run_end else None, "reconexiones": reconnects,
+            "perdida_por_dia": {d.isoformat(): round(v, 4) for d, v in list(losses.items())[-14:]}}
+
+
+def backtest_gate(data_dir: Path) -> dict:
+    p = data_dir / "backtest_gate.json"
+    if not p.exists():
+        return {"ok": False, "motivo": "sin backtest registrado"}
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def _span_days(trades: list[dict]) -> float:
@@ -65,11 +127,16 @@ def gate_file(data_dir: Path) -> Path:
     return data_dir / "gates.json"
 
 
-def approve(data_dir: Path, capital: float) -> dict:
-    """Registra la aprobación solo si las métricas actuales pasan las puertas."""
-    res = {"paper": paper_gate(data_dir / "bot_paper.sqlite", capital),
-           "testnet": testnet_gate(data_dir / "bot_testnet.sqlite")}
-    if res["paper"]["ok"] and res["testnet"]["ok"]:
+def all_gates(data_dir: Path, capital: float, symbols: list[str]) -> dict:
+    return {"record": record_gate(data_dir, symbols), "backtest": backtest_gate(data_dir),
+            "paper": paper_gate(data_dir / "bot_paper.sqlite", capital),
+            "testnet": testnet_gate(data_dir / "bot_testnet.sqlite")}
+
+
+def approve(data_dir: Path, capital: float, symbols: list[str] | None = None) -> dict:
+    """Registra la aprobación solo si las métricas actuales pasan TODAS las puertas."""
+    res = all_gates(data_dir, capital, symbols or ["BTCUSDT"])
+    if all(r["ok"] for r in res.values()):
         gate_file(data_dir).write_text(json.dumps({"approved_at": datetime.now(UTC).isoformat(), **res},
                                                   default=str, indent=1), encoding="utf-8")
     return res
@@ -80,4 +147,4 @@ def live_allowed(data_dir: Path) -> bool:
     if not p.exists():
         return False
     data = json.loads(p.read_text(encoding="utf-8"))
-    return bool(data.get("paper", {}).get("ok") and data.get("testnet", {}).get("ok"))
+    return all(bool(data.get(k, {}).get("ok")) for k in ("record", "backtest", "paper", "testnet"))
