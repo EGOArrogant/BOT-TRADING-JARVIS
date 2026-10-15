@@ -5,6 +5,7 @@
     python -m bot.main approve <id_hipótesis>  # aprobar un cambio aprendido
     python -m bot.main reset-halt --mode <m>   # reinicio manual tras detención por drawdown
     python -m bot.main report --mode <m>       # regenerar reporte HTML
+    python -m bot.main panel --mode <m>        # panel en el navegador (http://127.0.0.1:8765)
 """
 
 from __future__ import annotations
@@ -189,14 +190,41 @@ def cmd_report(settings: Settings) -> int:
     return 0
 
 
+def cmd_panel(settings: Settings, port: int) -> int:
+    import webbrowser
+
+    from bot.dashboard.server import serve
+
+    settings = per_mode_storage(settings)
+    try:
+        server = serve(settings, port)
+    except OSError as exc:
+        print(f"no se pudo abrir el panel en el puerto {port} ({exc}). Prueba con otro: --port 8766")
+        return 1
+    url = f"http://127.0.0.1:{port}"
+    print(f"Panel del modo '{settings.mode.value}' en {url}  (deja esta ventana abierta; Ctrl+C para cerrarlo)")
+    try:
+        webbrowser.open(url)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Bot de trading de perpetuos")
-    parser.add_argument("command", nargs="?", default="run", choices=["run", "gates", "approve", "reset-halt", "report"])
+    parser.add_argument("command", nargs="?", default="run", choices=["run", "gates", "approve", "reset-halt", "report", "panel"])
     parser.add_argument("arg", nargs="?", default=None)
     parser.add_argument("--mode", choices=[m.value for m in Mode], default=None)
     parser.add_argument("--config", default=None)
     parser.add_argument("--env-file", default=None)
     parser.add_argument("--approve", action="store_true", help="con `gates`: registrar aprobación si pasan")
+    parser.add_argument("--port", type=int, default=8765, help="con `panel`: puerto local")
     args = parser.parse_args(argv)
 
     settings = load_settings(Path(args.config), args.mode) if args.config else load_settings(mode=args.mode)
@@ -212,6 +240,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_reset_halt(settings)
     if args.command == "report":
         return cmd_report(settings)
+    if args.command == "panel":
+        return cmd_panel(settings, args.port)
     return run(settings, secrets)
 
 

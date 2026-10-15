@@ -36,10 +36,16 @@ python -m bot.main gates --approve     # registra la aprobación SOLO si las mé
 python -m bot.main approve <id>        # aprueba un cambio aprendido pendiente (ver reports/<modo>/cambios.md)
 python -m bot.main reset-halt --mode live   # reinicio manual tras detención por drawdown del 10 %
 python -m bot.main report --mode paper # regenera el reporte HTML
+python -m bot.main panel --mode paper  # abre el panel en el navegador (http://127.0.0.1:8765)
 ```
 
 ## Qué produce
 
+- **Panel** (`python -m bot.main panel --mode <modo>`, en otra ventana mientras el bot corre): estado del bot
+  (operando / en pausa / detenido / apagado), capital y ganancia del día, operaciones de hoy contra el techo,
+  gráfico de precio de las últimas 48 h con entradas y cierres, posiciones abiertas con su stop, operaciones
+  cerradas, decisiones recientes con el motivo, y las zonas "Aprendiendo" y "Aprendido". Solo lectura, solo
+  en `127.0.0.1`, se actualiza cada 15 s. El bot le deja una foto cada minuto en `reports/<modo>/panel_vivo.json`.
 - `bot/reports/<modo>/reporte.html`: cada hora. Muestra KPIs, curva de capital, drawdown, tablas por moneda, dirección, estrategia, régimen, hora y salida, calibración de la IA, candidatos y contrafactuales. No se expone a internet.
 - `bot/reports/<modo>/zona_YYYY-MM-DD.md`: la zona de aprendizaje diaria, generada a las 00:05 UTC.
 - `bot/reports/<modo>/reflexion_YYYY-Www.md`: la reflexión semanal (lunes 00:30 UTC), con un máximo de 3 hipótesis.

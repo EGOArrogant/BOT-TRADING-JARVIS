@@ -354,6 +354,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   ante falla, mantener. El trailing mueve el stop como mucho 1 vez/min y con mejora ≥ 0.1×ATR.
 - Stream privado de usuario (`execution/user_stream.py`, `/private/ws/<listenKey>`): cualquier evento de cuenta
   despierta al gestor; con el stream sano se consulta cada 5 s, sin él cada 1 s. La verdad sigue siendo el REST.
+- Panel (`bot/dashboard/`, `python -m bot.main panel`): proceso aparte, solo lectura (SQLite en modo `ro`),
+  solo `127.0.0.1`. Lo que solo vive en memoria (posiciones, precios) lo publica el motor cada minuto en
+  `reports/<modo>/panel_vivo.json`; foto con > 3 min = "apagado".
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

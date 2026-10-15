@@ -21,3 +21,6 @@ testpaths = ["bot/tests"]
 
 [tool.setuptools.packages.find]
 include = ["bot*"]
+
+[tool.setuptools.package-data]
+bot = ["*.yaml", "dashboard/page.html"]

@@ -46,6 +46,7 @@ from bot.indicators import ta
 from bot.indicators.features import compute_features
 from bot.learning import counterfactual
 from bot.learning.champion_challenger import ChampionChallenger
+from bot.dashboard import snapshot as panel_snapshot
 from bot.learning.daily_report import write_zone
 from bot.learning.hypotheses import effective_strategies, load_overrides, overrides_allow
 from bot.learning.journal import AI_REJECTED, NO_FILL, NOT_SELECTED, REJECTED, RISK_REJECTED, TRADED, Journal
@@ -488,6 +489,7 @@ class Engine:
         self.health.write(now, {"mode": self.s.mode.value, "equity": self.state.equity, "halted": self.state.halted,
                                 "safe_mode": self.state.safe_mode,
                                 "positions": list(self.manager.positions) if self.manager else []})
+        self.write_panel(now)
         hour = int(now.timestamp()) // 3600
         if self._last_hourly != hour:
             self._last_hourly = hour
@@ -534,6 +536,14 @@ class Engine:
                          self.s.mode.value)
         except Exception as exc:  # noqa: BLE001
             log.error("reporte falló", extra={"err": repr(exc)})
+
+    def write_panel(self, now: datetime) -> None:
+        try:
+            positions = self.manager.positions if self.manager else {}
+            panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME,
+                                 panel_snapshot.build(now, self.s.mode.value, self.c.states, positions))
+        except Exception as exc:  # noqa: BLE001
+            log.error("foto del panel falló", extra={"err": repr(exc)})
 
     async def daily_tasks(self, now: datetime) -> None:
         yesterday = (now - timedelta(days=1)).date()
