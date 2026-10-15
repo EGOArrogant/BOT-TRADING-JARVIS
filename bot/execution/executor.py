@@ -230,6 +230,21 @@ class Executor:
             except ExchangeError:
                 pass
 
+    async def ensure_stop(self, pos: Position, rules: SymbolRules, tag: str) -> bool:
+        """Repone el stop de una posición que lo perdió (al nivel actual registrado)."""
+        cid = client_id("stp", f"{pos.signal_id}-{tag}")
+        px = D(str(round_tick(float(pos.stop_price), rules.tick_size, side_up=pos.side is Side.SHORT)))
+        try:
+            o = await self._place_idempotent(pos.symbol, cid, lambda: self.ex.place_stop(
+                pos.symbol, exit_side(pos.side), px, cid))
+        except ExchangeError as exc:
+            self.alert(f"{pos.symbol}: no se pudo reponer el stop: {exc}")
+            return False
+        if o is None or not o.is_open:
+            return False
+        pos.stop_order_id = cid
+        return True
+
     async def replace_stop(self, pos: Position, new_stop: Decimal, rules: SymbolRules, tag: str) -> bool:
         """Mueve el stop solo a favor. Primero coloca el nuevo y luego cancela el viejo."""
         better = new_stop > pos.stop_price if pos.side is Side.LONG else new_stop < pos.stop_price

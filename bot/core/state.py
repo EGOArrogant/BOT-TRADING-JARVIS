@@ -76,9 +76,11 @@ class BotState(BaseModel):
         self.entries.append(rec)
         self._trim(rec.ts)
 
-    def record_close(self, rec: CloseRecord) -> None:
+    def record_close(self, rec: CloseRecord, update_equity: bool = True) -> None:
+        """En vivo/papel la equity se toma del exchange (update_equity=False); en backtest se suma aquí."""
         self.closes.append(rec)
-        self.update_equity(self.equity + rec.pnl_net)
+        if update_equity:
+            self.update_equity(self.equity + rec.pnl_net)
         self._trim(rec.closed_at)
 
     def update_equity(self, equity: float) -> None:
