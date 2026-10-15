@@ -7,6 +7,17 @@ escéptico y el código controla todo el riesgo. La especificación completa est
 > **Aviso.** Operar futuros apalancados puede hacer perder todo el capital. Este software no
 > garantiza ganancias. Usa siempre `paper` y `testnet` antes de `live`, y respeta las puertas de fase.
 
+## Windows en 3 pasos (modo demo: precios reales, dinero ficticio)
+
+1. Descarga el ZIP desde GitHub (botón verde **Code → Download ZIP**) y descomprímelo, por ejemplo en `C:\bot`.
+2. Doble clic en **`instalar.bat`**. Instala solo lo necesario (incluido Python 3.12, sin tocar otros Python),
+   ofrece evitar que la PC se suspenda y al final ejecuta la **revisión**: comprueba que Binance responda desde
+   tu país, que Hyperliquid responda y te pide la llave de Anthropic (se guarda en `.env`, que nunca se sube).
+3. Doble clic en **`iniciar_demo.bat`**. Arranca el bot en modo `paper` (se reinicia solo si se cae) y abre el
+   panel en el navegador. Para apagarlo, cierra su ventana. El panel también se abre con `abrir_panel.bat`.
+
+`python -m bot.revisar` repite la revisión cuando quieras.
+
 ## Instalación
 
 ```bash
@@ -46,6 +57,13 @@ python -m bot.main panel --mode paper  # abre el panel en el navegador (http://1
   gráfico de precio de las últimas 48 h con entradas y cierres, posiciones abiertas con su stop, operaciones
   cerradas, decisiones recientes con el motivo, y las zonas "Aprendiendo" y "Aprendido". Solo lectura, solo
   en `127.0.0.1`, se actualiza cada 15 s. El bot le deja una foto cada minuto en `reports/<modo>/panel_vivo.json`.
+- **Traders destacados** (`data_engine/top_traders.py`, sección `top_traders` de config.yaml): cada 6 h elige
+  ~30 cuentas públicas de Hyperliquid que ganan de forma sostenida y operan de forma direccional (descarta
+  bóvedas y creadores de mercado); cada 2 min lee sus posiciones. Publica por moneda `dex.smart_ratio`
+  (−1 todos en short … +1 todos en long, por dinero), `dex.smart_long_n`, `dex.smart_short_n` y
+  `dex.smart_net_usd`, que la IA ve como contexto y que el aprendizaje puede usar en sus hipótesis. Sus
+  movimientos (abrió, cerró, aumentó, redujo, giró) se graban en `data/raw/smart_events/` y se ven en el panel.
+  **No se copian operaciones.**
 - **Controles del panel** (lo único que el panel puede cambiar, guardado en `reports/<modo>/control.json`):
   - *Operar / Solo cierre*: con "Solo cierre" no abre nada nuevo (los candidatos se siguen registrando para
     aprender) y sigue gestionando y cerrando lo abierto. Se revisa también justo antes de ejecutar.

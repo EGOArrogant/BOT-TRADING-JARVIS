@@ -244,6 +244,21 @@ class StorageConfig(_Strict):
     state_path: Path
 
 
+class TopTradersConfig(_Strict):
+    """Observación de traders destacados de Hyperliquid (solo datos de contexto; nunca se copian)."""
+
+    enabled: bool = True
+    leaderboard_url: str = "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard"
+    count: int = Field(default=30, ge=1, le=60)
+    refresh_hours: float = Field(default=6.0, gt=0)
+    poll_s: float = Field(default=120.0, ge=30)
+    min_account_usd: float = Field(default=100_000, ge=0)
+    max_account_usd: float = Field(default=50_000_000, gt=0)   # más grande suele ser bóveda o protocolo
+    max_monthly_roi: float = Field(default=3.0, gt=0)          # +300 % al mes suele ser suerte o cuenta nueva
+    min_monthly_turnover: float = Field(default=1.0, ge=0)     # volumen/capital: descarta cuentas inactivas
+    max_monthly_turnover: float = Field(default=300.0, gt=0)   # ...y creadores de mercado
+
+
 class Settings(_Strict):
     mode: Mode = Mode.PAPER
     exchange: ExchangeConfig
@@ -262,6 +277,7 @@ class Settings(_Strict):
     learning: LearningConfig
     alerts: AlertsConfig
     logging: LoggingConfig
+    top_traders: TopTradersConfig = Field(default_factory=TopTradersConfig)
 
 
 def load_settings(path: Path | str = DEFAULT_CONFIG_PATH, mode: Mode | str | None = None) -> Settings:

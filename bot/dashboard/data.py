@@ -174,6 +174,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "prices": (live or {}).get("prices", {}),
         "last": (live or {}).get("last", {}),
         "positions": positions,
+        "top_traders": (live or {}).get("top_traders"),
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],
         "decisions": decisions,
         **learning,

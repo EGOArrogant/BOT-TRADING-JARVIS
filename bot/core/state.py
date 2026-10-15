@@ -8,13 +8,12 @@ Las posiciones abiertas NO se confían a este archivo: se reconcilian con el exc
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from pydantic import AwareDatetime, BaseModel, Field
 
+from bot.core.fsutil import atomic_write_text, read_text_retry
 from bot.core.models import Side
 
 
@@ -55,15 +54,11 @@ class BotState(BaseModel):
     @classmethod
     def load_or_new(cls, path: Path, capital: float, today: date) -> BotState:
         if path.exists():
-            return cls.model_validate_json(path.read_text(encoding="utf-8"))
+            return cls.model_validate_json(read_text_retry(path))
         return cls.fresh(capital, today)
 
     def save(self, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".state-")
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(self.model_dump_json(indent=2))
-        os.replace(tmp, path)
+        atomic_write_text(path, self.model_dump_json(indent=2))
 
     # ------------------------------------------------------------ eventos
 

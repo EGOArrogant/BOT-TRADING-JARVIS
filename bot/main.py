@@ -229,7 +229,9 @@ def main(argv: list[str] | None = None) -> int:
 
     settings = load_settings(Path(args.config), args.mode) if args.config else load_settings(mode=args.mode)
     secrets = load_secrets(args.env_file)
-    setup_logging(settings.logging.dir, settings.logging.level, settings.logging.backup_days)
+    # El panel corre en otro proceso: su propio archivo de log (en Windows dos procesos no pueden rotar el mismo)
+    log_dir = settings.logging.dir / "panel" if args.command == "panel" else settings.logging.dir
+    setup_logging(log_dir, settings.logging.level, settings.logging.backup_days)
     if args.command == "gates":
         return cmd_gates(settings, args.approve)
     if args.command == "approve":

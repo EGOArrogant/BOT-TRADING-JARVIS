@@ -37,6 +37,7 @@ from bot.data_engine.onchain import OnchainPoller
 from bot.data_engine.recorder import Recorder
 from bot.data_engine.sentiment import FearGreedPoller
 from bot.data_engine.store import FeedStore
+from bot.data_engine.top_traders import TopTradersPoller
 from bot.data_engine.volatility import DvolPoller
 from bot.execution.base import Exchange
 from bot.execution.executor import Executor
@@ -76,6 +77,7 @@ class Components:
     macro: MacroCalendar | None = None
     news: NewsFeed | None = None
     extra_tasks: list[Any] = field(default_factory=list)  # fábricas sin argumentos que devuelven corrutinas
+    top_traders: Any = None                                 # TopTradersPoller (para el panel)
 
 
 class Engine:
@@ -567,7 +569,8 @@ class Engine:
         try:
             positions = self.manager.positions if self.manager else {}
             panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME,
-                                 panel_snapshot.build(now, self.s.mode.value, self.c.states, positions))
+                                 panel_snapshot.build(now, self.s.mode.value, self.c.states, positions,
+                                                      self.c.top_traders.summary() if self.c.top_traders else None))
         except Exception as exc:  # noqa: BLE001
             log.error("foto del panel falló", extra={"err": repr(exc)})
 
@@ -675,7 +678,7 @@ def build_components(settings: Settings, secrets: Secrets) -> tuple[Components, 
     store = FeedStore(on_set=lambda k, v, src, ts: recorder.record(
         "store", {"k": k, "v": v, "src": src, "ts": ts.isoformat()}, ts))
     http = HttpClient(RateLimiter({"binance": (1500, 60.0), "binance_data": (800, 300.0), "deribit": (20, 1.0),
-                                   "hyperliquid": (100, 60.0), "alternative_me": (30, 60.0), "defillama": (30, 60.0),
+                                   "hyperliquid": (600, 60.0), "alternative_me": (30, 60.0), "defillama": (30, 60.0),
                                    "horizon": (60, 60.0), "forexfactory": (5, 60.0), "rss": (60, 60.0),
                                    "cryptopanic": (5, 60.0)}))
     ep = settings.endpoints.binance  # datos de mercado siempre de producción (públicos)
@@ -713,6 +716,11 @@ def build_components(settings: Settings, secrets: Secrets) -> tuple[Components, 
         lambda: macro.run(poll["macro"]),
         lambda: news.run(poll["news"]),
     ]
+    if settings.top_traders.enabled:
+        top = TopTradersPoller(settings.top_traders, settings.endpoints.hyperliquid, symbols, store, http,
+                               on_event=lambda ev: recorder.record("smart_events", ev))
+        comps.top_traders = top
+        pollers.append(lambda: top.run(settings.top_traders.poll_s))
     comps.extra_tasks = pollers
     return comps, market, recorder
 

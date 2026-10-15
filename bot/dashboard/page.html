@@ -55,6 +55,9 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--grid);vertic
 td.w{white-space:normal;min-width:220px}
 th{color:var(--ink2);font-weight:500;white-space:nowrap}td.n,th.n{text-align:right;white-space:nowrap}
 .empty{color:var(--ink2);padding:14px 4px}
+.bias{position:relative;width:120px;height:8px;border-radius:4px;background:var(--grid);display:inline-block;vertical-align:middle}
+.bias i{position:absolute;top:0;height:100%;border-radius:4px}
+.bias::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--ink3)}
 .learn li{margin:0 0 10px;list-style:none}.learn ul{padding:0;margin:0}
 .bar{height:6px;border-radius:3px;background:var(--grid);overflow:hidden;margin-top:4px;max-width:260px}
 .bar i{display:block;height:100%;background:var(--series);border-radius:3px}
@@ -129,6 +132,15 @@ background:var(--series);color:#fff;cursor:pointer}
       <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--bad)"/></svg>Cierre con pérdida</span>
       <span><svg width="22" height="12"><line x1="0" y1="6" x2="22" y2="6" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="5 4"/></svg>Stop-loss abierto</span>
       <span><svg width="22" height="12"><line x1="0" y1="6" x2="22" y2="6" stroke="var(--good)" stroke-width="1.5" stroke-dasharray="5 4"/></svg>Take-profit abierto</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Traders destacados <span class="muted small">(cuentas públicas de Hyperliquid que vienen ganando; el bot los observa, no los copia)</span></h2>
+    <div class="muted small" id="ttInfo" style="margin-bottom:8px"></div>
+    <div class="grid2" style="margin-top:0">
+      <div class="scroll" id="ttCoins"></div>
+      <div class="scroll" id="ttEvents"></div>
     </div>
   </section>
 
@@ -441,7 +453,37 @@ $("lvlSave").onclick = function () {
   sendControl({aggressiveness: lv}, "Nivel " + lv + " guardado. Se aplica en la próxima revisión del bot (máx. 15 min).");
 };
 
-function render() { renderHeader(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderEquity(); renderTables(); renderLearning(); }
+function renderTopTraders() {
+  var t = D.top_traders;
+  if (!t || !t.n_traders) {
+    $("ttInfo").textContent = "";
+    $("ttCoins").innerHTML = '<div class="empty">Aún no hay datos: el bot elige a los traders unos minutos después de arrancar.</div>';
+    $("ttEvents").innerHTML = ""; return;
+  }
+  $("ttInfo").textContent = "Siguiendo " + t.n_traders + " cuentas (elegidas " + when(t.leaderboard_at) +
+    "). Sesgo: hacia la derecha = la mayoría del dinero apuesta a que sube; a la izquierda = a que baja.";
+  var rows = D.symbols.map(function (s) { var b = t.by_symbol[s] || {ratio: 0, long_n: 0, short_n: 0}; b.symbol = s; return b; });
+  table($("ttCoins"), [
+    {h: "Moneda", f: function (r) { return esc(coin(r.symbol)); }},
+    {h: "En long", n: 1, f: function (r) { return esc(r.long_n); }},
+    {h: "En short", n: 1, f: function (r) { return esc(r.short_n); }},
+    {h: "Sesgo", f: function (r) {
+      var w = Math.abs(r.ratio) * 50, left = r.ratio >= 0 ? 50 : 50 - w;
+      var col = r.ratio >= 0 ? "var(--good)" : "var(--bad)";
+      return (r.long_n + r.short_n ? '<span class="bias" title="' + esc((r.ratio * 100).toFixed(0)) + '%"><i style="left:' + left +
+        "%;width:" + w + "%;background:" + col + '"></i></span> <span class="muted small">' +
+        (r.ratio >= 0 ? "sube " : "baja ") + Math.abs(r.ratio * 100).toFixed(0) + "%</span>" : '<span class="muted">sin posiciones</span>');
+    }}
+  ], rows, "");
+  table($("ttEvents"), [
+    {h: "Hora", f: function (e) { return esc(when(e.ts)); }},
+    {h: "Trader", f: function (e) { return '<span class="muted">' + esc(e.trader) + "</span>"; }},
+    {h: "Movimiento", f: function (e) { return esc(e.action) + " " + esc(e.coin); }},
+    {h: "Tamaño", n: 1, f: function (e) { return esc(money(e.usd)); }}
+  ], (t.events || []).slice(0, 15), "Sin movimientos todavía en estas monedas (se detectan entre una lectura y la siguiente).");
+}
+
+function render() { renderHeader(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

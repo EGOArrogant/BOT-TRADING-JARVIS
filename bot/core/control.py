@@ -15,8 +15,6 @@ Ante la duda, no operar: un archivo de control ilegible equivale a "solo cierre"
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +23,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
 from bot.core.config import Settings
+from bot.core.fsutil import atomic_write_text, read_text_retry
 from bot.core.logging_setup import get_logger
 
 log = get_logger("bot.control")
@@ -93,7 +92,7 @@ def load(path: Path) -> Control:
     if not path.exists():
         return Control()
     try:
-        return Control.model_validate_json(path.read_text(encoding="utf-8"))
+        return Control.model_validate_json(read_text_retry(path))
     except (OSError, ValueError, ValidationError) as exc:
         log.error("control.json ilegible: solo cierre hasta corregirlo", extra={"err": repr(exc)})
         return Control(mode="solo_cierre")
@@ -101,9 +100,5 @@ def load(path: Path) -> Control:
 
 def save(path: Path, ctl: Control) -> Control:
     ctl = ctl.model_copy(update={"updated_at": datetime.now(UTC)})
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".control-")
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(ctl.model_dump(mode="json"), fh, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
+    atomic_write_text(path, json.dumps(ctl.model_dump(mode="json"), ensure_ascii=False, indent=1))
     return ctl

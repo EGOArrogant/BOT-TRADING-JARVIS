@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from bot.core.fsutil import atomic_write_text
+
 
 @dataclass
 class HealthMonitor:
@@ -37,6 +39,4 @@ class HealthMonitor:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"ts": now.isoformat(), "pid": os.getpid(), "unhealthy": sorted(self.unhealthy),
                    "last_seen": {k: v.isoformat() for k, v in self.last_seen.items()}, **extra}
-        tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(payload, default=str, indent=1), encoding="utf-8")
-        os.replace(tmp, self.path)
+        atomic_write_text(self.path, json.dumps(payload, default=str, indent=1))

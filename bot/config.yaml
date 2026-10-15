@@ -123,7 +123,10 @@ logging:
   backup_days: 30
 
 paper:
-  initial_capital: 10000
+  # Capital ficticio del modo demo. Con 0,5 % de riesgo por operación: ~10 $ en juego por operación;
+  # las ganadoras suelen dejar 1,5–2,5 veces eso (~15–25 $). Cambiarlo solo antes de la primera ejecución
+  # (o borrando bot/data/state_paper.json y bot/data/bot_paper.sqlite para empezar de cero).
+  initial_capital: 2000
   latency_ms: 150
 
 storage:
@@ -195,3 +198,17 @@ strategies:
     max_hold_hours: 12
     min_funding_z: 2.0
     min_fng_extreme: 20
+
+# Traders destacados de Hyperliquid (cuentas públicas): su posicionamiento entra como contexto
+# (campos dex.smart_*) para la IA y el aprendizaje, y sus movimientos se muestran en el panel.
+# Nunca se copian operaciones.
+top_traders:
+  enabled: true
+  count: 30                      # cuántas cuentas seguir
+  refresh_hours: 6               # cada cuánto se vuelve a elegir del ranking
+  poll_s: 120                    # cada cuánto se leen sus posiciones
+  min_account_usd: 100000
+  max_account_usd: 50000000
+  max_monthly_roi: 3.0
+  min_monthly_turnover: 1.0
+  max_monthly_turnover: 300.0

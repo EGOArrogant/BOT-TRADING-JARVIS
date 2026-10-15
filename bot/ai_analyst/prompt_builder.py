@@ -33,6 +33,7 @@ REDUCIR el tamaño con size_multiplier entre 0.5 y 1.0 (1.0 = tamaño completo).
 - confidence (0 a 1) debe estar calibrada: 0.75 o más solo con evidencia fuerte y alineada.
 - thesis: máximo 2 frases. invalidation: una condición concreta y observable que anule la idea.
 - Las lecciones activas provienen de resultados reales; tenlas en cuenta.
+- dex.smart_* es el posicionamiento de unas 30 cuentas públicas de Hyperliquid con buen historial reciente (smart_ratio: −1 todo short, +1 todo long, por nocional; smart_long_n/smart_short_n: cuántas). Es contexto, nunca razón suficiente: el historial pasado no garantiza nada y pueden estar cubriendo otras posiciones. Pesa más cuando coincide con el resto de la evidencia.
 
 Responde únicamente con el JSON del esquema."""
 

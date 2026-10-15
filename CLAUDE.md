@@ -360,6 +360,11 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Controles del panel (`core/control.py`, `reports/<modo>/control.json`): Operar/Solo cierre y agresividad 1–10.
   Nivel 10 = config.yaml; niveles menores solo endurecen (`control.apply` re-valida). El motor los relee en cada
   ventana y antes de ejecutar; ilegible = solo cierre. El POST exige Host local + cabecera `X-Jarvis-Panel`.
+- Traders destacados (`data_engine/top_traders.py`): ranking de stats-data.hyperliquid.xyz (no documentado, el
+  que usa la web oficial; ~40 MB, cada 6 h) + `clearinghouseState` (oficial) cada 2 min. Campos `dex.smart_*`
+  (contexto para IA/aprendizaje; con < 50 % de cuentas leídas = unknown). Nunca se copian operaciones.
+- Windows: `instalar.bat` (uv + Python 3.12 + `bot.revisar`), `iniciar_demo.bat` (paper con reinicio), `abrir_panel.bat`.
+  Escrituras compartidas con el panel vía `core/fsutil.atomic_write_text` (reintenta PermissionError de Windows).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

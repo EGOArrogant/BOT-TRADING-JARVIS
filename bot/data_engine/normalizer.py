@@ -67,6 +67,9 @@ def build_raw_snapshot(state: MarketState, store: FeedStore, now: datetime, ttl_
     f["vol.dvol_btc"] = store.get("vol.dvol.BTC")
 
     f["dex.funding_1h"] = store.get(f"dex.funding_1h.{sym}")
+    # Posicionamiento de traders destacados de Hyperliquid (contexto; ver data_engine/top_traders.py)
+    for base in ("dex.smart_ratio", "dex.smart_long_n", "dex.smart_short_n", "dex.smart_net_usd"):
+        f[base] = store.get(f"{base}.{sym}")
     f["sent.fng"] = store.get("sent.fng")
     f["onchain.stablecoin_supply"] = store.get("onchain.stablecoin_supply")
     f["onchain.exchange_netflow"] = store.get("onchain.exchange_netflow")

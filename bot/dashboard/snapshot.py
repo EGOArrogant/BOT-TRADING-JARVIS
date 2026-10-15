@@ -8,12 +8,11 @@ escribe en este archivo ni en la base de datos.
 from __future__ import annotations
 
 import json
-import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from bot.core.fsutil import atomic_write_text, read_text_retry
 from bot.core.models import Position, Side
 from bot.data_engine.market_state import MarketState
 
@@ -34,7 +33,8 @@ def _position(pos: Position, st: MarketState | None) -> dict[str, Any]:
     }
 
 
-def build(now: datetime, mode: str, states: dict[str, MarketState], positions: dict[str, Position]) -> dict[str, Any]:
+def build(now: datetime, mode: str, states: dict[str, MarketState], positions: dict[str, Position],
+          top_traders: dict[str, Any] | None = None) -> dict[str, Any]:
     prices: dict[str, list[list[float]]] = {}
     last: dict[str, float | None] = {}
     for sym, st in states.items():
@@ -42,19 +42,16 @@ def build(now: datetime, mode: str, states: dict[str, MarketState], positions: d
         prices[sym] = [[c.open_time + 900_000, c.close] for c in candles]  # hora de cierre de la vela
         last[sym] = st.mark_price or st.last_price or (candles[-1].close if candles else None)
     return {"updated_at": now.isoformat(), "mode": mode, "prices": prices, "last": last,
-            "positions": [_position(p, states.get(s)) for s, p in positions.items()]}
+            "positions": [_position(p, states.get(s)) for s, p in positions.items()],
+            "top_traders": top_traders}
 
 
 def write(path: Path, snap: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".panel-")
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(snap, fh, separators=(",", ":"))
-    os.replace(tmp, path)
+    atomic_write_text(path, json.dumps(snap, separators=(",", ":")))
 
 
 def read(path: Path) -> dict[str, Any] | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(read_text_retry(path))
     except (OSError, ValueError):
         return None
