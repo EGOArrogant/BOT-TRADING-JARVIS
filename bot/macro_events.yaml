@@ -1,0 +1,9 @@
+# Eventos macro manuales (respaldo de ForexFactory). Hora con zona horaria obligatoria.
+# Fechas FOMC 2026 según el calendario publicado en federalreserve.gov — VERIFICAR
+# en https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm antes de usar en live.
+# Decisión 14:00 ET, conferencia 14:30 ET.
+events:
+  - {title: "FOMC rate decision", ts: "2026-10-28T14:00:00-04:00"}
+  - {title: "FOMC press conference", ts: "2026-10-28T14:30:00-04:00"}
+  - {title: "FOMC rate decision", ts: "2026-12-09T14:00:00-05:00"}
+  - {title: "FOMC press conference", ts: "2026-12-09T14:30:00-05:00"}

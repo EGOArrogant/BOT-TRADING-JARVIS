@@ -189,9 +189,65 @@ class Secrets(BaseModel):
         )
 
 
+class EndpointSet(_Strict):
+    rest: str
+    ws_public: str
+    ws_market: str
+    ws_private: str
+
+
+class EndpointsConfig(_Strict):
+    """Rutas verificadas contra la doc oficial (ver CLAUDE.md, notas de implementación)."""
+
+    binance: EndpointSet
+    binance_testnet: EndpointSet
+    deribit: str
+    hyperliquid: str
+    alternative_me: str
+    defillama_stablecoins: str
+    stellar_horizon: str
+    forexfactory_week: str
+    cryptopanic: str
+
+
+class NewsConfig(_Strict):
+    rss_feeds: list[str]
+    trusted_sources: list[str]
+    high_impact_keywords: list[str]
+    symbol_keywords: dict[str, list[str]]
+    dedupe_similarity: float = Field(default=0.8, gt=0, le=1)
+
+
+class StrategyParams(BaseModel):
+    """Parámetros de estrategia: lo ÚNICO que el aprendizaje puede proponer cambiar."""
+
+    model_config = ConfigDict(extra="allow", frozen=True)
+
+    enabled: bool = True
+    target_atr_multiple: float = Field(default=2.0, gt=0)
+    stop_atr_multiple: float = Field(default=1.2, ge=1.0)
+    max_hold_hours: float = Field(default=6.0, gt=0)
+
+
+class PaperConfig(_Strict):
+    initial_capital: float = Field(gt=0)
+    latency_ms: int = Field(default=150, ge=0)
+
+
+class StorageConfig(_Strict):
+    db_path: Path
+    reports_dir: Path
+    state_path: Path
+
+
 class Settings(_Strict):
     mode: Mode = Mode.PAPER
     exchange: ExchangeConfig
+    endpoints: EndpointsConfig
+    news: NewsConfig
+    strategies: dict[str, StrategyParams]
+    paper: PaperConfig
+    storage: StorageConfig
     risk: RiskConfig
     limits: LimitsConfig
     filters: FiltersConfig
@@ -210,10 +266,11 @@ def load_settings(path: Path | str = DEFAULT_CONFIG_PATH, mode: Mode | str | Non
     if mode is not None:
         raw["mode"] = str(mode)
     # Rutas relativas se resuelven contra la raíz del proyecto, no contra el cwd.
-    for section in ("data", "logging"):
-        d = raw.get(section, {}).get("dir")
+    for section, key in (("data", "dir"), ("logging", "dir"), ("storage", "db_path"),
+                         ("storage", "reports_dir"), ("storage", "state_path")):
+        d = raw.get(section, {}).get(key)
         if d is not None and not Path(d).is_absolute():
-            raw[section]["dir"] = PROJECT_ROOT / d
+            raw[section][key] = PROJECT_ROOT / d
     return Settings.model_validate(raw)
 
 

@@ -117,3 +117,77 @@ logging:
   dir: bot/data/logs
   level: INFO
   backup_days: 30
+
+paper:
+  initial_capital: 10000
+  latency_ms: 150
+
+storage:
+  db_path: bot/data/bot.sqlite
+  reports_dir: bot/reports
+  state_path: bot/data/state.json   # guardias persistentes (p. ej. drawdown -> detenido)
+
+# Rutas verificadas 2026-10-15 (búsqueda de doc oficial; el host developers.binance.com
+# no fue accesible directamente desde el entorno de desarrollo). Re-verificar al desplegar.
+endpoints:
+  binance:
+    rest: https://fapi.binance.com
+    ws_public: wss://fstream.binance.com/public     # depth, bookTicker
+    ws_market: wss://fstream.binance.com/market     # aggTrade, kline, markPrice
+    ws_private: wss://fstream.binance.com/private   # user data (listenKey)
+  binance_testnet:
+    rest: https://demo-fapi.binance.com
+    ws_public: wss://fstream.binancefuture.com/public
+    ws_market: wss://fstream.binancefuture.com/market
+    ws_private: wss://fstream.binancefuture.com/private
+  deribit: https://www.deribit.com/api/v2
+  hyperliquid: https://api.hyperliquid.xyz/info
+  alternative_me: https://api.alternative.me/fng/
+  defillama_stablecoins: https://stablecoins.llama.fi
+  stellar_horizon: https://horizon.stellar.org
+  forexfactory_week: https://nfs.faireconomy.media/ff_calendar_thisweek.json
+  cryptopanic: https://cryptopanic.com/api/developer/v2/posts/   # de pago desde 2026; opcional
+
+news:
+  rss_feeds:
+    - https://www.coindesk.com/arc/outboundfeeds/rss/
+    - https://cointelegraph.com/rss
+    - https://decrypt.co/feed
+    - https://www.theblock.co/rss.xml
+  trusted_sources: [coindesk, cointelegraph, decrypt, theblock, reuters, bloomberg]
+  high_impact_keywords: [hack, exploit, etf, sec, delist, delisting, liquidation, liquidated,
+                         lawsuit, bankruptcy, halt, outage, approval, ban, sanction, fed, cpi]
+  symbol_keywords:
+    BTCUSDT: [bitcoin, btc]
+    ETHUSDT: [ethereum, eth, ether]
+    SOLUSDT: [solana, sol]
+    XRPUSDT: [xrp, ripple]
+    DOGEUSDT: [dogecoin, doge]
+    XLMUSDT: [stellar, xlm]
+  dedupe_similarity: 0.8
+
+# Parámetros de estrategia. Es lo único que el aprendizaje puede proponer cambiar
+# (con aprobación humana por defecto). Nada de riesgo, stops ni ejecución aquí.
+strategies:
+  trend_pullback:
+    enabled: true
+    target_atr_multiple: 2.5
+    stop_atr_multiple: 1.2
+    max_hold_hours: 8
+    min_adx: 20
+    max_ema_distance_atr: 0.5
+  range_breakout:
+    enabled: true
+    target_atr_multiple: 3.0
+    stop_atr_multiple: 1.2
+    max_hold_hours: 6
+    range_bars: 24
+    max_range_atr: 4.0
+    min_rel_volume: 1.5
+  funding_reversion:
+    enabled: true
+    target_atr_multiple: 2.0
+    stop_atr_multiple: 1.5
+    max_hold_hours: 12
+    min_funding_z: 2.0
+    min_fng_extreme: 20
