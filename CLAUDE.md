@@ -365,6 +365,8 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   (contexto para IA/aprendizaje; con < 50 % de cuentas leídas = unknown). Nunca se copian operaciones.
 - Windows: `instalar.bat` (uv + Python 3.12 + `bot.revisar`), `iniciar_demo.bat` (paper con reinicio), `abrir_panel.bat`.
   Escrituras compartidas con el panel vía `core/fsutil.atomic_write_text` (reintenta PermissionError de Windows).
+- Papel sobrevive reinicios: `Engine.save_paper/restore_paper` (`state_<modo>_exchange.json`: saldo, posiciones,
+  órdenes abiertas, funding y las `Position` del gestor). Sin archivo: saldo = equity del estado.
 - Disciplina (`metrics/discipline.py`): chequeos de sesgo con n ≥ 10 por grupo; los ve el panel, la zona diaria y
   la reflexión semanal (que puede proponer reglas para corregirlos). El prompt del analista no lleva equity ni PnL del día.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).

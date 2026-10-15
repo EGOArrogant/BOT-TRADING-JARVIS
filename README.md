@@ -18,6 +18,15 @@ escéptico y el código controla todo el riesgo. La especificación completa est
 
 `python -m bot.revisar` repite la revisión cuando quieras.
 
+**Apagones y reinicios:** el modo demo guarda cada minuto (y al abrir o cerrar una operación) su saldo
+ficticio, sus posiciones y sus stops en `bot/data/state_paper_exchange.json`, y al volver a arrancar continúa
+desde ahí; si el precio tocó un stop mientras estaba apagado, se cierra al precio actual, como un hueco real.
+`activar_inicio_automatico.bat` lo arranca solo al entrar a Windows (`quitar_inicio_automatico.bat` lo quita).
+
+**Actualizar a una versión nueva:** cierra las ventanas del bot, descarga el ZIP nuevo y copia su contenido
+encima de `C:\bot` aceptando reemplazar archivos. `.env` y `bot/data/` (lo aprendido) no vienen en el ZIP,
+así que se conservan. Solo hace falta volver a ejecutar `instalar.bat` si se agregan librerías nuevas.
+
 ## Instalación
 
 ```bash

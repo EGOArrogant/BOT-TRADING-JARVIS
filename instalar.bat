@@ -33,6 +33,16 @@ echo  Listo: la PC no se suspendera mientras este enchufada (la pantalla si pued
 
 :revisar
 echo.
+choice /c SN /m " Arrancar JARVIS solo cada vez que se encienda la PC (recomendado: por si se va la luz)"
+if errorlevel 2 goto revisar2
+set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
+> "%STARTUP%\JARVIS.bat" echo @echo off
+>> "%STARTUP%\JARVIS.bat" echo cd /d "%~dp0"
+>> "%STARTUP%\JARVIS.bat" echo start "JARVIS" "%~dp0iniciar_demo.bat"
+echo  Listo: JARVIS arrancara solo al entrar a Windows. Para quitarlo: quitar_inicio_automatico.bat
+
+:revisar2
+echo.
 .venv\Scripts\python.exe -m bot.revisar
 echo.
 pause

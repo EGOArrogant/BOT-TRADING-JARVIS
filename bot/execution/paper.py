@@ -261,6 +261,35 @@ class PaperExchange:
         self._last_funding_ms[symbol] = st.next_funding_ms
         self._pending_rate[symbol] = st.funding_rate
 
+    # ------------------------------------------------------------ persistencia (sobrevive apagones)
+
+    def to_dict(self) -> dict:
+        """Lo necesario para continuar tras un reinicio: saldo, posiciones, órdenes abiertas y funding."""
+        week_ago = utc_now() - timedelta(days=7)
+        return {
+            "wallet": str(self.wallet),
+            "pos": {s: {"qty": str(p.qty), "entry": str(p.entry)} for s, p in self.pos.items() if p.qty != 0},
+            "orders": [o.model_dump(mode="json") for o in self.orders.values() if o.is_open],
+            "funding": [{"symbol": i.symbol, "amount": str(i.amount), "ts": i.ts.isoformat()}
+                        for i in self._income if i.kind == "FUNDING_FEE" and i.ts >= week_ago],
+            "last_funding_ms": self._last_funding_ms, "pending_rate": self._pending_rate,
+        }
+
+    def load_dict(self, data: dict) -> None:
+        self.wallet = _d(data["wallet"])
+        for sym, p in data.get("pos", {}).items():
+            if sym in self.pos:
+                self.pos[sym] = _Pos(qty=_d(p["qty"]), entry=_d(p["entry"]))
+        for raw in data.get("orders", []):
+            o = Order.model_validate(raw)
+            if o.symbol in self.pos:
+                self.orders[o.client_order_id] = o
+        self._income += [IncomeRecord(f["symbol"], "FUNDING_FEE", _d(f["amount"]), datetime.fromisoformat(f["ts"]))
+                         for f in data.get("funding", [])]
+        self._last_funding_ms.update({k: int(v) for k, v in data.get("last_funding_ms", {}).items()
+                                      if k in self._last_funding_ms})
+        self._pending_rate.update(data.get("pending_rate", {}))
+
     def funding_since(self, symbol: str, since: datetime) -> Decimal:
         return sum((i.amount for i in self._income if i.symbol == symbol and i.kind == "FUNDING_FEE"
                     and i.ts >= since - timedelta(seconds=1)), D(0))

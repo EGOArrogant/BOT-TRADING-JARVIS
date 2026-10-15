@@ -10,9 +10,11 @@ periódicas (1 min): equity, guardias, contrafactuales, reportes, aprendizaje.
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from bot.ai_analyst.client import Analyst
@@ -21,6 +23,7 @@ from bot.core.alerts import Alerter
 from bot.core.clock import Clock, ms_to_dt
 from bot.core import control
 from bot.core.config import Mode, Secrets, Settings
+from bot.core.fsutil import atomic_write_text, read_text_retry
 from bot.core.health import HealthMonitor
 from bot.core.logging_setup import get_logger
 from bot.core.models import AIAction, DataPoint, Position, Side, Signal, Snapshot, Trade
@@ -320,6 +323,7 @@ class Engine:
                                                                          "qty": str(eo.filled_qty)})
                 return
             self.manager.add(result.position, rules)
+            self.save_paper()
             self.state.record_entry(EntryRecord(symbol=sig.symbol, side=sig.side, ts=now, edge_ratio=sig.edge_ratio,
                                                 signal_id=sig.id))
             self.state.save(self.s.storage.state_path)
@@ -346,6 +350,7 @@ class Engine:
         await self._refresh_equity()
         self.risk.update_guards(self.state, trade.closed_at)
         self.state.save(self.s.storage.state_path)
+        self.save_paper()
         self.alert(f"CIERRE {trade.symbol} {trade.side.value} {trade.exit_reason.value} "
                    f"R={float(trade.r_multiple):+.2f} neto={float(trade.pnl_net):+.2f}", level="info")
         if self.state.halted:
@@ -433,6 +438,52 @@ class Engine:
                 self.state.safe_mode, self.state.safe_mode_reason = False, ""
                 self.alert("modo seguro levantado tras 3 conciliaciones limpias", level="warning")
 
+    # ------------------------------------------------------------ papel: sobrevivir apagones
+
+    @property
+    def paper_path(self) -> Path:
+        st = self.s.storage.state_path
+        return st.with_name(f"{st.stem}_exchange.json")
+
+    def save_paper(self) -> None:
+        """En papel el "exchange" vive en memoria: se guarda saldo, posiciones, órdenes y su gestión."""
+        ex = self.c.exchange
+        if not isinstance(ex, PaperExchange):
+            return
+        try:
+            positions = self.manager.positions if self.manager else {}
+            atomic_write_text(self.paper_path, json.dumps({
+                "saved_at": self.clock.now().isoformat(), "exchange": ex.to_dict(),
+                "positions": [p.model_dump(mode="json") for p in positions.values()]}, default=str))
+        except Exception as exc:  # noqa: BLE001
+            log.error("no se pudo guardar el estado de papel", extra={"err": repr(exc)})
+
+    async def restore_paper(self) -> None:
+        """Al arrancar en papel: continúa con el saldo y las posiciones (con sus stops) de antes del apagón.
+        Si cayó el precio mientras estaba apagado, el stop se ejecuta al precio actual (como un hueco real)."""
+        ex = self.c.exchange
+        if not isinstance(ex, PaperExchange):
+            return
+        if not self.paper_path.exists():
+            ex.wallet = Decimal(str(self.state.equity))  # versiones anteriores solo guardaban el estado
+            return
+        try:
+            data = json.loads(read_text_retry(self.paper_path))
+            ex.load_dict(data["exchange"])
+        except Exception as exc:  # noqa: BLE001
+            log.error("estado de papel ilegible: se sigue con el saldo del estado", extra={"err": repr(exc)})
+            ex.wallet = Decimal(str(self.state.equity))
+            return
+        if self.manager is None:
+            return
+        open_syms = {p.symbol for p in await ex.positions()}
+        for raw in data.get("positions", []):
+            pos = Position.model_validate(raw)
+            if pos.symbol in open_syms:
+                self.manager.add(pos, await ex.symbol_rules(pos.symbol))
+        log.info("estado de papel recuperado", extra={"saved_at": data.get("saved_at"), "wallet": str(ex.wallet),
+                                                      "positions": sorted(self.manager.positions)})
+
     async def adopt_existing(self, now: datetime) -> None:
         """Al arrancar: posiciones abiertas en el exchange se adoptan (con su stop) en vez de ignorarse."""
         ex = self.c.exchange
@@ -440,6 +491,8 @@ class Engine:
             return
         orders = await ex.open_orders()
         for ep in await ex.positions():
+            if ep.symbol in self.manager.positions:  # ya recuperada con toda su información
+                continue
             stop = next((o for o in orders if o.symbol == ep.symbol and o.type.value == "STOP_MARKET"), None)
             pos = adopt_position(ep, stop, now)
             self.manager.add(pos, await ex.symbol_rules(ep.symbol))
@@ -501,6 +554,7 @@ class Engine:
 
     async def housekeeping(self, now: datetime) -> None:
         self.state.roll_day(now.date())
+        self.save_paper()
         await self._refresh_equity()
         self.risk.update_guards(self.state, now)
         self.state.save(self.s.storage.state_path)
@@ -649,6 +703,7 @@ class Engine:
         now = self.clock.now()
         if self.state.halted:
             self.alert(f"arranque con bot DETENIDO ({self.state.halt_reason}): sin entradas hasta reinicio manual")
+        await self.restore_paper()
         await self.adopt_existing(now)
         await self.reconcile(now)
         await asyncio.gather(
