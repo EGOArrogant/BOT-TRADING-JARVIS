@@ -20,7 +20,7 @@ from bot.core.config import AIConfig
 from bot.core.logging_setup import get_logger
 from bot.learning.hypotheses import TUNABLE_PARAMS, Hypothesis
 from bot.learning.journal import Journal
-from bot.metrics import discipline
+from bot.metrics import discipline, robustness
 from bot.metrics.performance import ai_calibration, by_dimension, rejection_stats, summarize
 
 log = get_logger("bot.reflection")
@@ -32,6 +32,7 @@ Propón como máximo 3 hipótesis concretas, medibles y reversibles. Cada una se
 en papel (campeón vs retador) antes de aplicarse, así que no tienen que ser seguras: tienen que \
 estar respaldadas por los datos que ves. Señala el tamaño de muestra: con n pequeño, sé prudente.
 Revisa también "disciplina": si la IA rechaza oportunidades que habrían ganado, o decide distinto tras ganar que tras perder, es un sesgo a corregir con reglas medibles, no con más o menos cautela.
+Usa "robustez_*": una esperanza cuyo intervalo de confianza incluye 0 todavía no es ventaja; si es frágil (se vuelve negativa con resultados un poco peores) o depende de 5 operaciones, dilo. El MAE/MFE indica si el objetivo está lejos o cerca del recorrido real (mfe_reach) y si las perdedoras llegaron a +1R antes de perder (gestión de salida): puedes proponer ajustar target_atr_multiple, nunca el stop.
 
 Solo puedes proponer estos tipos (cualquier otro se descarta):
 - min_edge: subir la ventaja mínima (entre 3 y 8) para una moneda y/o estrategia.
@@ -107,6 +108,9 @@ def build_week_payload(journal: Journal, start: datetime, end: datetime, capital
         "candidatos": rejection_stats(cands_list),
         "contraste_top_bottom": _feature_contrast(trades, cands),
         "disciplina": discipline.evaluate(trades, cands_list, journal.events(start), capital)["checks"],
+        # Estadística de robustez (operaciones y práctica): MAE/MFE para estudiar objetivos, rachas, Monte Carlo
+        "robustez_operaciones": robustness.analyze(robustness.from_trades(trades), 0.005, 0.10),
+        "robustez_practica": robustness.analyze(robustness.from_counterfactuals(cands_list), 0.005, 0.10),
         "parametros_ajustables": {k: sorted(v) for k, v in TUNABLE_PARAMS.items()},
     }
 

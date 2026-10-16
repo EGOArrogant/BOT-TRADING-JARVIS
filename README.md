@@ -91,6 +91,12 @@ python -m bot.main panel --mode paper  # abre el panel en el navegador (http://1
   La IA tiene además una regla explícita de "mismo estándar siempre" y nunca recibe el resultado del día.
   **Operaciones de práctica**: cada candidato no operado se simula con los precios reales posteriores
   (contrafactual); son decenas al día, gratis y sin consultar a la IA, y alimentan el aprendizaje.
+- **¿Ventaja real o suerte?** (`metrics/robustness.py`, panel y reflexión semanal): esperanza con intervalo de
+  confianza 95 % (bootstrap) y acierto con intervalo de Wilson, prueba de estrés, dispersión y asimetría,
+  dependencia de las 5 mejores/peores, rachas razonables (Monte Carlo) y su costo, Monte Carlo de 2.000 órdenes
+  (caída típica y del 5 % peor, probabilidad de tocar la detención, rango de resultados, crecimiento compuesto),
+  Kelly como referencia y MAE/MFE. Para operaciones del demo y para las de práctica. La puerta de `paper`
+  exige además que el IC 95 % de la esperanza sea > 0 y que la probabilidad de tocar la detención sea < 5 %.
 - **Panel, además:** modo claro/oscuro (se recuerda), avisos importantes arriba, salud del sistema (cada fuente
   de datos, IA, reloj, disco), bitácora, rendimiento por estrategia/moneda/dirección, filtro por moneda y
   descarga CSV de las operaciones, y el último reporte diario.

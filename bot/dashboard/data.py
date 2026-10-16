@@ -15,7 +15,7 @@ from bot.core import control
 from bot.core.config import Settings
 from bot.core.state import BotState
 from bot.dashboard import snapshot
-from bot.metrics import discipline
+from bot.metrics import discipline, robustness
 from bot.metrics.performance import by_dimension, equity_curve, summarize
 from bot.risk.engine import RiskEngine
 
@@ -198,6 +198,9 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
             bitacora.append({"ts": e["ts"], "level": "warning" if e["kind"] != "reconexion" else "info",
                              "text": EVENT_TEXT[e["kind"]] + (f" ({extra})" if extra else "")})
     disc = discipline.evaluate(trades30, cands30, events30, capital)
+    risk_now, halt = eff.risk.risk_per_trade, settings.risk.max_drawdown
+    stats = {"trades": robustness.analyze(robustness.from_trades(trades), risk_now, halt),
+             "practice": robustness.analyze(robustness.from_counterfactuals(cands30), risk_now, halt)}
     curve = equity_curve(trades, capital)
     risk = RiskEngine(eff.risk, eff.limits, settings.exchange)
     decisions = []
@@ -238,5 +241,6 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],
         "decisions": decisions,
         "discipline": disc,
+        "stats": stats,
         **learning,
     }

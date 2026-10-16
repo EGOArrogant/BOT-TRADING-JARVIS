@@ -12,12 +12,14 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from bot.learning.journal import Journal
+from bot.metrics import robustness
 from bot.metrics.performance import summarize
 
 PAPER_MIN_DAYS = 42
 PAPER_MIN_TRADES = 60
 PAPER_MIN_PF = 1.3
 PAPER_MAX_DD = 0.08   # < 10 % de la detención: la spec decía 15 %, que nunca podía fallar
+PAPER_MAX_HALT_PROB = 0.05   # Monte Carlo: probabilidad de tocar la detención del 10 % en 100 operaciones
 TESTNET_MIN_DAYS = 7
 TESTNET_BAD_EVENTS = ("posicion_sin_stop", "posicion_huerfana", "orden_huerfana")
 RECORD_DAYS = 7
@@ -91,7 +93,7 @@ def _span_days(trades: list[dict]) -> float:
     return (last - first).total_seconds() / 86400
 
 
-def paper_gate(db: Path, capital: float) -> dict:
+def paper_gate(db: Path, capital: float, risk_per_trade: float = 0.005, halt_drawdown: float = 0.10) -> dict:
     if not db.exists():
         return {"ok": False, "motivo": "sin base de datos de papel"}
     j = Journal(db)
@@ -104,8 +106,14 @@ def paper_gate(db: Path, capital: float) -> dict:
         f"factor de beneficio > {PAPER_MIN_PF}": (s.get("profit_factor") or 0) > PAPER_MIN_PF,
         f"drawdown < {PAPER_MAX_DD:.0%}": s.get("n", 0) > 0 and s.get("max_drawdown", 1) < PAPER_MAX_DD,
     }
+    rob = robustness.analyze(robustness.from_trades(trades), risk_per_trade, halt_drawdown)
+    # No basta con haber ganado: la ventaja tiene que distinguirse de la suerte y sobrevivir a otro orden
+    checks["ventaja estadística (IC 95 % de la esperanza > 0)"] = bool(rob.get("enough") and rob["edge"] == "confirmada")
+    checks[f"Monte Carlo: prob. de tocar la detención < {PAPER_MAX_HALT_PROB:.0%}"] = bool(
+        rob.get("enough") and rob["mc_prob_halt"] < PAPER_MAX_HALT_PROB)
     j.close()
-    return {"ok": all(checks.values()), "checks": checks, "dias": round(days, 1), "resumen": s}
+    return {"ok": all(checks.values()), "checks": checks, "dias": round(days, 1), "resumen": s,
+            "robustez": {k: rob.get(k) for k in ("n", "expectancy_ci", "mc_dd_p95", "mc_prob_halt", "fragile")}}
 
 
 def testnet_gate(db: Path) -> dict:

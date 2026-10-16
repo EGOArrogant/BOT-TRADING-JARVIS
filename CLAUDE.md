@@ -371,6 +371,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   `verify_symbols(allow_missing=True)` + revisión horaria (`engine.unavailable`), `evaluate_late_window`
   (no esperar velas de una moneda caída), reloj compensado con `/fapi/v1/time` cada hora, `Engine.alert`
   registra en `events` (bitácora del panel). El snapshot del panel lleva `system` (fuentes, reloj, disco).
+- Robustez (`metrics/robustness.py`): IC 95 % (bootstrap/Wilson), estrés, rachas y Monte Carlo con semilla fija.
+  Puerta de papel ampliada (`gates.paper_gate`): IC inferior de la esperanza > 0 y P(tocar detención) < 5 %.
+  Kelly es solo informativo: nunca ajusta el riesgo (§1.1, §1.7).
 - Disciplina (`metrics/discipline.py`): chequeos de sesgo con n ≥ 10 por grupo; los ve el panel, la zona diaria y
   la reflexión semanal (que puede proponer reglas para corregirlos). El prompt del analista no lleva equity ni PnL del día.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).

@@ -79,6 +79,10 @@ summary{cursor:pointer}
 .disc .ic{font-weight:700;text-align:center;border-radius:50%;width:20px;height:20px;line-height:20px;font-size:12px}
 .disc .ok{color:var(--good);background:var(--good-bg)}.disc .alerta{color:var(--warn);background:var(--warn-bg)}
 .disc .sin_datos{color:var(--ink3);background:var(--off-bg)}
+.disc .bad{color:var(--bad);background:var(--bad-bg)}
+.verdict{display:inline-flex;gap:8px;align-items:center;padding:6px 12px;border-radius:8px;font-weight:600}
+.verdict.ok{color:var(--good);background:var(--good-bg)}.verdict.warn{color:var(--warn);background:var(--warn-bg)}
+.verdict.bad{color:var(--bad);background:var(--bad-bg)}.verdict.off{color:var(--ink2);background:var(--off-bg)}
 .bias{position:relative;width:120px;height:8px;border-radius:4px;background:var(--grid);display:inline-block;vertical-align:middle}
 .bias i{position:absolute;top:0;height:100%;border-radius:4px}
 .bias::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--ink3)}
@@ -206,6 +210,21 @@ background:var(--series);color:#fff;cursor:pointer}
     <div class="scroll" id="perf" style="margin-top:8px"></div>
     <div class="muted small" style="margin-top:6px">R = ganancia o pérdida medida en "riesgos": +1R es ganar lo mismo que se arriesgó.
       Con pocas operaciones (n) los números todavía son suerte.</div>
+  </section>
+
+  <section class="card">
+    <div class="row-head">
+      <h2 style="margin:0">¿Ventaja real o suerte? <span class="muted small">(estadística de la estrategia)</span></h2>
+      <div class="tabs" id="statTabs" role="group" aria-label="Muestra" style="margin:0">
+        <button type="button" data-k="trades" aria-pressed="true">Operaciones del demo</button>
+        <button type="button" data-k="practice" aria-pressed="false">Práctica (30 días)</button>
+      </div>
+    </div>
+    <div id="statVerdict" style="margin-top:10px"></div>
+    <ul class="disc" id="statList" style="margin-top:10px"></ul>
+    <div class="muted small" style="margin-top:8px">Una estrategia no es una operación: es una distribución de resultados.
+      Estos números dicen qué tan seguro se puede estar de la ventaja y qué malas rachas son normales.
+      Solo informan: el riesgo por operación lo fija el código y no cambia solo.</div>
   </section>
 
   <div class="grid2">
@@ -678,7 +697,68 @@ function renderZone() {
   $("zoneText").textContent = z ? z.text : "Todavía no hay reportes diarios.";
 }
 
-function render() { renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+var STAT = "trades";
+function rr(x, d) { return x == null ? "—" : (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(d == null ? 2 : d) + "R"; }
+function pc(x, d) { return x == null ? "—" : (x * 100).toFixed(d == null ? 0 : d) + "%"; }
+function renderStats() {
+  $("statTabs").querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.k === STAT));
+    b.onclick = function () { STAT = b.dataset.k; renderStats(); };
+  });
+  var a = ((D.stats || {})[STAT]) || {n: 0};
+  if (!a.enough) {
+    $("statVerdict").innerHTML = '<span class="verdict off">Faltan datos: hay ' + esc(a.n || 0) + " (mínimo 5). Con menos de 30 todo es casi suerte.</span>";
+    $("statList").innerHTML = ""; return;
+  }
+  var v = {confirmada: ["ok", "✓ Ventaja confirmada: incluso en el peor caso razonable la esperanza es positiva"],
+           incierta: ["warn", "Todavía no se distingue de la suerte: hace falta más muestra"],
+           negativa: ["bad", "Pierde de forma consistente: la estrategia no tiene ventaja"]}[a.edge];
+  $("statVerdict").innerHTML = '<span class="verdict ' + v[0] + '">' + esc(v[1]) + '</span> <span class="muted small">(n=' + a.n + ")</span>";
+  function item(state, title, text) {
+    var ic = {ok: "✓", alerta: "!", sin_datos: "·", bad: "✕"}[state];
+    return '<li><span class="ic ' + state + '">' + ic + "</span><b>" + esc(title) + '</b><span></span><span class="muted small">' + esc(text) + "</span></li>";
+  }
+  var rows = [];
+  rows.push(item(a.edge === "confirmada" ? "ok" : a.edge === "negativa" ? "bad" : "sin_datos", "Esperanza por operación",
+    rr(a.expectancy_r) + " de promedio. Con 95% de confianza, la real está entre " + rr(a.expectancy_ci[0]) + " y " + rr(a.expectancy_ci[1]) + "."));
+  rows.push(item("sin_datos", "Acierto real probable",
+    pc(a.win_rate) + " de acierto, pero el verdadero está entre " + pc(a.win_rate_ci[0]) + " y " + pc(a.win_rate_ci[1]) +
+    ". Gana " + rr(a.avg_win_r) + " de media y pierde " + rr(-a.avg_loss_r) + "."));
+  rows.push(item(a.fragile ? "alerta" : (a.stress_expectancy_r > 0 ? "ok" : "sin_datos"), "Prueba de estrés",
+    "Si todo saliera un poco peor (4 puntos menos de acierto, ganancias 10% menores, pérdidas 5% mayores): " + rr(a.stress_expectancy_r) +
+    (a.fragile ? ". La ventaja es frágil." : a.stress_expectancy_r > 0 ? ". Aguanta." : ".")));
+  rows.push(item("sin_datos", "Malas rachas normales",
+    "La peor racha vista: " + a.streak_worst_seen + (a.streak_worst_seen === 1 ? " pérdida" : " pérdidas seguidas") + ". En " + a.horizon + " operaciones es normal llegar a " +
+    a.streak_reasonable + " pérdidas seguidas, lo que con el riesgo actual costaría " + pc(a.streak_cost_pct, 1) + " del capital. Eso no significa que la estrategia esté rota."));
+  rows.push(item(a.mc_prob_halt < 0.05 ? "ok" : "alerta", "Monte Carlo (2.000 órdenes posibles)",
+    "Caída máxima típica " + pc(a.mc_dd_median, 1) + "; en el 5% de futuros más malos, " + pc(a.mc_dd_p95, 1) +
+    ". Probabilidad de tocar la detención del 10%: " + pc(a.mc_prob_halt, 1) + "."));
+  rows.push(item("sin_datos", "Rango de resultados en " + a.horizon + " operaciones",
+    "Del capital: malo " + pc(a.mc_final_p5, 1) + " · típico " + pc(a.mc_final_p50, 1) + " · bueno " + pc(a.mc_final_p95, 1) +
+    ". Crecimiento compuesto por operación " + pc(a.growth_geom_pct, 3) + " (la media simple diría " + pc(a.growth_arith_pct, 3) + ")."));
+  if (a.tails && a.tails.sin_5_mejores != null)
+    rows.push(item(a.tails.sin_5_mejores > 0 ? "ok" : "alerta", "¿Depende de pocas operaciones?",
+      "Sin las 5 mejores la esperanza sería " + rr(a.tails.sin_5_mejores) + "; sin las 5 peores, " + rr(a.tails.sin_5_peores) +
+      (a.tails.sin_5_mejores <= 0 ? ". Casi toda la ganancia viene de muy pocas." : ".")));
+  rows.push(item("sin_datos", "Dispersión",
+    "Desviación de " + (a.std_r || 0).toFixed(2) + "R por operación; asimetría " + (a.skew || 0).toFixed(2) +
+    (a.skew > 0.5 ? " (pocas ganancias grandes, muchas pérdidas chicas)" : a.skew < -0.5 ? " (muchas ganancias chicas y pérdidas grandes ocasionales: ojo)" : " (equilibrada)") + "."));
+  if (a.kelly != null)
+    rows.push(item("ok", "Tamaño de posición (Kelly, solo referencia)",
+      a.kelly > 0 ? "Kelly teórico " + pc(a.kelly, 1) + " por operación; el bot arriesga " + pc(a.risk_per_trade, 2) +
+        (a.kelly_fraction_used ? " (≈ " + (a.kelly_fraction_used * 100).toFixed(0) + "% de Kelly)" : "") + ". Arriesgar más no hace crecer más: con rachas reales, acerca la ruina."
+      : "Kelly ≤ 0: con estos números no conviene arriesgar nada. El bot no sube el riesgo por esto."));
+  if (a.mae_winners || a.mfe_reach) {
+    var t = [];
+    if (a.mae_winners) t.push("El 80% de las ganadoras nunca fue más allá de " + rr(a.mae_winners.p80) + " en contra");
+    if (a.mfe_reach) t.push("llegan a +1R el " + pc(a.mfe_reach["1R"]) + ", a +2R el " + pc(a.mfe_reach["2R"]) + " y a +3R el " + pc(a.mfe_reach["3R"]));
+    if (a.losers_were_up_1r != null) t.push("el " + pc(a.losers_were_up_1r) + " de las perdedoras estuvo +1R a favor antes de perder");
+    rows.push(item("sin_datos", "Recorrido dentro de la operación (MAE/MFE)", t.join("; ") + "."));
+  }
+  $("statList").innerHTML = rows.join("");
+}
+
+function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {
