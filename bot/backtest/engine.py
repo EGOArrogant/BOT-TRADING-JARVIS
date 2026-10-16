@@ -135,7 +135,10 @@ class Backtester:
 
     def _features(self, sym: str, state: MarketState, asof: datetime) -> dict[str, DataPoint]:
         """Indicadores con una vista del almacén congelada en `asof` (sin mirar al futuro)."""
-        view = AsOfStore(self.store, asof, self._scratch.setdefault(sym, FeedStore()))
+        if hasattr(self.store, "as_of"):  # SeriesStore: consultas en O(log n) para historias largas
+            view = self.store.as_of(asof, self._scratch.setdefault(sym, type(self.store)()))
+        else:
+            view = AsOfStore(self.store, asof, self._scratch.setdefault(sym, FeedStore()))
         rate = view.value_at_or_before(f"deriv.funding_hist.{sym}", asof)
         state.funding_rate = rate
         state.mark_ms = int(asof.timestamp() * 1000) if rate is not None else None

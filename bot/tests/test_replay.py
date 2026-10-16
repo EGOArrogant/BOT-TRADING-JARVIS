@@ -86,3 +86,23 @@ def test_record_gate_needs_7_full_days_and_a_reconnect(tmp_path):
     j.close()
     assert gates.record_gate(tmp_path, syms, today=date(2026, 10, 10))["ok"]
     assert not gates.record_gate(tmp_path, syms, today=date(2026, 10, 9))["ok"]  # solo 6 días completos
+
+
+def test_series_store_matches_asof_store():
+    from bot.backtest.series_store import SeriesStore
+    f, s = FeedStore(), SeriesStore()
+    for h in (3, 1, 5, 2, 9, 7):  # desordenado, como un relleno
+        for st in (f, s):
+            st.set("deriv.oi.ETHUSDT", 100.0 + h, "t", T0 + timedelta(hours=h))
+    cut = T0 + timedelta(hours=6, minutes=30)
+    a, b = AsOfStore(f, cut), s.as_of(cut)
+    assert a.get("deriv.oi.ETHUSDT").value == b.get("deriv.oi.ETHUSDT").value == 105.0
+    assert list(a.values("deriv.oi.ETHUSDT")) == list(b.values("deriv.oi.ETHUSDT"))
+    since = T0 + timedelta(hours=2)
+    assert list(a.values("deriv.oi.ETHUSDT", since)) == list(b.values("deriv.oi.ETHUSDT", since))
+    assert b.value_at_or_before("deriv.oi.ETHUSDT", T0 + timedelta(hours=9)) == 105.0
+    assert s.as_of(T0).get("deriv.oi.ETHUSDT").status is DataStatus.UNKNOWN
+    b.set("calc.x", 1.0, "calc", T0 + timedelta(hours=9))  # escritura del futuro: ignorada
+    assert b.get("calc.x").status is DataStatus.UNKNOWN
+    b.set("calc.x", 2.0, "calc", T0 + timedelta(hours=6))
+    assert b.get("calc.x").value == 2.0 and s.get("calc.x").status is DataStatus.UNKNOWN
