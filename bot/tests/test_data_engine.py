@@ -115,6 +115,16 @@ def test_parse_derivatives():
 def test_parse_dvol_and_realized():
     resp = {"result": {"data": [[1700000000000, 50, 52, 49, 51.5]], "continuation": None}}
     assert parse_dvol(resp)[0][1] == 51.5
+
+
+def test_dvol_timestamp_is_candle_close_not_open():
+    from datetime import UTC, datetime, timedelta
+    from bot.core.clock import dt_to_ms
+    now = datetime(2026, 10, 16, 12, 40, tzinfo=UTC)
+    done, forming = datetime(2026, 10, 16, 11, tzinfo=UTC), datetime(2026, 10, 16, 12, tzinfo=UTC)
+    resp = {"result": {"data": [[dt_to_ms(done), 1, 1, 1, 50.0], [dt_to_ms(forming), 1, 1, 1, 52.0]]}}
+    rows = parse_dvol(resp, now)
+    assert rows == [(done + timedelta(hours=1), 50.0), (now, 52.0)]  # la vela en curso vale "ahora", no hace 40 min
     rng = np.random.default_rng(0)
     closes = 100 * np.exp(np.cumsum(rng.normal(0, 0.001, 2000)))
     rv = realized_vol(closes, 1)

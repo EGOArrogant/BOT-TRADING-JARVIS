@@ -19,10 +19,16 @@ DVOL_CURRENCIES = ("BTC", "ETH")
 MINUTES_PER_YEAR = 365 * 24 * 60
 
 
-def parse_dvol(resp: dict) -> list[tuple[datetime, float]]:
-    """result.data = [[ts_ms, open, high, low, close], ...]; se usa el cierre."""
+def parse_dvol(resp: dict, now: datetime | None = None, resolution_s: int = 3600) -> list[tuple[datetime, float]]:
+    """result.data = [[ts_ms_apertura, open, high, low, close], ...]; se usa el cierre.
+
+    El valor de cierre corresponde al FINAL de la vela (apertura + resolución); la vela en curso vale
+    "a la hora de la consulta". Fecharlo con la apertura lo hacía parecer una hora más viejo (vencido)
+    y, en el backtest, adelantaba hasta una hora un dato futuro."""
     rows = resp.get("result", {}).get("data", [])
-    return sorted((ms_to_dt(int(r[0])), float(r[4])) for r in rows)
+    now = now or utc_now()
+    step = timedelta(seconds=resolution_s)
+    return sorted((min(ms_to_dt(int(r[0])) + step, now), float(r[4])) for r in rows)
 
 
 def realized_vol(closes: np.ndarray, bar_minutes: float) -> float | None:
@@ -48,7 +54,7 @@ class DvolPoller:
                     params={"currency": cur, "start_timestamp": dt_to_ms(end - lookback),
                             "end_timestamp": dt_to_ms(end), "resolution": "3600"},
                 )
-                for ts, v in parse_dvol(resp):
+                for ts, v in parse_dvol(resp, end):
                     self.store.set(f"vol.dvol.{cur}", v, "deribit", ts)
             except Exception as exc:  # noqa: BLE001
                 log.warning("DVOL: fallo", extra={"currency": cur, "err": repr(exc)})

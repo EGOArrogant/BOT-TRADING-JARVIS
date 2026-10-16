@@ -91,7 +91,7 @@ data:
     funding: 60
     open_interest: 900
     dvol: 900
-    onchain: 43200
+    onchain: 129600               # DefiLlama publica 1 dato por día: vigente 36 h
     dex: 300
     sentiment: 129600
     news: 1800
