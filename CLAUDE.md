@@ -364,6 +364,8 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   que usa la web oficial; ~40 MB, cada 6 h) + `clearinghouseState` (oficial) cada 2 min. Campos `dex.smart_*`
   (contexto para IA/aprendizaje; con < 50 % de cuentas leídas = unknown). Nunca se copian operaciones.
 - Windows: `instalar.bat` (uv + Python 3.12 + `bot.revisar`), `iniciar_demo.bat` (paper con reinicio), `abrir_panel.bat`.
+  `bot/integridad.py` corre antes de cada arranque: copia mezclada/incompleta → código 3 y el .bat no reinicia.
+  Panel: velas OHLC 15m (48 h) y 1h (7 días) en `panel_vivo.json["candles"]`, con la vela en curso.
   Escrituras compartidas con el panel vía `core/fsutil.atomic_write_text` (reintenta PermissionError de Windows).
 - Papel sobrevive reinicios: `Engine.save_paper/restore_paper` (`state_<modo>_exchange.json`: saldo, posiciones,
   órdenes abiertas, funding y las `Position` del gestor). Sin archivo: saldo = equity del estado.

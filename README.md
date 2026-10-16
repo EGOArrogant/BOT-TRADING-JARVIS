@@ -18,6 +18,10 @@ escéptico y el código controla todo el riesgo. La especificación completa est
 
 `python -m bot.revisar` repite la revisión cuando quieras.
 
+**Copia dañada:** antes de cada arranque `iniciar_demo.bat` ejecuta `python -m bot.integridad`, que importa cada
+módulo y comprueba los archivos de datos. Si la carpeta mezcla versiones (un ZIP nuevo extraído encima de uno
+viejo), no entra en un ciclo de reinicios: se detiene y explica cómo reinstalar en una carpeta nueva.
+
 **Apagones y reinicios:** el modo demo guarda cada minuto (y al abrir o cerrar una operación) su saldo
 ficticio, sus posiciones y sus stops en `bot/data/state_paper_exchange.json`, y al volver a arrancar continúa
 desde ahí; si el precio tocó un stop mientras estaba apagado, se cierra al precio actual, como un hueco real.

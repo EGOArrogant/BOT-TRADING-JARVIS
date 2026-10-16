@@ -62,6 +62,9 @@ color:var(--ink);cursor:pointer;transition:background .15s,box-shadow .15s}
 .chart{position:relative}
 svg{display:block;width:100%;height:auto;overflow:visible}
 .axis{fill:var(--ink3);font-size:11px}.gl{stroke:var(--grid);stroke-width:1}
+.chart-opts{display:flex;flex-wrap:wrap;gap:8px}
+.chart-opts .tabs{margin-bottom:10px}
+.cdl-up{fill:var(--good);stroke:var(--good)}.cdl-dn{fill:var(--bad);stroke:var(--bad)}
 .line{fill:none;stroke:var(--series);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .area{fill:url(#areaGrad)}
 .lvl{stroke-width:1.5;stroke-dasharray:5 4}.xh{stroke:var(--ink3);stroke-width:1;stroke-dasharray:3 3}
@@ -193,8 +196,14 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
   <div class="kpis" id="kpis"></div>
 
   <section class="card">
-    <h2>Precio y operaciones (últimas 48 h)</h2>
+    <h2 id="priceTitle">Precio y operaciones (últimas 48 h)</h2>
     <div class="tabs" id="tabs" role="group" aria-label="Moneda"></div>
+    <div class="chart-opts">
+      <div class="tabs" id="chartKind" role="group" aria-label="Tipo de gráfico">
+        <button type="button" data-k="velas">Velas</button><button type="button" data-k="linea">Línea</button></div>
+      <div class="tabs" id="chartTf" role="group" aria-label="Temporalidad">
+        <button type="button" data-k="15m">15 min · 48 h</button><button type="button" data-k="1h">1 hora · 7 días</button></div>
+    </div>
     <div class="chart" id="priceChart"></div>
     <div class="legend">
       <span><svg width="12" height="12"><path d="M6 1 L11 11 L1 11 Z" fill="var(--series)"/></svg>Entrada long</span>
@@ -380,7 +389,8 @@ function lineChart(el, pts, opts) {
   opts = opts || {};
   var W = Math.max(300, Math.round(el.clientWidth || 1000)), H = opts.h || (W < 600 ? 240 : 300), L = 70, R = 16, T = 12, B = 26;
   if (pts.length < 2) { el.innerHTML = '<div class="empty">' + esc(opts.empty || "Aún no hay datos.") + "</div>"; return; }
-  var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+  var ohlc = opts.ohlc, xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+  if (ohlc) ohlc.forEach(function (c) { ys.push(c[2], c[3]); });
   (opts.levels || []).forEach(function (l) { ys.push(l.v); });
   (opts.marks || []).forEach(function (m) { ys.push(m.v); });
   var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
@@ -408,8 +418,18 @@ function lineChart(el, pts, opts) {
   var gid = (el.id || "c") + "Grad", base = (H - B).toFixed(1);
   out.unshift('<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--series)" stop-opacity=".22"/>' +
     '<stop offset="1" stop-color="var(--series)" stop-opacity="0"/></linearGradient></defs>');
-  out.push('<path d="' + d + " L" + sx(x1).toFixed(1) + "," + base + " L" + sx(x0).toFixed(1) + "," + base + ' Z" fill="url(#' + gid + ')"/>');
-  out.push('<path class="line" d="' + d + '"/>');
+  if (ohlc) {  // velas: cuerpo de apertura a cierre, mecha de mínimo a máximo
+    var bw = Math.max(1, Math.min(14, (W - L - R) / ohlc.length * 0.68));
+    ohlc.forEach(function (c, i) {
+      var x = sx(pts[i][0]), up = c[4] >= c[1], top = sy(Math.max(c[1], c[4])), bot = sy(Math.min(c[1], c[4]));
+      out.push('<g class="' + (up ? "cdl-up" : "cdl-dn") + '"><line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' +
+        sy(c[2]).toFixed(1) + '" y2="' + sy(c[3]).toFixed(1) + '" stroke-width="1"/><rect x="' + (x - bw / 2).toFixed(1) +
+        '" y="' + top.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1, bot - top).toFixed(1) + '" stroke-width="0"/></g>');
+    });
+  } else {
+    out.push('<path d="' + d + " L" + sx(x1).toFixed(1) + "," + base + " L" + sx(x0).toFixed(1) + "," + base + ' Z" fill="url(#' + gid + ')"/>');
+    out.push('<path class="line" d="' + d + '"/>');
+  }
   out.push('<line class="xh" y1="' + T + '" y2="' + (H - B) + '" style="display:none"/>');
   (opts.marks || []).forEach(function (m, i) {
     if (m.t < x0 || m.t > x1) return;
@@ -436,9 +456,13 @@ function lineChart(el, pts, opts) {
     var html, px;
     if (hit) { html = hit.text; px = sx(hit.t); }
     else {
-      var best = pts[0];
-      pts.forEach(function (p) { if (Math.abs(sx(p[0]) - x) < Math.abs(sx(best[0]) - x)) best = p; });
-      html = esc(tf(best[0])) + " · <b>" + esc(fmt(best[1])) + "</b>"; px = sx(best[0]);
+      var bi = 0;
+      pts.forEach(function (p, j) { if (Math.abs(sx(p[0]) - x) < Math.abs(sx(pts[bi][0]) - x)) bi = j; });
+      var best = pts[bi], c = ohlc && ohlc[bi];
+      html = c ? esc(tf(c[0])) + "<br>Apertura <b>" + esc(fmt(c[1])) + "</b> · Cierre <b>" + esc(fmt(c[4])) + "</b><br>Máx. " +
+        esc(fmt(c[2])) + " · Mín. " + esc(fmt(c[3]))
+        : esc(tf(best[0])) + " · <b>" + esc(fmt(best[1])) + "</b>";
+      px = sx(best[0]);
     }
     xh.setAttribute("x1", px); xh.setAttribute("x2", px); xh.style.display = "block";
     tip.innerHTML = html; tip.style.display = "block";
@@ -449,8 +473,27 @@ function lineChart(el, pts, opts) {
   svg.addEventListener("mouseleave", function () { tip.style.display = "none"; xh.style.display = "none"; });
 }
 
+var CHART = {kind: "velas", tf: "15m"};
+try { var cs = JSON.parse(localStorage.getItem("jarvis-grafico") || "{}"); if (cs.kind) CHART.kind = cs.kind; if (cs.tf) CHART.tf = cs.tf; } catch (e) {}
+function renderChartOpts() {
+  [["chartKind", "kind"], ["chartTf", "tf"]].forEach(function (g) {
+    $(g[0]).querySelectorAll("button").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.k === CHART[g[1]]));
+      b.onclick = function () {
+        CHART[g[1]] = b.dataset.k;
+        try { localStorage.setItem("jarvis-grafico", JSON.stringify(CHART)); } catch (e) {}
+        renderChartOpts(); renderPrice();
+      };
+    });
+  });
+}
+
 function renderPrice() {
-  var pts = D.prices[SEL] || [], marks = [], levels = [];
+  var bars = ((D.candles || {})[SEL] || {})[CHART.tf] || [], ms = CHART.tf === "1h" ? 3600000 : 900000;
+  var pts = bars.length ? bars.map(function (c) { return [c[0] + ms / 2, c[4]]; }) : (D.prices[SEL] || []);
+  var ohlc = bars.length && CHART.kind === "velas" ? bars : null, marks = [], levels = [];
+  $("priceTitle").textContent = "Precio y operaciones (" + (CHART.tf === "1h" && bars.length ? "últimos 7 días" : "últimas 48 h") + ")";
+  var t0 = pts.length ? pts[0][0] - ms / 2 : 0;
   D.trades.filter(function (t) { return t.symbol === SEL; }).forEach(function (t) {
     marks.push({kind: "entry", side: t.side, t: Date.parse(t.opened_at), v: t.entry,
       text: "<b>Entrada " + esc(side(t.side)) + "</b><br>" + esc(when(t.opened_at)) + " · " + esc(price(t.entry))});
@@ -464,7 +507,8 @@ function renderPrice() {
     levels.push({v: p.stop, color: "var(--bad)", label: "Stop"});
     if (p.take_profit) levels.push({v: p.take_profit, color: "var(--good)", label: "Objetivo"});
   });
-  lineChart($("priceChart"), pts, {marks: marks, levels: levels, label: "Precio de " + coin(SEL),
+  marks = marks.filter(function (m) { return m.t >= t0; });
+  lineChart($("priceChart"), pts, {marks: marks, levels: levels, ohlc: ohlc, label: "Precio de " + coin(SEL),
     empty: "Todavía no hay precios: aparecen cuando el bot lleva unos minutos funcionando."});
 }
 
@@ -805,7 +849,7 @@ function renderStats() {
   $("statList").innerHTML = rows.join("");
 }
 
-function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderChartOpts(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

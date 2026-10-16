@@ -231,6 +231,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         },
         "equity_curve": [[capital_ts, eq] for capital_ts, eq in curve],
         "prices": (live or {}).get("prices", {}),
+        "candles": (live or {}).get("candles", {}),
         "last": (live or {}).get("last", {}),
         "positions": positions,
         "top_traders": (live or {}).get("top_traders"),

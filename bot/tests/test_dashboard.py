@@ -31,6 +31,9 @@ def test_panel_shows_open_position_then_closed_trade(setup):
     eng.write_panel(utc_now())
     snap = snapshot.read(s.storage.reports_dir / snapshot.FILENAME)
     assert snap and len(snap["prices"]["ETHUSDT"]) == snapshot.PRICE_BARS
+    c15 = snap["candles"]["ETHUSDT"]["15m"]
+    assert len(c15) == snapshot.CANDLE_BARS["15m"] and all(c[3] <= min(c[1], c[4]) <= max(c[1], c[4]) <= c[2] for c in c15)
+    assert [c[0] for c in c15] == sorted({c[0] for c in c15})  # sin velas repetidas
     pos = snap["positions"][0]
     assert pos["symbol"] == "ETHUSDT" and pos["side"] == "LONG" and pos["stop"] < pos["entry"]
 

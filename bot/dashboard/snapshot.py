@@ -17,6 +17,7 @@ from bot.core.models import Position, Side
 from bot.data_engine.market_state import MarketState
 
 PRICE_BARS = 192  # 48 h de velas de 15 min
+CANDLE_BARS = {"15m": 192, "1h": 168}  # velas para el gráfico: 48 h en 15 min y 7 días en 1 h
 FILENAME = "panel_vivo.json"
 
 
@@ -37,11 +38,19 @@ def build(now: datetime, mode: str, states: dict[str, MarketState], positions: d
           top_traders: dict[str, Any] | None = None) -> dict[str, Any]:
     prices: dict[str, list[list[float]]] = {}
     last: dict[str, float | None] = {}
+    ohlc: dict[str, dict[str, list[list[float]]]] = {}
     for sym, st in states.items():
+        ohlc[sym] = {}
+        for tf, n in CANDLE_BARS.items():
+            series = st.candles[tf]
+            rows = list(series.closed()[-n:])
+            if series.partial is not None and (not rows or series.partial.open_time > rows[-1].open_time):
+                rows = rows[-(n - 1):] + [series.partial]  # la vela en curso, para ver el precio de ahora
+            ohlc[sym][tf] = [[c.open_time, c.open, c.high, c.low, c.close] for c in rows]
         candles = st.candles["15m"].closed()[-PRICE_BARS:]
         prices[sym] = [[c.open_time + 900_000, c.close] for c in candles]  # hora de cierre de la vela
         last[sym] = st.mark_price or st.last_price or (candles[-1].close if candles else None)
-    return {"updated_at": now.isoformat(), "mode": mode, "prices": prices, "last": last,
+    return {"updated_at": now.isoformat(), "mode": mode, "prices": prices, "candles": ohlc, "last": last,
             "positions": [_position(p, states.get(s)) for s, p in positions.items()],
             "top_traders": top_traders}
 
