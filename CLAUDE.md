@@ -382,6 +382,11 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   Kelly es solo informativo: nunca ajusta el riesgo (§1.1, §1.7).
 - Disciplina (`metrics/discipline.py`): chequeos de sesgo con n ≥ 10 por grupo; los ve el panel, la zona diaria y
   la reflexión semanal (que puede proponer reglas para corregirlos). El prompt del analista no lleva equity ni PnL del día.
+- Panel por secciones (barra superior, `#inicio`…`#sistema`); Reportes en palabras simples (`dashboard/reports.py`,
+  `/api/reportes`); campana con eventos `notif` (`core/notify.py`: entradas/salidas/resumen diario, también a
+  Telegram con `configurar_telegram.bat`); "Reportar error" (`dashboard/diagnostics.py`: sin llaves; la IA solo
+  aconseja, nunca cambia código). Logo SVG en línea: ojos verde/ámbar/rojo según estado.
+- Demo con capital nuevo: `bot/demo_reset.py` archiva la demo anterior en `bot/data/archivo/` (solo paper).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

@@ -91,6 +91,20 @@ def _rows(db: sqlite3.Connection | None, sql: str, args: tuple = ()) -> list[dic
         return []
 
 
+def notifications(events: list[dict]) -> list[dict[str, Any]]:
+    """Campana del panel: entradas, salidas y reportes (y avisos importantes), lo más reciente primero."""
+    out = []
+    for e in events:
+        payload = json.loads(e["payload"] or "{}")
+        if e["kind"] == "notif":
+            out.append({"ts": e["ts"], **{k: payload.get(k, "") for k in ("kind", "title", "text", "level")}})
+        elif e["kind"] == "alerta" and payload.get("level") in ("warning", "error"):
+            icon = "⛔" if payload["level"] == "error" else "⚠️"
+            out.append({"ts": e["ts"], "kind": "alerta", "title": f"{icon} Aviso del bot", "text": payload.get("msg", ""),
+                        "level": payload["level"]})
+    return out[:50]
+
+
 def control_view(settings: Settings) -> dict[str, Any]:
     """Controles actuales y lo que significa cada nivel de agresividad (para el panel)."""
     ctl = control.load(control.path_for(settings))
@@ -174,7 +188,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
                    for c in _rows(db, "SELECT ts, status, ai, counterfactual FROM candidates WHERE ts >= ?", (since30,))]
         events30 = _rows(db, "SELECT ts, kind FROM events WHERE ts >= ?", (since30,))
         ai_last = _rows(db, "SELECT ts, valid, reason FROM ai_calls ORDER BY ts DESC LIMIT 10")
-        log_rows = _rows(db, "SELECT ts, kind, payload FROM events WHERE ts >= ? ORDER BY ts DESC LIMIT 60",
+        log_rows = _rows(db, "SELECT ts, kind, payload FROM events WHERE ts >= ? ORDER BY ts DESC LIMIT 150",
                          ((now - timedelta(days=7)).isoformat(),))
     finally:
         if db is not None:
@@ -191,7 +205,10 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
     bitacora = []
     for e in log_rows:
         payload = json.loads(e["payload"] or "{}")
-        if e["kind"] == "alerta":
+        if e["kind"] == "notif":
+            lv = {"good": "info", "bad": "info"}.get(payload.get("level", "info"), payload.get("level", "info"))
+            bitacora.append({"ts": e["ts"], "level": lv, "text": f"{payload.get('title', '')} — {payload.get('text', '')}"})
+        elif e["kind"] == "alerta":
             bitacora.append({"ts": e["ts"], "level": payload.get("level", "info"), "text": payload.get("msg", "")})
         elif e["kind"] in EVENT_TEXT:
             extra = payload.get("reason") or payload.get("symbol") or ""
@@ -237,6 +254,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "top_traders": (live or {}).get("top_traders"),
         "system": {**((live or {}).get("system") or {}), "ai": ai_health(ai_last)},
         "bitacora": bitacora[:40],
+        "notifications": notifications(log_rows),
         "performance": {k: by_dimension(trades, k, capital) if trades else {} for k in ("strategy", "symbol", "side")},
         "zone": latest_zone(st.reports_dir),
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],

@@ -59,6 +59,10 @@ def run(settings: Settings, secrets: Secrets, ask: Callable[[str], str] = input)
 
     settings = per_mode_storage(settings)
     log.info("arranque", extra={"mode": settings.mode.value, "symbols": settings.exchange.symbols})
+    if settings.mode is Mode.PAPER:
+        from bot import demo_reset
+        if (moved := demo_reset.check(settings)) is not None:
+            print(f"Capital de la demo: {settings.paper.initial_capital:g} USDT. La demo anterior se guardó en {moved}")
     alert = Alerter(settings.alerts.telegram_enabled, secrets.telegram_bot_token, secrets.telegram_chat_id)
     if settings.mode is Mode.LIVE and not check_live_allowed(secrets, ask, gates.live_allowed(settings.data.dir)):
         return 2
@@ -190,14 +194,14 @@ def cmd_report(settings: Settings) -> int:
     return 0
 
 
-def cmd_panel(settings: Settings, port: int, phone: bool = False) -> int:
+def cmd_panel(settings: Settings, port: int, phone: bool = False, ai_key: str | None = None) -> int:
     import webbrowser
 
     from bot.dashboard.server import serve
 
     settings = per_mode_storage(settings)
     try:
-        server = serve(settings, port, phone=phone)
+        server = serve(settings, port, phone=phone, ai_key=ai_key)
     except OSError as exc:
         print(f"no se pudo abrir el panel en el puerto {port} ({exc}). Prueba con otro: --port 8766")
         return 1
@@ -247,7 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         return cmd_report(settings)
     if args.command == "panel":
-        return cmd_panel(settings, args.port, args.celular)
+        return cmd_panel(settings, args.port, args.celular, secrets.anthropic_api_key)
     return run(settings, secrets)
 
 

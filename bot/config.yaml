@@ -115,7 +115,7 @@ learning:
   max_hypotheses_per_week: 3
 
 alerts:
-  telegram_enabled: false
+  telegram_enabled: true   # solo envía si TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID están en .env (configurar_telegram.bat)
 
 logging:
   dir: bot/data/logs
@@ -123,10 +123,11 @@ logging:
   backup_days: 30
 
 paper:
-  # Capital ficticio del modo demo. Con 0,5 % de riesgo por operación: ~10 $ en juego por operación;
-  # las ganadoras suelen dejar 1,5–2,5 veces eso (~15–25 $). Cambiarlo solo antes de la primera ejecución
-  # (o borrando bot/data/state_paper.json y bot/data/bot_paper.sqlite para empezar de cero).
-  initial_capital: 2000
+  # Capital ficticio del modo demo, en USDT: 27 ≈ 500 pesos mexicanos. Con 0,5 % de riesgo por operación
+  # se arriesgan ~0,14 $ por operación. Binance exige un mínimo por orden (BTC ~100 USDT, ETH ~20 USDT, el resto
+  # ~5 USDT): con este capital BTC casi nunca se podrá operar. Si se cambia, al arrancar se archiva la demo
+  # anterior en bot/data/archivo/ y se empieza de cero (bot/demo_reset.py).
+  initial_capital: 27
   latency_ms: 150
 
 storage:

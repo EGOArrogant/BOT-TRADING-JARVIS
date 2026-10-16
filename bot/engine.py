@@ -53,6 +53,8 @@ from bot.indicators.features import compute_features
 from bot.learning import counterfactual
 from bot.learning.champion_challenger import ChampionChallenger
 from bot.dashboard import snapshot as panel_snapshot
+from bot.core import notify
+from bot.dashboard.reports import day_report
 from bot.learning.daily_report import write_zone
 from bot.learning.hypotheses import effective_strategies, load_overrides, overrides_allow
 from bot.learning.journal import AI_REJECTED, NO_FILL, NOT_SELECTED, REJECTED, RISK_REJECTED, TRADED, Journal
@@ -129,6 +131,14 @@ class Engine:
         self._exit_reviews: dict[str, tuple[datetime, set[str]]] = {}
         self.user_stream: Any = None          # UserStream si el exchange es real
         self._wake = asyncio.Event()          # lo dispara un evento de cuenta  # símbolo -> (última, titulares vistos)
+
+    def notify(self, notice: notify.Notice) -> None:
+        """Notificación para personas (campana del panel + Telegram): entradas, salidas y reportes."""
+        try:
+            self.journal.record_event(self.clock.now(), "notif", notice.payload())
+        except Exception:  # noqa: BLE001
+            pass
+        self._alerter(notice.as_text(), "info")
 
     def alert(self, msg: str, level: str = "error") -> None:
         """Alerta (log/Telegram) que además queda en el diario para la bitácora del panel."""
@@ -355,9 +365,13 @@ class Engine:
                                                 signal_id=sig.id))
             self.state.save(self.s.storage.state_path)
             self.journal.update_candidate(sig.id, status=TRADED)
-            self.alert(f"ENTRADA {sig.symbol} {sig.side.value} {sig.strategy} qty={result.position.qty} "
-                       f"@{result.position.entry_price} stop={result.position.stop_price} conf={d.confidence:.2f}",
-                       level="info")
+            p = result.position
+            log.info("entrada", extra={"symbol": sig.symbol, "side": sig.side.value, "strategy": sig.strategy,
+                                       "qty": str(p.qty), "entry": str(p.entry_price), "stop": str(p.stop_price),
+                                       "conf": d.confidence})
+            self.notify(notify.entry(sig.symbol, sig.side.value, sig.strategy, float(p.entry_price), float(p.stop_price),
+                                     float(p.take_profit_price) if p.take_profit_price else None, float(p.qty),
+                                     d.confidence))
 
     def _still_valid(self, sig: Signal) -> bool:
         st = self.c.states[sig.symbol]
@@ -378,8 +392,10 @@ class Engine:
         self.risk.update_guards(self.state, trade.closed_at)
         self.state.save(self.s.storage.state_path)
         self.save_paper()
-        self.alert(f"CIERRE {trade.symbol} {trade.side.value} {trade.exit_reason.value} "
-                   f"R={float(trade.r_multiple):+.2f} neto={float(trade.pnl_net):+.2f}", level="info")
+        log.info("cierre", extra={"symbol": trade.symbol, "side": trade.side.value, "reason": trade.exit_reason.value,
+                                  "r": float(trade.r_multiple), "pnl_net": float(trade.pnl_net)})
+        self.notify(notify.exit_(trade.symbol, trade.side.value, trade.exit_reason.value, float(trade.pnl_net),
+                                 float(trade.r_multiple), self.state.equity))
         if self.state.halted:
             self.alert(f"BOT DETENIDO: {self.state.halt_reason}. Reinicio manual requerido.")
 
@@ -709,6 +725,14 @@ class Engine:
         await self.check_disk(now, force=True)
         yesterday = (now - timedelta(days=1)).date()
         write_zone(self.journal, yesterday, self.state.equity, self.s.storage.reports_dir)
+        try:
+            start = datetime(yesterday.year, yesterday.month, yesterday.day, tzinfo=UTC)
+            rep = day_report(yesterday.isoformat(), self.journal.trades(start, start + timedelta(days=1)),
+                             self.journal.candidates(start, start + timedelta(days=1)), self.s.risk.risk_per_trade,
+                             self.s.paper.initial_capital)
+            self.notify(notify.day(rep))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("resumen del día para notificación falló", extra={"err": repr(exc)})
         for h, ev in self.cc.review(now):
             self.alert(f"retador {h.id} supera al campeón ({ev.challenger_exp:+.2f}R vs {ev.champion_exp:+.2f}R, "
                        f"n={ev.n_cases}). " + ("Requiere aprobación." if self.s.learning.require_human_approval

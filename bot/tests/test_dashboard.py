@@ -42,6 +42,7 @@ def test_panel_shows_open_position_then_closed_trade(setup):
     assert d["status"]["code"] == "operando"
     assert d["kpis"]["entradas_hoy"] == 1 and d["positions"][0]["symbol"] == "ETHUSDT"
     assert d["decisions"][0]["status"] == "Operó"
+    assert d["notifications"][0]["kind"] == "entrada" and "Entrada LONG en Ethereum" in d["notifications"][0]["title"]
 
     # Toca el stop: la operación aparece cerrada con su motivo y sin posiciones abiertas
     p = eng.manager.positions["ETHUSDT"]
@@ -56,6 +57,7 @@ def test_panel_shows_open_position_then_closed_trade(setup):
     t = d["trades"][0]
     assert t["exit_reason"] == "Stop-loss" and t["pnl_net"] < 0 and t["exit"] > 0
     assert d["kpis"]["cerradas_hoy"] == 1 and len(d["equity_curve"]) == 1
+    assert d["notifications"][0]["kind"] == "salida" and "Perdió" in d["notifications"][0]["title"]
 
 
 def test_panel_status_off_halted_and_learning(setup):

@@ -4,11 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panel JARVIS</title>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="JARVIS">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>window.JERR=[];window.addEventListener("error",function(e){JERR.push(new Date().toISOString().slice(11,19)+" "+(e.message||"error")+(e.filename?" ("+e.filename.split("/").pop()+":"+e.lineno+")":""));});
+window.addEventListener("unhandledrejection",function(e){JERR.push(new Date().toISOString().slice(11,19)+" "+String(e.reason&&e.reason.message||e.reason));});</script>
 <script>try{var t=localStorage.getItem("jarvis-tema");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 <style>
 :root{--bg:#f2f2f7;--card:#ffffff;--ink:#1c1c1e;--ink2:#636366;--ink3:#8e8e93;--grid:#e5e5ea;--fill:rgba(120,120,128,.12);
@@ -29,9 +33,95 @@ html{-webkit-font-smoothing:antialiased}
 body{margin:0;background:var(--bg);color:var(--ink);
 font:15px/1.47 -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;letter-spacing:-.01em}
 main{max-width:1180px;margin:0 auto;padding:0 20px 64px}
-/* barra superior translúcida, como la de iOS */
-header{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;justify-content:space-between;
-margin:0 -20px;padding:18px 20px 14px;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px)}
+/* barra superior translúcida con las secciones del panel */
+header.nav{position:sticky;top:0;z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin:0 -20px;padding:10px 20px;
+background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+border-bottom:1px solid var(--grid)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:19px;letter-spacing:-.02em;color:var(--ink);text-decoration:none;flex:none}
+.brand .logo{width:46px;height:46px;border-radius:12px;flex:none}
+.lg-tile{fill:var(--card);stroke:var(--grid)}
+:root{--lg-hood:#2f7d46;--lg-hood-in:#1f5a32;--lg-m1:#f4f6f8;--lg-m2:#b9c1ca;--lg-m3:#7d8793;--lg-line:#5d6672;--lg-eye-off:#8e8e93}
+:root[data-theme="dark"]{--lg-hood:#1d5230;--lg-hood-in:#123a22;--lg-m1:#c9d0d8;--lg-m2:#76808c;--lg-m3:#3b434d;--lg-line:#262c33}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--lg-hood:#1d5230;--lg-hood-in:#123a22;--lg-m1:#c9d0d8;
+  --lg-m2:#76808c;--lg-m3:#3b434d;--lg-line:#262c33}}
+.lg-hood{fill:var(--lg-hood)}.lg-hood-in{fill:var(--lg-hood-in)}
+.lg-m1{stop-color:var(--lg-m1)}.lg-m2{stop-color:var(--lg-m2)}.lg-m3{stop-color:var(--lg-m3)}
+.lg-edge{stroke:var(--lg-line);stroke-width:.8}
+.lg-line{fill:none;stroke:var(--lg-line);stroke-width:1;stroke-linecap:round}
+.lg-grille{fill:var(--lg-line)}.lg-rivet{fill:var(--lg-line)}
+.lg-eye{fill:var(--lg-eye-off);transition:fill .4s}
+.logo.on .lg-eye{fill:#30d158}.logo.warn .lg-eye{fill:#ff9f0a}.logo.bad .lg-eye{fill:#ff3b30}
+.logo.bad .lg-eye{animation:blink 1.2s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+.brand-dot{width:9px;height:9px;border-radius:50%;background:var(--off);margin-left:-2px}
+.brand-dot.on{background:var(--good);animation:pulse 2.4s ease-in-out infinite}
+.brand-dot.warn{background:var(--warn)}.brand-dot.bad{background:var(--bad)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--good-bg)}50%{box-shadow:0 0 0 6px var(--good-bg)}}
+.nav-links{position:relative;display:flex;gap:2px;order:3;flex:1 1 100%;min-width:0;overflow-x:auto;scrollbar-width:none;margin:0 -8px}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{position:relative;z-index:1;display:flex;align-items:center;gap:6px;padding:8px 13px;border-radius:10px;font-size:14.5px;
+font-weight:600;color:var(--ink2);text-decoration:none;white-space:nowrap;transition:color .2s}
+.nav-links a:hover{color:var(--ink)}
+.nav-links a[aria-current="page"]{color:var(--series)}
+.nav-ind{position:absolute;z-index:0;top:0;height:100%;border-radius:10px;background:var(--series-soft);transition:transform .28s cubic-bezier(.3,.7,.2,1),width .28s}
+.nb{font-size:11px;font-weight:700;min-width:18px;padding:1px 6px;border-radius:999px;background:var(--fill);color:var(--ink2);text-align:center}
+.nb:empty{display:none}
+.nb.dot{min-width:0;width:8px;height:8px;padding:0;font-size:0;background:var(--series)}
+.nb.dot.bad{background:var(--bad)}
+.nav-right{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;align-items:center;margin-left:auto;min-width:0}
+.chip{font-size:13px;font-weight:700;padding:6px 12px;border-radius:999px;background:var(--fill);white-space:nowrap}
+.chip:empty{display:none}
+.btn.icon{padding:7px 11px}
+.page-head{margin:22px 0 4px}
+.page-head h1{animation:fadein .3s ease}
+[data-view].off{display:none!important}
+.view-in{animation:fadein .28s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.bell-wrap{position:relative}
+#bellBtn .nb{margin-left:4px;background:var(--series);color:#fff}
+.bell-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:min(400px,calc(100vw - 24px));max-height:70vh;overflow:auto;
+background:var(--card);border-radius:18px;padding:14px;box-shadow:0 14px 44px rgba(0,0,0,.28)}
+.bell-tabs{margin:10px 0 6px}
+.bell-list{list-style:none;margin:0;padding:0}
+.bell-list li{padding:10px 4px;border-bottom:1px solid var(--grid)}
+.bell-list li:last-child{border-bottom:0}
+.bell-list li.new{background:var(--series-soft);border-radius:10px;padding:10px 8px}
+.bell-list .t{font-size:12px;color:var(--ink3)}
+.bell-list .tt{font-weight:700;margin:2px 0}
+.bell-list .good .tt{color:var(--good)}.bell-list .bad .tt,.bell-list .error .tt{color:var(--bad)}
+@media (max-width:600px){.bell-pop{position:fixed;left:12px;right:12px;top:58px;width:auto}}
+dialog#errDlg{width:min(760px,calc(100vw - 32px));border:0;border-radius:22px;padding:20px;background:var(--card);color:var(--ink);
+box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog#errDlg::backdrop{background:rgba(0,0,0,.35);backdrop-filter:blur(4px)}
+.dlg-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#errText{width:100%;box-sizing:border-box;font:12px/1.5 ui-monospace,"SF Mono",Consolas,monospace;background:var(--fill);color:var(--ink);
+border:0;border-radius:12px;padding:10px;resize:vertical}
+.dlg-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.ai-out{margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--series-soft);white-space:pre-wrap;line-height:1.55}
+#errBtn .nb{margin-left:4px;background:var(--bad);color:#fff}
+/* reportes */
+.rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.rep-item{border-radius:16px;padding:14px 16px;background:var(--fill)}
+.rep-item h3{margin:0 0 6px;font-size:15px}
+.rep-item.pos{background:var(--good-bg)}.rep-item.neg{background:var(--bad-bg)}
+.rep-item p{margin:0;line-height:1.5}
+.rep-days{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.rep-day{border-radius:16px;background:var(--fill);overflow:hidden}
+.rep-day summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:14px 16px}
+.rep-day summary::-webkit-details-marker{display:none}
+.rep-day summary .d{font-weight:700;min-width:150px}
+.rep-day summary .h{font-weight:600}
+.rep-day summary .h.pos{color:var(--good)}.rep-day summary .h.neg{color:var(--bad)}
+.rep-day summary::after{content:"›";margin-left:auto;color:var(--ink3);font-size:20px;line-height:1;transition:transform .2s}
+.rep-day[open] summary::after{transform:rotate(90deg)}
+.rep-body{padding:0 16px 16px;line-height:1.55}
+.rep-body p{margin:0 0 8px}
+.rep-body ul{margin:4px 0 10px;padding-left:20px}
+.rep-body li{margin:4px 0}
+.lesson{margin-top:6px;padding:10px 12px;border-radius:12px;background:var(--card)}
+.weekly{white-space:pre-wrap;line-height:1.55;margin:0}
+@media print{header.nav,.controls,#tvBar,.tools,#repFilter{display:none!important}body{background:#fff}
+  [data-view]:not([data-view~="reportes"]){display:none!important}.rep-day{break-inside:avoid}}
 h1{font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-.03em;margin:0}
 h2{font-size:21px;line-height:1.25;font-weight:700;letter-spacing:-.02em;margin:0 0 14px}
 h2 .small{font-weight:500;letter-spacing:-.005em}
@@ -171,9 +261,17 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border:0;border-radiu
 .ctl-label{color:var(--ink2);font-size:13px;font-weight:600;margin-bottom:8px}
 @media (max-width:600px){
   main{padding:0 16px 48px}
-  header{margin:0 -16px;padding:12px 16px 10px;gap:8px}
+  header.nav{margin:0 -16px;padding:8px 16px;flex-wrap:wrap;gap:6px 10px}
+  .brand{font-size:17px}
+  .nav-right{margin-left:auto}
+  .nav-right .badge{display:none}
+  .nav-right .pill,.nav-right .chip,.nav-right .btn{font-size:12px;padding:5px 10px}
+  .nav-links{margin:0 -16px;padding:0 12px}
+  .nav-right{gap:6px}
+  #themeBtn .lbl{display:none}
+  .nav-links a{padding:7px 11px;font-size:14px}
+  .page-head{margin-top:16px}
   h1{font-size:26px}h2{font-size:19px}
-  header .badge,header .pill,header .btn{font-size:12.5px;padding:6px 11px;white-space:nowrap}
   .card{padding:18px 16px;border-radius:20px}
   .kpi{padding:14px 14px;border-radius:18px}
   .kpi .v{font-size:21px;white-space:nowrap}
@@ -185,20 +283,81 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 </head>
 <body>
 <main>
-  <header>
-    <div>
-      <h1>JARVIS · Panel del bot</h1>
-      <div class="muted small" id="sub">Cargando…</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button type="button" class="btn ghost" id="themeBtn" title="Cambiar entre modo claro y oscuro"></button>
+  <header class="nav">
+    <a class="brand" href="#inicio" title="JARVIS · Panel del bot"><svg class="logo" id="logo" viewBox="0 0 64 64" width="36" height="36" aria-hidden="true">
+  <defs>
+    <linearGradient id="lg-metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" class="lg-m1"/><stop offset=".55" class="lg-m2"/><stop offset="1" class="lg-m3"/>
+    </linearGradient>
+    <filter id="lg-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect class="lg-tile" width="64" height="64" rx="15"/>
+  <path class="lg-hood" d="M32 3.5c14.5 0 23.5 11 23.5 25.5V61H8.5V29C8.5 14.5 17.5 3.5 32 3.5z"/>
+  <path class="lg-hood-in" d="M32 8.5c11 0 18 8.6 18 19.6V58H14V28.1C14 17.1 21 8.5 32 8.5z"/>
+  <path fill="url(#lg-metal)" class="lg-edge" d="M32 12c9.6 0 15 6 15 15l-1 13.5c-.7 6.6-5.6 12-14 14.5-8.4-2.5-13.3-7.9-14-14.5L17 27c0-9 5.4-15 15-15z"/>
+  <path class="lg-line" d="M17.6 26.5h28.8M32 27v14M23.5 41.5l-3.5 5.5M40.5 41.5l3.5 5.5"/>
+  <rect class="lg-grille" x="26" y="44" width="12" height="4.6" rx="1.2"/>
+  <path class="lg-line" d="M29 44.3v4M32 44.3v4M35 44.3v4"/>
+  <g class="lg-rivet"><circle cx="24" cy="19.5" r="1"/><circle cx="40" cy="19.5" r="1"/><circle cx="20.3" cy="35" r="1"/>
+  <circle cx="43.7" cy="35" r="1"/><circle cx="22.5" cy="44" r="1"/><circle cx="41.5" cy="44" r="1"/></g>
+  <path class="lg-eye" filter="url(#lg-glow)" d="M21.2 29.6h8.2l-.5 2.6h-7.2z"/>
+  <path class="lg-eye" filter="url(#lg-glow)" d="M42.8 29.6h-8.2l.5 2.6h7.2z"/>
+</svg>JARVIS<span class="brand-dot" id="brandDot" title="Estado del bot"></span></a>
+    <nav class="nav-links" id="navLinks" aria-label="Secciones del panel">
+      <a href="#inicio" data-v="inicio">Inicio</a>
+      <a href="#mercado" data-v="mercado">Mercado</a>
+      <a href="#operaciones" data-v="operaciones">Operaciones<span class="nb" id="nbOps"></span></a>
+      <a href="#reportes" data-v="reportes">Reportes<span class="nb dot" id="nbRep"></span></a>
+      <a href="#rendimiento" data-v="rendimiento">Rendimiento</a>
+      <a href="#aprendizaje" data-v="aprendizaje">Aprendizaje<span class="nb" id="nbLearn"></span></a>
+      <a href="#sistema" data-v="sistema">Sistema<span class="nb dot" id="nbSys"></span></a>
+      <span class="nav-ind" id="navInd" aria-hidden="true"></span>
+    </nav>
+    <div class="nav-right">
+      <span class="chip" id="navPnl" title="Ganancia de hoy"></span>
       <span class="badge" id="mode">—</span>
       <span class="pill st-apagado" id="status">—</span>
+      <div class="bell-wrap">
+        <button type="button" class="btn ghost icon" id="bellBtn" title="Notificaciones" aria-expanded="false">🔔<span class="nb" id="nbBell"></span></button>
+        <div class="bell-pop" id="bellPop" hidden>
+          <div class="dlg-head"><b>Notificaciones</b><button type="button" class="btn ghost" id="bellAll">Marcar como leídas</button></div>
+          <div class="bell-tabs tabs" id="bellTabs" role="group" aria-label="Tipo">
+            <button type="button" data-k="" aria-pressed="true">Todas</button><button type="button" data-k="entrada">Entradas</button>
+            <button type="button" data-k="salida">Salidas</button><button type="button" data-k="reporte">Reportes</button>
+            <button type="button" data-k="alerta">Avisos</button></div>
+          <ul class="bell-list" id="bellList"></ul>
+          <div class="small muted" id="bellPush"></div>
+        </div>
+      </div>
+      <button type="button" class="btn ghost icon" id="errBtn" title="Reportar un error: junta los errores para copiarlos o pedir un diagnóstico a la IA">⚠<span class="nb" id="nbErr"></span></button>
+      <button type="button" class="btn ghost icon" id="themeBtn" title="Cambiar entre modo claro y oscuro"></button>
     </div>
   </header>
-  <div class="card small" id="statusDetail" style="margin-top:12px"></div>
+  <dialog id="errDlg" aria-labelledby="errTitle">
+    <div class="dlg-head"><h2 id="errTitle" style="margin:0">Reportar un error</h2>
+      <button type="button" class="btn ghost icon" id="errClose" aria-label="Cerrar">✕</button></div>
+    <p class="muted small" style="margin:6px 0 10px">Junta los errores del bot y de esta página (sin tus llaves ni claves).
+      Cópialo y pégalo en el chat con Claude para que lo corrija, o pide un diagnóstico en palabras simples.</p>
+    <div id="errSummary" class="small" style="margin-bottom:8px"></div>
+    <textarea id="errText" readonly rows="12" spellcheck="false"></textarea>
+    <div class="dlg-actions">
+      <button type="button" class="btn" id="errCopy">Copiar reporte</button>
+      <button type="button" class="btn ghost" id="errAI">Diagnóstico con IA</button>
+      <button type="button" class="btn ghost" id="errRefresh">Actualizar</button>
+    </div>
+    <div id="errAIOut" class="ai-out" hidden></div>
+    <p class="muted small" style="margin:10px 0 0">La IA solo explica y aconseja: nunca cambia el código, la configuración ni los
+      límites de seguridad del bot. Los arreglos de código se hacen con Claude en el chat.</p>
+  </dialog>
+  <div class="page-head">
+    <h1 id="viewTitle">Inicio</h1>
+    <div class="muted small" id="sub">Cargando…</div>
+  </div>
+  <div class="card small" id="statusDetail" data-view="inicio"></div>
   <div class="card banner" id="banner" hidden></div>
-  <section class="card controls" aria-label="Controles">
+  <section class="card controls" aria-label="Controles" data-view="inicio">
     <div>
       <div class="ctl-label">¿Abrir operaciones nuevas?</div>
       <div class="seg" role="group" aria-label="Modo de operación">
@@ -222,9 +381,9 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
   </section>
   <div class="card neg" id="err"></div>
 
-  <div class="kpis" id="kpis"></div>
+  <div class="kpis" id="kpis" data-view="inicio"></div>
 
-  <section class="card">
+  <section class="card" data-view="mercado">
     <h2 id="priceTitle">Precio y operaciones</h2>
     <div class="tabs" id="tabs" role="group" aria-label="Moneda"></div>
     <div class="tv-bar" id="tvBar" hidden>
@@ -255,7 +414,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" data-view="mercado">
     <h2>Traders destacados <span class="muted small">(cuentas públicas de Hyperliquid que vienen ganando; el bot los observa, no los copia)</span></h2>
     <div class="muted small" id="ttInfo" style="margin-bottom:8px"></div>
     <div class="grid2" style="margin-top:0">
@@ -264,7 +423,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     </div>
   </section>
 
-  <div class="grid2">
+  <div class="grid2" data-view="inicio">
     <section class="card">
       <h2>Posiciones abiertas</h2>
       <div class="scroll" id="positions"></div>
@@ -275,7 +434,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     </section>
   </div>
 
-  <section class="card">
+  <section class="card" data-view="operaciones">
     <div class="row-head">
       <h2 style="margin:0">Operaciones cerradas</h2>
       <div class="tools">
@@ -288,7 +447,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     <div class="scroll" id="trades"></div>
   </section>
 
-  <section class="card">
+  <section class="card" data-view="rendimiento">
     <div class="row-head">
       <h2 style="margin:0">Rendimiento <span class="muted small">(todo el periodo de prueba)</span></h2>
       <div class="tabs" id="perfTabs" role="group" aria-label="Agrupar por" style="margin:0">
@@ -302,7 +461,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
       Con pocas operaciones (n) los números todavía son suerte.</div>
   </section>
 
-  <section class="card">
+  <section class="card" data-view="rendimiento">
     <div class="row-head">
       <h2 style="margin:0">¿Ventaja real o suerte? <span class="muted small">(estadística de la estrategia)</span></h2>
       <div class="tabs" id="statTabs" role="group" aria-label="Muestra" style="margin:0">
@@ -317,7 +476,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
       Solo informan: el riesgo por operación lo fija el código y no cambia solo.</div>
   </section>
 
-  <div class="grid2">
+  <div class="grid2" data-view="aprendizaje">
     <section class="card learn">
       <h2>Aprendiendo <span class="muted small">(ideas en prueba con dinero ficticio)</span></h2>
       <div id="learning"></div>
@@ -328,13 +487,13 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     </section>
   </div>
 
-  <section class="card">
+  <section class="card" data-view="rendimiento">
     <h2>Disciplina <span class="muted small">(últimos 30 días: ¿decide con el mismo estándar, sin "miedo" ni "euforia"?)</span></h2>
     <div class="muted small" id="discSummary" style="margin-bottom:8px"></div>
     <ul class="disc" id="discList"></ul>
   </section>
 
-  <div class="grid2">
+  <div class="grid2" data-view="sistema">
     <section class="card">
       <h2>Salud del sistema</h2>
       <ul class="health" id="health"></ul>
@@ -345,19 +504,46 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     </section>
   </div>
 
-  <section class="card">
+  <section class="card" data-view="reportes">
+    <div class="row-head">
+      <h2 style="margin:0">Análisis general <span class="muted small">(en palabras simples, de lo más importante a lo menos)</span></h2>
+      <div class="tools"><button type="button" class="btn ghost" id="repPrint" title="Imprimir o guardar como PDF">Guardar PDF</button></div>
+    </div>
+    <div class="rep-grid" id="repAnalysis"><div class="muted">Cargando…</div></div>
+  </section>
+  <section class="card" data-view="reportes">
+    <div class="row-head">
+      <h2 style="margin:0">Resumen de cada día <span class="muted small">(día del bot en hora UTC)</span></h2>
+      <div class="tabs" id="repFilter" role="group" aria-label="Filtrar días" style="margin:0">
+        <button type="button" data-k="todos" aria-pressed="true">Todos</button>
+        <button type="button" data-k="ops" aria-pressed="false">Con operaciones</button>
+        <button type="button" data-k="pos" aria-pressed="false">Ganadores</button>
+        <button type="button" data-k="neg" aria-pressed="false">Con pérdida</button>
+      </div>
+    </div>
+    <div class="rep-days" id="repDays"></div>
+  </section>
+  <section class="card" data-view="reportes">
+    <h2>Reflexión semanal <span class="muted small">(la IA revisa la semana y propone como mucho 3 ideas para probar)</span></h2>
+    <div id="repWeekly"></div>
+  </section>
+  <section class="card" data-view="reportes">
     <details id="zoneBox">
-      <summary><b>Reporte del día</b> <span class="muted small" id="zoneDay"></span></summary>
+      <summary><b>Versión técnica del reporte de hoy</b> <span class="muted small" id="zoneDay"></span></summary>
       <pre class="zone" id="zoneText"></pre>
+    </details>
+    <details id="changesBox" style="margin-top:10px">
+      <summary><b>Cambios aprendidos y aprobados</b> <span class="muted small">(historial)</span></summary>
+      <pre class="zone" id="repChanges"></pre>
     </details>
   </section>
 
-  <section class="card">
+  <section class="card" data-view="operaciones">
     <h2>Decisiones recientes <span class="muted small">(qué vio y por qué operó o no)</span></h2>
     <div class="scroll" id="decisions"></div>
   </section>
 
-  <section class="card" id="phoneCard" hidden>
+  <section class="card" id="phoneCard" data-view="sistema" hidden>
     <h2>Ver en tu celular</h2>
     <div class="phone" id="phoneBody"></div>
   </section>
@@ -998,7 +1184,11 @@ function currentTheme() {
   if (t === "light" || t === "dark") return t;
   return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
-function paintThemeBtn() { $("themeBtn").textContent = THEME_LABEL[currentTheme()]; }
+function paintThemeBtn() {
+  var l = THEME_LABEL[currentTheme()];
+  $("themeBtn").innerHTML = esc(l.slice(0, 1)) + ' <span class="lbl">' + esc(l.slice(2)) + "</span>";
+  $("themeBtn").setAttribute("aria-label", l.slice(2));
+}
 $("themeBtn").onclick = function () {
   var next = currentTheme() === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
@@ -1164,19 +1354,194 @@ function renderStats() {
   $("statList").innerHTML = rows.join("");
 }
 
-function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+// ---------------------------------------------------------------- Secciones (barra superior)
+var VIEWS = {inicio: "Inicio", mercado: "Mercado", operaciones: "Operaciones", reportes: "Reportes", rendimiento: "Rendimiento",
+  aprendizaje: "Aprendizaje", sistema: "Sistema"};
+var VIEW = null;
+function currentView() { var h = (location.hash || "").slice(1); return VIEWS[h] ? h : "inicio"; }
+function moveInd() {
+  var a = document.querySelector('#navLinks a[aria-current="page"]'), ind = $("navInd");
+  if (!a) return;
+  ind.style.width = a.offsetWidth + "px"; ind.style.transform = "translateX(" + a.offsetLeft + "px)";
+}
+function showView(v, first) {
+  var changed = v !== VIEW; VIEW = v;
+  document.querySelectorAll("[data-view]").forEach(function (el) {
+    var on = el.dataset.view.split(" ").indexOf(v) >= 0;
+    el.classList.toggle("off", !on);
+    if (on && changed && !first) { el.classList.remove("view-in"); void el.offsetWidth; el.classList.add("view-in"); }
+  });
+  document.querySelectorAll("#navLinks a").forEach(function (a) {
+    if (a.dataset.v === v) { a.setAttribute("aria-current", "page"); if (a.scrollIntoView) a.scrollIntoView({block: "nearest", inline: "nearest"}); }
+    else a.removeAttribute("aria-current");
+  });
+  $("viewTitle").textContent = VIEWS[v];
+  document.title = VIEWS[v] + " · JARVIS";
+  moveInd();
+  if (changed && !first) window.scrollTo(0, 0);
+  if (D) {  // lo que necesita estar visible para dibujarse bien
+    if (v === "mercado") renderPrice();
+    if (v === "inicio") renderEquity();
+    if (v === "sistema") renderPhone();
+  }
+  if (v === "reportes") loadReports();
+}
+window.addEventListener("hashchange", function () { showView(currentView()); });
+window.addEventListener("resize", moveInd);
+
+function renderNav() {
+  var k = D.kpis, st = D.status.code;
+  var look = {operando: "on", solo_cierre: "warn", pausado: "warn", detenido: "bad", apagado: "bad"}[st] || "";
+  $("brandDot").className = "brand-dot " + look;
+  $("logo").setAttribute("class", "logo " + look);
+  $("navPnl").textContent = "Hoy " + money(k.pnl_hoy, true);
+  $("navPnl").className = "chip " + cls(k.pnl_hoy);
+  $("nbOps").textContent = k.entradas_hoy + "/" + k.techo_hoy;
+  $("nbOps").title = "Operaciones de hoy / máximo";
+  var nl = ((D.learning || {}).learning || []).length;
+  $("nbLearn").textContent = nl ? String(nl) : "";
+  var y = D.system || {}, bad = (y.sources || []).some(function (s) { return !s.ok; }) || (y.ai && y.ai.code === "falla") || y.low_disk ||
+    D.bitacora.some(function (e) { return e.level === "error"; });
+  $("nbSys").classList.toggle("bad", !!bad); $("nbSys").style.display = bad ? "" : "none";
+  $("nbSys").title = bad ? "Hay algo que revisar en Sistema" : "";
+  var today = new Date().toISOString().slice(0, 10), fresh = D.zone && D.zone.day === today;
+  $("nbRep").style.display = fresh || k.cerradas_hoy ? "" : "none";
+  $("nbRep").title = "Hay novedades en los reportes de hoy";
+  var ne = D.bitacora.filter(function (e) { return e.level === "error"; }).length + (window.JERR || []).length;
+  $("nbErr").textContent = ne ? String(ne) : "";
+  moveInd();
+}
+
+// ---------------------------------------------------------------- Reportes en palabras simples
+var REP = null, REP_AT = 0, REP_FILTER = "todos";
+function loadReports(force) {
+  if (!force && REP && Date.now() - REP_AT < 60000) { renderReports(); return; }
+  fetch("/api/reportes", {cache: "no-store"}).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (d) { REP = d; REP_AT = Date.now(); renderReports(); })
+    .catch(function (e) { $("repAnalysis").innerHTML = '<div class="neg">No se pudieron leer los reportes (' + esc(e.message) + ").</div>"; });
+}
+function dayLabel(d) {
+  var dt = new Date(d + "T12:00:00Z");
+  return dt.toLocaleDateString("es-MX", {weekday: "long", day: "numeric", month: "long", timeZone: "UTC"});
+}
+function renderReports() {
+  if (!REP) return;
+  $("repAnalysis").innerHTML = REP.analysis.map(function (a) {
+    return '<div class="rep-item ' + esc(a.tone) + '"><h3>' + esc(a.title) + "</h3><p>" + esc(a.text) + "</p></div>";
+  }).join("");
+  $("repFilter").querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.k === REP_FILTER));
+    b.onclick = function () { REP_FILTER = b.dataset.k; renderReports(); };
+  });
+  var days = REP.days.filter(function (d) {
+    return REP_FILTER === "todos" || (REP_FILTER === "ops" && d.n_trades) || (REP_FILTER === "pos" && d.pnl > 0) || (REP_FILTER === "neg" && d.pnl < 0);
+  });
+  var open = {};
+  $("repDays").querySelectorAll("details[open]").forEach(function (x) { open[x.dataset.d] = 1; });
+  $("repDays").innerHTML = days.length ? days.map(function (d, i) {
+    var isOpen = open[d.day] || (i === 0 && !Object.keys(open).length);
+    return '<details class="rep-day" data-d="' + esc(d.day) + '"' + (isOpen ? " open" : "") + "><summary>" +
+      '<span class="d">' + esc(dayLabel(d.day)) + '</span><span class="h ' + esc(d.tone) + '">' + esc(d.headline) + "</span>" +
+      (d.n_candidates ? '<span class="muted small">' + esc(d.n_candidates) + " oportunidades vistas</span>" : "") + "</summary>" +
+      '<div class="rep-body">' + d.paragraphs.map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("") +
+      (d.trades.length ? "<b>Operaciones</b><ul>" + d.trades.map(function (t) {
+        return '<li><span class="' + cls(t.pnl) + '">' + esc(money(t.pnl, true)) + "</span> · " + esc(t.text) + "</li>"; }).join("") + "</ul>" : "") +
+      '<div class="lesson">💡 ' + esc(d.lesson) + "</div></div></details>";
+  }).join("") : '<div class="muted">No hay días con ese filtro todavía.</div>';
+  $("repWeekly").innerHTML = REP.weekly.length ? REP.weekly.map(function (w, i) {
+    return "<details" + (i ? "" : " open") + '><summary><b>' + esc(w.name) + '</b></summary><pre class="weekly">' + esc(w.text) + "</pre></details>";
+  }).join("") : '<div class="muted">La primera reflexión semanal aparece después de la primera semana completa (los lunes).</div>';
+  $("repChanges").textContent = REP.changes || "Todavía no hay cambios aprobados.";
+}
+$("repPrint").onclick = function () { window.print(); };
+
+// ---------------------------------------------------------------- Reportar un error / diagnóstico con IA
+function post(url, body) {
+  return fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "X-Jarvis-Panel": "1"}, body: JSON.stringify(body)})
+    .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); });
+}
+var ERR_REPORT = null;
+function loadErrors() {
+  $("errText").value = "Juntando errores…";
+  return post("/api/errores", {client_errors: window.JERR || []}).then(function (r) {
+    ERR_REPORT = r; $("errText").value = r.text;
+    $("errSummary").innerHTML = r.errors ? '<span class="neg"><b>' + esc(r.errors) + " error(es)</b></span>" + (r.warnings ? " · " + esc(r.warnings) + " aviso(s)" : "")
+      : r.warnings ? esc(r.warnings) + " aviso(s), sin errores graves." : '<span class="pos"><b>Todo en orden:</b> no hay errores recientes.</span>';
+    $("nbErr").textContent = r.errors ? String(r.errors) : "";
+  }).catch(function (e) { $("errText").value = "No se pudo armar el reporte: " + e.message + "\n" + (window.JERR || []).join("\n"); });
+}
+$("errBtn").onclick = function () { $("errAIOut").hidden = true; if ($("errDlg").showModal) $("errDlg").showModal(); else $("errDlg").setAttribute("open", ""); loadErrors(); };
+$("errClose").onclick = function () { if ($("errDlg").close) $("errDlg").close(); else $("errDlg").removeAttribute("open"); };
+$("errRefresh").onclick = loadErrors;
+$("errCopy").onclick = function () {
+  var t = $("errText").value, b = this;
+  function done() { b.textContent = "¡Copiado! Pégalo en el chat"; setTimeout(function () { b.textContent = "Copiar reporte"; }, 2500); }
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done, function () { $("errText").select(); document.execCommand("copy"); done(); });
+  else { $("errText").focus(); $("errText").select(); document.execCommand("copy"); done(); }
+};
+$("errAI").onclick = function () {
+  var b = this; b.disabled = true; b.textContent = "Pensando…";
+  $("errAIOut").hidden = false; $("errAIOut").textContent = "La IA está revisando el reporte (unos segundos)…";
+  post("/api/diagnostico", {report: $("errText").value}).then(function (r) { $("errAIOut").textContent = r.text; })
+    .catch(function (e) { $("errAIOut").textContent = "No se pudo pedir el diagnóstico: " + e.message; })
+    .then(function () { b.disabled = false; b.textContent = "Diagnóstico con IA"; });
+};
+
+// ---------------------------------------------------------------- Notificaciones (campana)
+var BELL_SEEN = "", BELL_KIND = "", BELL_PUSHED = "";
+try { BELL_SEEN = localStorage.getItem("jarvis-visto") || ""; BELL_PUSHED = localStorage.getItem("jarvis-avisado") || ""; } catch (e) {}
+function renderBell() {
+  var all = D.notifications || [], unread = all.filter(function (n) { return n.ts > BELL_SEEN; });
+  $("nbBell").textContent = unread.length ? String(unread.length > 99 ? "99+" : unread.length) : "";
+  $("bellTabs").querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.k === BELL_KIND));
+    b.onclick = function (e) { e.stopPropagation(); BELL_KIND = b.dataset.k; renderBell(); };
+  });
+  var list = all.filter(function (n) { return !BELL_KIND || n.kind === BELL_KIND; });
+  $("bellList").innerHTML = list.length ? list.map(function (n) {
+    return '<li class="' + esc(n.level) + (n.ts > BELL_SEEN ? " new" : "") + '"><div class="t">' + esc(when(n.ts)) + '</div><div class="tt">' +
+      esc(n.title) + "</div><div>" + esc(n.text) + "</div></li>";
+  }).join("") : '<li class="muted">Aquí aparecen las entradas, salidas y reportes del bot.</li>';
+  var canPush = "Notification" in window && window.isSecureContext;
+  $("bellPush").innerHTML = (canPush ? (Notification.permission === "granted" ? "✓ Avisos activados en este navegador. "
+      : '<button type="button" class="btn ghost" id="pushBtn">Activar avisos en este navegador</button> ') : "") +
+    "Para recibirlos en el iPhone aunque esta página esté cerrada: Telegram (doble clic en <b>configurar_telegram.bat</b>).";
+  if ($("pushBtn")) $("pushBtn").onclick = function (e) { e.stopPropagation(); Notification.requestPermission().then(renderBell); };
+  // aviso del navegador para lo nuevo desde la última vez (solo mientras el panel está abierto)
+  if (canPush && Notification.permission === "granted") {
+    all.filter(function (n) { return n.ts > BELL_PUSHED; }).slice(0, 3).reverse().forEach(function (n) {
+      try { new Notification(n.title, {body: n.text, icon: "/logo.svg", tag: n.ts}); } catch (e) {}
+    });
+  }
+  if (all.length && all[0].ts > BELL_PUSHED) { BELL_PUSHED = all[0].ts; try { localStorage.setItem("jarvis-avisado", BELL_PUSHED); } catch (e) {} }
+}
+$("bellBtn").onclick = function (e) {
+  e.stopPropagation();
+  var pop = $("bellPop"), open = pop.hidden; pop.hidden = !open; this.setAttribute("aria-expanded", String(open));
+};
+$("bellPop").onclick = function (e) { e.stopPropagation(); };
+document.addEventListener("click", function () { if (!$("bellPop").hidden) { $("bellPop").hidden = true; $("bellBtn").setAttribute("aria-expanded", "false"); } });
+$("bellAll").onclick = function () {
+  var all = (D && D.notifications) || []; if (all.length) BELL_SEEN = all[0].ts;
+  try { localStorage.setItem("jarvis-visto", BELL_SEEN); } catch (e) {}
+  renderBell();
+};
+
+function render() { renderNav(); renderBell(); renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {
     if (!r.ok) throw new Error("el panel respondió " + r.status);
     return r.json();
   }).then(function (d) { D = d; $("err").style.display = "none"; render(); })
-    .catch(function (e) { $("err").style.display = "block";
+    .catch(function (e) { (window.JERR || []).push(new Date().toISOString().slice(11, 19) + " panel: " + e.message); $("logo").setAttribute("class", "logo bad"); $("err").style.display = "block";
       $("err").textContent = "No se pudo leer el estado: " + e.message + ". ¿Sigue abierta la ventana del panel?"; });
 }
 var rz = null;
 window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { if (D) { renderPrice(); renderEquity(); } }, 150); });
+showView(currentView(), true);
 load(); setInterval(load, 15000);
+setInterval(function () { if (VIEW === "reportes" && !document.hidden) loadReports(); }, 60000);
 </script>
 </body>
 </html>

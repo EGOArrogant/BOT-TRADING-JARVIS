@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="JARVIS">
+<style>.lg-tile{fill:#101317}.lg-hood{fill:#1d5230}.lg-hood-in{fill:#123a22}.lg-m1{stop-color:#d5dbe2}.lg-m2{stop-color:#7f8995}.lg-m3{stop-color:#3b434d}.lg-edge{stroke:#262c33;stroke-width:.8}.lg-line{fill:none;stroke:#262c33;stroke-width:1;stroke-linecap:round}.lg-grille,.lg-rivet{fill:#262c33}.lg-eye{fill:#30d158}</style>
+  <defs>
+    <linearGradient id="lg-metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" class="lg-m1"/><stop offset=".55" class="lg-m2"/><stop offset="1" class="lg-m3"/>
+    </linearGradient>
+    <filter id="lg-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect class="lg-tile" width="64" height="64" rx="15"/>
+  <path class="lg-hood" d="M32 3.5c14.5 0 23.5 11 23.5 25.5V61H8.5V29C8.5 14.5 17.5 3.5 32 3.5z"/>
+  <path class="lg-hood-in" d="M32 8.5c11 0 18 8.6 18 19.6V58H14V28.1C14 17.1 21 8.5 32 8.5z"/>
+  <path fill="url(#lg-metal)" class="lg-edge" d="M32 12c9.6 0 15 6 15 15l-1 13.5c-.7 6.6-5.6 12-14 14.5-8.4-2.5-13.3-7.9-14-14.5L17 27c0-9 5.4-15 15-15z"/>
+  <path class="lg-line" d="M17.6 26.5h28.8M32 27v14M23.5 41.5l-3.5 5.5M40.5 41.5l3.5 5.5"/>
+  <rect class="lg-grille" x="26" y="44" width="12" height="4.6" rx="1.2"/>
+  <path class="lg-line" d="M29 44.3v4M32 44.3v4M35 44.3v4"/>
+  <g class="lg-rivet"><circle cx="24" cy="19.5" r="1"/><circle cx="40" cy="19.5" r="1"/><circle cx="20.3" cy="35" r="1"/>
+  <circle cx="43.7" cy="35" r="1"/><circle cx="22.5" cy="44" r="1"/><circle cx="41.5" cy="44" r="1"/></g>
+  <path class="lg-eye" filter="url(#lg-glow)" d="M21.2 29.6h8.2l-.5 2.6h-7.2z"/>
+  <path class="lg-eye" filter="url(#lg-glow)" d="M42.8 29.6h-8.2l.5 2.6h7.2z"/>
+</svg>

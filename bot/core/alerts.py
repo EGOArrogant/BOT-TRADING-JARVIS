@@ -42,6 +42,6 @@ class Alerter:
     async def _send(self, msg: str) -> None:
         try:
             async with httpx.AsyncClient(timeout=10) as c:
-                await c.post(self._url, json={"chat_id": self._chat, "text": f"[bot] {msg}"[:4000]})
+                await c.post(self._url, json={"chat_id": self._chat, "text": f"JARVIS · {msg}"[:4000]})
         except Exception as exc:  # noqa: BLE001
             log.warning("telegram falló", extra={"err": type(exc).__name__})

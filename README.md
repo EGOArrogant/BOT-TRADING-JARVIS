@@ -18,6 +18,9 @@ escéptico y el código controla todo el riesgo. La especificación completa est
 
 `python -m bot.revisar` repite la revisión cuando quieras.
 
+**Notificaciones al teléfono:** doble clic en `configurar_telegram.bat` (te guía con @BotFather). Cada entrada,
+salida y resumen diario llega a Telegram y a la campana del panel.
+
 **Ver el panel en el celular:** doble clic en `activar_celular.bat`, reinicia `iniciar_demo.bat` y en el panel de la
 PC, sección *Ver en tu celular*, escanea el QR con la cámara (mismo Wi-Fi; fuera de casa, con Tailscale). Sin la
 clave del QR nadie entra. `desactivar_celular.bat` lo apaga y cambia la clave.

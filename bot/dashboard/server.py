@@ -22,7 +22,7 @@ from bot.core import control
 from bot.core.config import Settings
 from bot.core.logging_setup import get_logger
 from bot.dashboard.data import collect
-from bot.dashboard import remote
+from bot.dashboard import diagnostics, remote, reports, snapshot
 from bot.dashboard.klines import KlineSource
 
 log = get_logger("bot.dashboard")
@@ -32,9 +32,13 @@ CSRF_HEADER = "X-Jarvis-Panel"  # una web ajena no puede enviarla sin permiso CO
 PAGE = Path(__file__).with_name("page.html")
 CHART_JS = Path(__file__).with_name("vendor") / "lightweight-charts.js"  # TradingView Lightweight Charts (Apache 2.0)
 QR_JS = Path(__file__).with_name("vendor") / "qrcode.js"  # QR Code Generator, Kazuhiko Arase (MIT)
+STATIC = Path(__file__).with_name("static")
+PUBLIC = {"/logo.svg": ("logo.svg", "image/svg+xml"), "/favicon.ico": ("logo.svg", "image/svg+xml"),
+          "/apple-touch-icon.png": ("apple-touch-icon.png", "image/png")}  # el logo no necesita clave
 LOCKED_PAGE = """<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JARVIS</title><body style="font-family:-apple-system,sans-serif;padding:32px;max-width:520px;margin:auto;line-height:1.5">
-<h1>JARVIS · Panel</h1><p>Para ver el panel en este dispositivo, abre el panel en tu PC y escanea con la cámara
+<title>JARVIS</title><link rel="icon" href="/logo.svg"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<body style="font-family:-apple-system,sans-serif;padding:32px;max-width:520px;margin:auto;line-height:1.5">
+<img src="/logo.svg" width="72" height="72" alt=""><h1>JARVIS · Panel</h1><p>Para ver el panel en este dispositivo, abre el panel en tu PC y escanea con la cámara
 el código QR de la sección <b>Ver en tu celular</b>.</p></body></html>""".encode()
 
 
@@ -49,12 +53,14 @@ def _clean(x: Any) -> Any:
     return x
 
 
-def make_handler(settings: Settings, klines: KlineSource | None = None,
-                 remote_key: str | None = None) -> type[BaseHTTPRequestHandler]:
+def make_handler(settings: Settings, klines: KlineSource | None = None, remote_key: str | None = None,
+                 diagnoser: diagnostics.Diagnoser | None = None) -> type[BaseHTTPRequestHandler]:
     page = PAGE.read_bytes()
     chart_js = CHART_JS.read_bytes()
     qr_js = QR_JS.read_bytes()
+    public = {k: ((STATIC / f).read_bytes(), t) for k, (f, t) in PUBLIC.items()}
     klines = klines or KlineSource(settings.endpoints.binance.rest, settings.exchange.symbols)
+    diagnoser = diagnoser or diagnostics.Diagnoser(None, settings.ai.reflection_model)
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
@@ -87,8 +93,8 @@ def make_handler(settings: Settings, klines: KlineSource | None = None,
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
-            if path == "/favicon.ico":
-                self._send(204, b"", "image/x-icon")
+            if path in public:
+                self._send(200, *public[path])
                 return
             if not self._authorized():
                 if path in ("/", "/index.html"):
@@ -117,6 +123,13 @@ def make_handler(settings: Settings, klines: KlineSource | None = None,
                 except Exception as exc:  # noqa: BLE001
                     log.error("panel: no se pudo leer el estado", extra={"err": repr(exc)}, exc_info=True)
                     self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+            elif path == "/api/reportes":
+                try:
+                    body = json.dumps(_clean(reports.collect(settings)), ensure_ascii=False, default=str).encode()
+                    self._send(200, body, "application/json; charset=utf-8")
+                except Exception as exc:  # noqa: BLE001
+                    log.error("panel: no se pudieron armar los reportes", extra={"err": repr(exc)}, exc_info=True)
+                    self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
             elif path == "/grafico.js":
                 self._send(200, chart_js, "text/javascript; charset=utf-8")
             elif path == "/api/velas":
@@ -144,18 +157,38 @@ def make_handler(settings: Settings, klines: KlineSource | None = None,
             origin = self.headers.get("Origin")
             return origin is None or origin.split("://", 1)[-1] in allowed
 
+        def _json_body(self, limit: int) -> Any:
+            length = int(self.headers.get("Content-Length") or 0)
+            if not 0 < length <= limit:
+                raise ValueError("cuerpo vacío o demasiado grande")
+            return json.loads(self.rfile.read(length))
+
         def do_POST(self) -> None:  # noqa: N802
-            if self.path.split("?", 1)[0] != "/api/control":
+            path = self.path.split("?", 1)[0]
+            if path not in ("/api/control", "/api/errores", "/api/diagnostico"):
                 self._send(404, b"no encontrado", "text/plain; charset=utf-8")
                 return
             if not self._local_request():
                 self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
                 return
+            if path in ("/api/errores", "/api/diagnostico"):
+                try:
+                    body = self._json_body(64_000)
+                    if path == "/api/errores":
+                        live = snapshot.read(settings.storage.reports_dir / snapshot.FILENAME)
+                        errs = [str(e) for e in (body.get("client_errors") or [])][:20]
+                        out = diagnostics.error_report(settings, (live or {}).get("system"), errs,
+                                                       hide=[remote_key] if remote_key else None)
+                    else:
+                        out = diagnoser.diagnose(str(body.get("report") or ""))
+                except Exception as exc:  # noqa: BLE001
+                    log.error("panel: reporte de errores falló", extra={"err": repr(exc)}, exc_info=True)
+                    self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+                    return
+                self._send(200, json.dumps(out, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+                return
             try:
-                length = int(self.headers.get("Content-Length") or 0)
-                if not 0 < length <= 4096:
-                    raise ValueError("cuerpo vacío o demasiado grande")
-                body = json.loads(self.rfile.read(length))
+                body = self._json_body(4096)
                 path = control.path_for(settings)
                 current = control.load(path)
                 new = control.Control.model_validate({"mode": body.get("mode", current.mode),
@@ -175,8 +208,10 @@ def make_handler(settings: Settings, klines: KlineSource | None = None,
 
 
 def serve(settings: Settings, port: int = 8765, host: str | None = None,
-          klines: KlineSource | None = None, phone: bool = False) -> ThreadingHTTPServer:
+          klines: KlineSource | None = None, phone: bool = False, ai_key: str | None = None,
+          diagnoser: diagnostics.Diagnoser | None = None) -> ThreadingHTTPServer:
     """phone=True: también escucha en la red (0.0.0.0) y exige la clave a todo lo que no sea esta PC."""
     key = remote.load_or_create_key(settings.storage.reports_dir) if phone else None
     host = host or ("0.0.0.0" if phone else "127.0.0.1")
-    return ThreadingHTTPServer((host, port), make_handler(settings, klines, key))
+    diagnoser = diagnoser or diagnostics.Diagnoser(ai_key, settings.ai.reflection_model)
+    return ThreadingHTTPServer((host, port), make_handler(settings, klines, key, diagnoser))
