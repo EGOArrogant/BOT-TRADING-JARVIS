@@ -139,6 +139,8 @@ class DataConfig(_Strict):
     poll_s: dict[str, float]
     news_max_age_min: int = Field(gt=0)
     dir: Path
+    raw_retention_days: int = Field(default=14, ge=2)   # aggTrade/book20 crudos; lo demás no se borra
+    min_free_gb: float = Field(default=5.0, ge=0.5)      # bajo esto se borran los crudos más viejos
 
 
 class LearningConfig(_Strict):

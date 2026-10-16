@@ -16,7 +16,7 @@ from bot.core.config import Settings
 from bot.core.state import BotState
 from bot.dashboard import snapshot
 from bot.metrics import discipline
-from bot.metrics.performance import equity_curve, summarize
+from bot.metrics.performance import by_dimension, equity_curve, summarize
 from bot.risk.engine import RiskEngine
 
 STALE_AFTER = timedelta(minutes=3)  # el bot escribe la foto cada minuto
@@ -35,6 +35,43 @@ EXIT_TEXT = {
     "invalidation": "Tesis invalidada", "macro": "Antes de noticia macro", "funding": "Por funding",
     "ai_early_exit": "La IA pidió cerrar", "manual": "Manual", "safe_mode": "Modo seguro",
 }
+
+
+EVENT_TEXT = {
+    "modo_seguro": "Modo seguro: no abre operaciones y protege las abiertas",
+    "reconexion": "Se reconectó a Binance",
+    "entrada_sin_stop": "Una entrada no logró poner su stop y se cerró al instante",
+    "revision_salida_ia": "La IA revisó una operación abierta",
+}
+
+
+def ai_health(calls: list[dict]) -> dict[str, Any]:
+    """Estado de la IA según sus últimas consultas (la más reciente primero)."""
+    if not calls:
+        return {"code": "sin_consultas", "label": "Sin consultas todavía",
+                "detail": "Normal al principio: la IA solo se consulta cuando una oportunidad pasa todos los filtros."}
+    last = calls[:3]
+    if len(last) == 3 and not any(c["valid"] for c in last):
+        reasons = " ".join(str(c["reason"]).lower() for c in last)
+        if "credit" in reasons or "balance" in reasons or "billing" in reasons:
+            label = "Sin saldo en Anthropic: recarga en console.anthropic.com"
+        elif "api 401" in reasons or "authentication" in reasons or "api key" in reasons:
+            label = "La llave de la IA no es válida: vuelve a ejecutar la revisión (python -m bot.revisar)"
+        elif "api 429" in reasons:
+            label = "Anthropic pidió esperar (límite de uso); se recupera solo"
+        else:
+            label = "La IA está fallando: mientras tanto el bot no opera"
+        return {"code": "falla", "label": label, "detail": f"Últimos motivos: {last[0]['reason']}"[:240]}
+    ok = next((c for c in calls if c["valid"]), None)
+    return {"code": "ok", "label": "Funcionando",
+            "detail": f"Última respuesta válida: {ok['ts'][:16].replace('T', ' ')} UTC" if ok else ""}
+
+
+def latest_zone(reports_dir: Path) -> dict[str, str] | None:
+    zones = sorted(reports_dir.glob("zona_*.md"))
+    if not zones:
+        return None
+    return {"day": zones[-1].stem.removeprefix("zona_"), "text": zones[-1].read_text(encoding="utf-8")[:8000]}
 
 
 def _connect(db_path: Path) -> sqlite3.Connection | None:
@@ -136,6 +173,9 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         cands30 = [{**c, "ai": json.loads(c["ai"] or "null"), "counterfactual": json.loads(c["counterfactual"] or "null")}
                    for c in _rows(db, "SELECT ts, status, ai, counterfactual FROM candidates WHERE ts >= ?", (since30,))]
         events30 = _rows(db, "SELECT ts, kind FROM events WHERE ts >= ?", (since30,))
+        ai_last = _rows(db, "SELECT ts, valid, reason FROM ai_calls ORDER BY ts DESC LIMIT 10")
+        log_rows = _rows(db, "SELECT ts, kind, payload FROM events WHERE ts >= ? ORDER BY ts DESC LIMIT 60",
+                         ((now - timedelta(days=7)).isoformat(),))
     finally:
         if db is not None:
             db.close()
@@ -148,6 +188,15 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
     unrealized = sum(p["pnl_unrealized"] or 0 for p in positions)
     s = summarize(trades, capital)
     trades30 = [t for t in trades if t["closed_at"] >= since30]
+    bitacora = []
+    for e in log_rows:
+        payload = json.loads(e["payload"] or "{}")
+        if e["kind"] == "alerta":
+            bitacora.append({"ts": e["ts"], "level": payload.get("level", "info"), "text": payload.get("msg", "")})
+        elif e["kind"] in EVENT_TEXT:
+            extra = payload.get("reason") or payload.get("symbol") or ""
+            bitacora.append({"ts": e["ts"], "level": "warning" if e["kind"] != "reconexion" else "info",
+                             "text": EVENT_TEXT[e["kind"]] + (f" ({extra})" if extra else "")})
     disc = discipline.evaluate(trades30, cands30, events30, capital)
     curve = equity_curve(trades, capital)
     risk = RiskEngine(eff.risk, eff.limits, settings.exchange)
@@ -182,6 +231,10 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "last": (live or {}).get("last", {}),
         "positions": positions,
         "top_traders": (live or {}).get("top_traders"),
+        "system": {**((live or {}).get("system") or {}), "ai": ai_health(ai_last)},
+        "bitacora": bitacora[:40],
+        "performance": {k: by_dimension(trades, k, capital) if trades else {} for k in ("strategy", "symbol", "side")},
+        "zone": latest_zone(st.reports_dir),
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],
         "decisions": decisions,
         "discipline": disc,

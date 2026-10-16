@@ -104,7 +104,8 @@ class Analyst:
             except anthropic.APIConnectionError as exc:
                 return AnalystResult(Decision.no_trade("error de red IA"), False, f"conexion: {exc}", raws)
             except anthropic.APIStatusError as exc:
-                return AnalystResult(Decision.no_trade("error API IA"), False, f"api {exc.status_code}", raws)
+                return AnalystResult(Decision.no_trade("error API IA"), False,
+                                     f"api {exc.status_code}: {str(getattr(exc, 'message', exc))[:160]}", raws)
             usage = getattr(resp, "usage", None)
             if usage is not None:
                 tokens_in += getattr(usage, "input_tokens", 0) or 0

@@ -40,6 +40,7 @@ from bot.data_engine.onchain import OnchainPoller
 from bot.data_engine.recorder import Recorder
 from bot.data_engine.sentiment import FearGreedPoller
 from bot.data_engine.store import FeedStore
+from bot.data_engine import retention
 from bot.data_engine.top_traders import TopTradersPoller
 from bot.data_engine.volatility import DvolPoller
 from bot.execution.base import Exchange
@@ -90,7 +91,10 @@ class Engine:
         self.secrets = secrets
         self.c = comps
         self.clock = clock or Clock()
-        self.alert = alert or Alerter(False, None, None)
+        self._alerter = alert or Alerter(False, None, None)
+        self.unavailable: set[str] = set()   # símbolos en mantenimiento o retirados: sin entradas nuevas
+        self.system: dict[str, Any] = {"clock_offset_s": None, "free_gb": None, "low_disk": False,
+                                       "unavailable": [], "retention": None}
         self.risk = RiskEngine(settings.risk, settings.limits, settings.exchange)
         # Controles del panel (Operar/Solo cierre, agresividad): `eff` es la config efectiva, nunca más laxa que `s`
         self.eff = settings
@@ -126,6 +130,16 @@ class Engine:
         self.user_stream: Any = None          # UserStream si el exchange es real
         self._wake = asyncio.Event()          # lo dispara un evento de cuenta  # símbolo -> (última, titulares vistos)
 
+    def alert(self, msg: str, level: str = "error") -> None:
+        """Alerta (log/Telegram) que además queda en el diario para la bitácora del panel."""
+        before = len(self._alerter.sent)
+        self._alerter(msg, level)
+        if len(self._alerter.sent) > before:  # no repetida (el Alerter deduplica)
+            try:
+                self.journal.record_event(self.clock.now(), "alerta", {"level": level, "msg": msg})
+            except Exception:  # noqa: BLE001
+                pass
+
     # ------------------------------------------------------------ eventos de mercado
 
     async def on_kline_closed(self, symbol: str, interval: str, candle: Candle) -> None:
@@ -134,14 +148,25 @@ class Engine:
         close_ts = candle.open_time + 900_000
         self._closed_15m[symbol][close_ts] = candle.close
         self._pending_closed_15m[symbol] = candle.close
-        if all(close_ts in v for v in self._closed_15m.values()):
+        if all(close_ts in v for s, v in self._closed_15m.items() if s not in self.unavailable):
             # En segundo plano: la IA y la ejecución no deben bloquear el flujo del WebSocket
-            task = asyncio.create_task(self.evaluate_window(ms_to_dt(close_ts)))
-            self._tasks.add(task)
-            task.add_done_callback(self._task_done)
+            self._spawn(self.evaluate_window(ms_to_dt(close_ts)))
         for v in self._closed_15m.values():
             for old in [k for k in v if k < close_ts - 4 * 900_000]:
                 v.pop(old, None)
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.create_task(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._task_done)
+
+    def evaluate_late_window(self, now: datetime) -> None:
+        """Si una moneda dejó de mandar velas, la ventana no espera para siempre: a los 2 min se evalúa
+        igual (esa moneda queda bloqueada por el filtro de datos vencidos)."""
+        minutes = self.s.limits.candidate_window_minutes
+        close = datetime.fromtimestamp(int(now.timestamp()) // (minutes * 60) * minutes * 60, tz=UTC)
+        if (now - close).total_seconds() >= 120 and self._last_window != int(close.timestamp()) // (minutes * 60):
+            self._spawn(self.evaluate_window(close))
 
     def _task_done(self, task: asyncio.Task) -> None:
         self._tasks.discard(task)
@@ -188,6 +213,8 @@ class Engine:
                 reasons = out.reasons + ([why] if not ok_learned else [])
                 if ctl.close_only:
                     reasons.append("solo cierre: activado desde el panel")
+                if sym in self.unavailable:
+                    reasons.append("símbolo no disponible en Binance (mantenimiento o retiro)")
                 self.journal.record_candidate(sig, REJECTED if reasons else NOT_SELECTED, reasons,
                                               self._flat(fields))
                 if not reasons:
@@ -555,6 +582,8 @@ class Engine:
     async def housekeeping(self, now: datetime) -> None:
         self.state.roll_day(now.date())
         self.save_paper()
+        if self.c.analyst is not None:
+            self.evaluate_late_window(now)
         await self._refresh_equity()
         self.risk.update_guards(self.state, now)
         self.state.save(self.s.storage.state_path)
@@ -576,6 +605,7 @@ class Engine:
         if self._last_hourly != hour:
             self._last_hourly = hour
             self.write_report(now)
+            await self.check_disk(now)
         day = now.date().isoformat()
         if self._last_daily != day and now.hour == 0 and now.minute >= 5:
             self._last_daily = day
@@ -619,16 +649,64 @@ class Engine:
         except Exception as exc:  # noqa: BLE001
             log.error("reporte falló", extra={"err": repr(exc)})
 
+    SOURCES = (  # (nombre para el panel, clave en el almacén, clave de TTL en config.data.ttl_s)
+        ("Open interest y ratios (Binance)", "deriv.oi.BTCUSDT", "open_interest"),
+        ("Volatilidad implícita (Deribit)", "vol.dvol.BTC", "dvol"),
+        ("Funding en Hyperliquid", "dex.funding_1h.BTCUSDT", "dex"),
+        ("Traders destacados (Hyperliquid)", "dex.smart_ratio.BTCUSDT", "dex"),
+        ("Sentimiento (Fear & Greed)", "sent.fng", "sentiment"),
+        ("On-chain (stablecoins)", "onchain.stablecoin_supply", "onchain"),
+    )
+
+    def system_status(self, now: datetime) -> dict[str, Any]:
+        def entry(name: str, ts: datetime | None, ttl: float | None) -> dict:
+            age = (now - ts).total_seconds() if ts else None
+            return {"name": name, "age_s": round(age) if age is not None else None,
+                    "ok": age is not None and (ttl is None or age <= ttl)}
+        ttl = self.s.data.ttl_s
+        src = [entry("Precios en vivo (Binance)", self.health.last_seen.get("ws_market"), 30),
+               entry("Libro de órdenes (Binance)", self.health.last_seen.get("ws_public"), 30)]
+        for name, key, tkey in self.SOURCES:
+            dp = self.c.store.get(key)
+            src.append(entry(name, dp.ts if dp.is_ok else None, ttl.get(tkey)))
+        if self.c.news is not None:
+            src.append(entry("Noticias (RSS)", self.c.news.updated_at, ttl.get("news")))
+        if self.c.macro is not None:
+            src.append(entry("Calendario macro", self.c.macro.updated_at if self.c.macro.ok else None,
+                             ttl.get("macro", 86400) * 1.5))
+        return {**self.system, "sources": src, "safe_mode": self.state.safe_mode,
+                "safe_mode_reason": self.state.safe_mode_reason}
+
     def write_panel(self, now: datetime) -> None:
         try:
             positions = self.manager.positions if self.manager else {}
-            panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME,
-                                 panel_snapshot.build(now, self.s.mode.value, self.c.states, positions,
-                                                      self.c.top_traders.summary() if self.c.top_traders else None))
+            snap = panel_snapshot.build(now, self.s.mode.value, self.c.states, positions,
+                                        self.c.top_traders.summary() if self.c.top_traders else None)
+            snap["system"] = self.system_status(now)
+            panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME, snap)
         except Exception as exc:  # noqa: BLE001
             log.error("foto del panel falló", extra={"err": repr(exc)})
 
+    async def check_disk(self, now: datetime, force: bool = False) -> None:
+        """Cada hora mira el espacio libre; a diario (o si falta espacio) comprime y depura los crudos."""
+        raw = self.s.data.dir / "raw"
+        try:
+            free = retention.free_gb(self.s.data.dir) if self.s.data.dir.exists() else None
+            self.system["free_gb"] = round(free, 1) if free is not None else None
+            if force or (free is not None and free < self.s.data.min_free_gb):
+                rep = await asyncio.to_thread(retention.run, raw, now.date(), self.s.data.raw_retention_days,
+                                              self.s.data.min_free_gb)
+                self.system.update(free_gb=round(rep.free_gb, 1) if rep.free_gb is not None else None,
+                                   low_disk=rep.low_disk,
+                                   retention={"ts": now.isoformat(), "compressed": rep.compressed,
+                                              "deleted": len(rep.deleted), "freed_mb": round(rep.freed_mb)})
+                if rep.low_disk:
+                    self.alert(f"poco espacio en disco: {rep.free_gb:.1f} GB libres incluso tras depurar", "error")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("revisión de disco falló", extra={"err": repr(exc)})
+
     async def daily_tasks(self, now: datetime) -> None:
+        await self.check_disk(now, force=True)
         yesterday = (now - timedelta(days=1)).date()
         write_zone(self.journal, yesterday, self.state.equity, self.s.storage.reports_dir)
         for h, ev in self.cc.review(now):
@@ -706,6 +784,7 @@ class Engine:
         await self.restore_paper()
         await self.adopt_existing(now)
         await self.reconcile(now)
+        self._spawn(self.check_disk(now, force=True))
         await asyncio.gather(
             self._tick_loop(),
             self._loop(self.s.execution.reconcile_interval_s, self.reconcile),
@@ -782,10 +861,44 @@ def build_components(settings: Settings, secrets: Secrets) -> tuple[Components, 
 
 async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) -> None:
     comps, market, recorder = build_components(settings, secrets)
-    info = await market.verify_symbols()  # siempre: no se opera un símbolo que no exista
+    info = await market.verify_symbols(allow_missing=True)  # nunca se opera un símbolo que no exista
     await market.load_funding_intervals()
     await market.bootstrap_klines()
     engine = Engine(settings, secrets, comps, alert=alert)
+    engine.unavailable = set(comps.states) - set(info)
+    engine.system["unavailable"] = sorted(engine.unavailable)
+    if engine.unavailable:
+        engine.alert(f"monedas no disponibles en Binance, sin entradas: {sorted(engine.unavailable)}", "warning")
+
+    async def sync_clock(now: datetime) -> None:
+        """El reloj de la PC puede desfasarse: con unos segundos los precios parecerían vencidos (TTL 5 s)."""
+        try:
+            off = await market.server_offset()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("no se pudo medir la hora de Binance", extra={"err": repr(exc)})
+            return
+        engine.clock._offset = timedelta(seconds=off)
+        engine.system["clock_offset_s"] = round(off, 2)
+        if abs(off) > 2:
+            engine.alert(f"el reloj de esta PC difiere {off:+.1f} s de Binance; el bot lo compensa, pero conviene "
+                         "sincronizar la hora de Windows", "warning")
+
+    async def check_symbols(now: datetime) -> None:
+        try:
+            found = await market.verify_symbols(allow_missing=True)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("no se pudo revisar el estado de las monedas", extra={"err": repr(exc)})
+            return
+        missing = set(comps.states) - set(found)
+        for sym in missing - engine.unavailable:
+            engine.alert(f"{sym} dejó de estar disponible en Binance: sin entradas nuevas (las abiertas se cuidan)",
+                         "warning")
+        for sym in engine.unavailable - missing:
+            engine.alert(f"{sym} vuelve a estar disponible", "info")
+        engine.unavailable = missing
+        engine.system["unavailable"] = sorted(missing)
+
+    await sync_clock(engine.clock.now())
     market.dispatcher.on_kline_closed = engine.on_kline_closed
 
     ex = comps.exchange
@@ -823,14 +936,15 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
                 bids, asks = st.book.top(20)
                 recorder.record(f"{sym.lower()}@book20", {"bids": bids, "asks": asks, "E": st.book.event_ts_ms}, now)
 
-    comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler)]
+    comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler),
+                          lambda: engine._loop(3600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols)]
     await engine.run()
 
 
 async def run_record(settings: Settings, secrets: Secrets, alert: Alerter) -> None:
     """Modo `record`: solo graba datos y mide completitud para la puerta de fase."""
     comps, market, recorder = build_components(settings, secrets)
-    await market.verify_symbols()
+    await market.verify_symbols(allow_missing=True)
     await market.load_funding_intervals()
     engine = Engine(settings, secrets, comps, alert=alert)
 

@@ -63,6 +63,8 @@ def make_handler(settings: Settings) -> type[BaseHTTPRequestHandler]:
                 except Exception as exc:  # noqa: BLE001
                     log.error("panel: no se pudo leer el estado", extra={"err": repr(exc)}, exc_info=True)
                     self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+            elif path == "/favicon.ico":
+                self._send(204, b"", "image/x-icon")
             else:
                 self._send(404, b"no encontrado", "text/plain; charset=utf-8")
 

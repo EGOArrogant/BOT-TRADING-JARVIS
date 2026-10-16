@@ -106,14 +106,27 @@ class BinanceMarketData:
 
     # ------------------------------------------------------------ REST
 
-    async def verify_symbols(self) -> dict[str, dict]:
+    async def verify_symbols(self, allow_missing: bool = False) -> dict[str, dict]:
+        """Perpetuos activos (status TRADING). Con allow_missing, un símbolo en mantenimiento o retirado
+        no detiene el bot: se devuelve sin él y el motor bloquea sus entradas. Si no queda ninguno, error."""
         info = await self.http.get_json(f"{self.rest}/fapi/v1/exchangeInfo", limit_key="binance", weight=1)
         found = {s["symbol"]: s for s in info["symbols"]
                  if s.get("contractType") == "PERPETUAL" and s.get("status") == "TRADING"}
         missing = [s for s in self.states if s not in found]
-        if missing:
+        if missing and (not allow_missing or len(missing) == len(self.states)):
             raise RuntimeError(f"símbolos no disponibles como perpetuos activos: {missing}")
-        return {s: found[s] for s in self.states}
+        if missing:
+            log.warning("símbolos no disponibles (mantenimiento o retiro): sin entradas nuevas",
+                        extra={"symbols": missing})
+        return {s: found[s] for s in self.states if s in found}
+
+    async def server_offset(self) -> float:
+        """Desfase (s) del reloj local frente a Binance, medido a mitad del viaje de ida y vuelta."""
+        import time
+        t0 = time.time()
+        data = await self.http.get_json(f"{self.rest}/fapi/v1/time", limit_key="binance", weight=1)
+        t1 = time.time()
+        return int(data["serverTime"]) / 1000 - (t0 + t1) / 2
 
     async def load_funding_intervals(self) -> None:
         """/fapi/v1/fundingInfo solo lista símbolos con intervalo ajustado; el resto es 8 h."""

@@ -23,6 +23,17 @@ ficticio, sus posiciones y sus stops en `bot/data/state_paper_exchange.json`, y 
 desde ahí; si el precio tocó un stop mientras estaba apagado, se cierra al precio actual, como un hueco real.
 `activar_inicio_automatico.bat` lo arranca solo al entrar a Windows (`quitar_inicio_automatico.bat` lo quita).
 
+**Pensado para quedarse solo semanas:**
+- *Disco:* lo crudo de alto volumen (cada operación del mercado y el libro) ocupa ~1 GB/día. Cada día se comprime
+  lo anterior, se borra lo de alto volumen con más de `data.raw_retention_days` (14) y, si quedan menos de
+  `data.min_free_gb` (5 GB), se borra lo más viejo. Velas, funding y series REST nunca se borran.
+- *Moneda en mantenimiento o retirada:* el bot sigue con las demás y bloquea sus entradas; lo revisa cada hora.
+- *Una moneda deja de mandar velas:* la ventana de 15 min se evalúa igual a los 2 min (esa moneda queda
+  bloqueada por datos vencidos) en vez de esperar para siempre.
+- *Reloj de la PC desfasado:* se mide contra Binance al arrancar y cada hora, y se compensa.
+- *IA sin saldo o llave inválida:* el panel lo avisa arriba con el motivo (mientras tanto no opera).
+- *Bitácora:* toda alerta (entradas, cierres, fuentes caídas, modo seguro) queda en el diario y se ve en el panel.
+
 **Actualizar a una versión nueva:** cierra las ventanas del bot, descarga el ZIP nuevo y copia su contenido
 encima de `C:\bot` aceptando reemplazar archivos. `.env` y `bot/data/` (lo aprendido) no vienen en el ZIP,
 así que se conservan. Solo hace falta volver a ejecutar `instalar.bat` si se agregan librerías nuevas.
@@ -80,6 +91,9 @@ python -m bot.main panel --mode paper  # abre el panel en el navegador (http://1
   La IA tiene además una regla explícita de "mismo estándar siempre" y nunca recibe el resultado del día.
   **Operaciones de práctica**: cada candidato no operado se simula con los precios reales posteriores
   (contrafactual); son decenas al día, gratis y sin consultar a la IA, y alimentan el aprendizaje.
+- **Panel, además:** modo claro/oscuro (se recuerda), avisos importantes arriba, salud del sistema (cada fuente
+  de datos, IA, reloj, disco), bitácora, rendimiento por estrategia/moneda/dirección, filtro por moneda y
+  descarga CSV de las operaciones, y el último reporte diario.
 - **Controles del panel** (lo único que el panel puede cambiar, guardado en `reports/<modo>/control.json`):
   - *Operar / Solo cierre*: con "Solo cierre" no abre nada nuevo (los candidatos se siguen registrando para
     aprender) y sigue gestionando y cerrando lo abierto. Se revisa también justo antes de ejecutar.
