@@ -25,6 +25,9 @@ salida y resumen diario llega a Telegram y a la campana del panel.
 PC, sección *Ver en tu celular*, escanea el QR con la cámara (mismo Wi-Fi; fuera de casa, con Tailscale). Sin la
 clave del QR nadie entra. `desactivar_celular.bat` lo apaga y cambia la clave.
 
+**Actualizar:** cierra el bot y el panel y haz doble clic en `actualizar.bat`: baja la versión más reciente de GitHub
+y reemplaza solo el código (no toca `.env`, `bot/data` ni `bot/reports`).
+
 **Copia dañada:** antes de cada arranque `iniciar_demo.bat` ejecuta `python -m bot.integridad`, que importa cada
 módulo y comprueba los archivos de datos. Si la carpeta mezcla versiones (un ZIP nuevo extraído encima de uno
 viejo), no entra en un ciclo de reinicios: se detiene y explica cómo reinstalar en una carpeta nueva.

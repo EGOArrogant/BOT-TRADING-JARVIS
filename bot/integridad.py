@@ -66,8 +66,10 @@ def main() -> int:
     print("     Cómo arreglarlo:")
     print("       1. Cierra esta ventana y cambia el nombre de esta carpeta (por ejemplo a BOT-VIEJO).")
     print("       2. Descarga el ZIP de nuevo y extráelo en una carpeta NUEVA con el nombre de antes.")
-    print("       3. Copia de la carpeta vieja a la nueva: el archivo .env y las carpetas data y reports.")
+    print("       3. Copia de la carpeta vieja a la nueva SOLO el archivo .env (no copies la carpeta bot ni otras).")
     print("       4. Doble clic en instalar.bat y luego en iniciar_demo.bat.")
+    print("     Si en la carpeta nueva existe actualizar.bat, también puedes usarlo: baja el código otra vez")
+    print("     y lo reemplaza sin tocar tu .env ni tus datos.")
     return EXIT_BROKEN
 
 
