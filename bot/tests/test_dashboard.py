@@ -97,3 +97,43 @@ def test_server_serves_page_and_valid_json(setup):
         srv.server_close()
     assert srv.server_address[0] == "127.0.0.1"
     assert _clean({"pf": float("inf"), "x": [float("nan"), 1.0]}) == {"pf": None, "x": [None, 1.0]}
+
+
+def test_chart_candles_any_timeframe_with_cache_and_validation(setup):
+    import urllib.error
+
+    from bot.dashboard.klines import CACHE_S, INTERVALS, KlineSource
+    s, *_ = setup
+    calls, t = [], [0.0]
+
+    def fetch(url, params):
+        calls.append(params)
+        if params["symbol"] == "XLMUSDT":
+            raise OSError("sin internet")
+        return [[1_000, "1", "2", "0.5", "1.5", "10", 0, "0"]]
+
+    src = KlineSource("https://x", s.exchange.symbols, fetch=fetch, clock=lambda: t[0])
+    assert {"1m", "1h", "4h", "1d", "1w", "1M"} <= set(INTERVALS)
+    assert src.get("BTCUSDT", "4h") == [[1000, 1.0, 2.0, 0.5, 1.5, 10.0]]
+    src.get("BTCUSDT", "4h")
+    assert len(calls) == 1  # dentro de la caché no se vuelve a pedir
+    t[0] += CACHE_S + 1
+    src.get("BTCUSDT", "4h")
+    assert len(calls) == 2 and calls[-1] == {"symbol": "BTCUSDT", "interval": "4h", "limit": 1000}
+
+    srv = serve(s, port=0, klines=src)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        assert len(urllib.request.urlopen(base + "/grafico.js").read()) > 100_000
+        assert json.loads(urllib.request.urlopen(base + "/api/velas?symbol=ETHUSDT&interval=1d").read())[0][4] == 1.5
+        for q, code in (("symbol=FAKEUSDT&interval=1h", 400), ("symbol=ETHUSDT&interval=7m", 400),
+                        ("symbol=XLMUSDT&interval=1h", 502)):
+            try:
+                urllib.request.urlopen(base + "/api/velas?" + q)
+                raise AssertionError(q)
+            except urllib.error.HTTPError as exc:
+                assert exc.code == code
+    finally:
+        srv.shutdown()
+        srv.server_close()

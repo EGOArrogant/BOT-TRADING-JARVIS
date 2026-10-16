@@ -62,9 +62,30 @@ color:var(--ink);cursor:pointer;transition:background .15s,box-shadow .15s}
 .chart{position:relative}
 svg{display:block;width:100%;height:auto;overflow:visible}
 .axis{fill:var(--ink3);font-size:11px}.gl{stroke:var(--grid);stroke-width:1}
-.chart-opts{display:flex;flex-wrap:wrap;gap:8px}
-.chart-opts .tabs{margin-bottom:10px}
 .cdl-up{fill:var(--good);stroke:var(--good)}.cdl-dn{fill:var(--bad);stroke:var(--bad)}
+.tv-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;margin-bottom:10px}
+.tv-bar .tabs{margin-bottom:0}
+.tv-menu{position:relative}
+.tv-menu summary{list-style:none;cursor:pointer;font-size:13.5px;font-weight:600;padding:10px 14px;border-radius:12px;background:var(--fill);user-select:none}
+.tv-menu summary::-webkit-details-marker{display:none}
+.tv-menu[open] summary{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tv-pop{position:absolute;z-index:20;top:calc(100% + 6px);left:0;min-width:190px;max-height:420px;overflow:auto;background:var(--card);border-radius:14px;
+padding:6px;box-shadow:0 10px 34px rgba(0,0,0,.22)}
+.tv-pop h4{margin:8px 10px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.tv-pop button,.tv-pop label{display:flex;align-items:center;gap:8px;width:100%;font:inherit;font-size:14px;padding:8px 10px;border:0;border-radius:9px;
+background:transparent;color:var(--ink);cursor:pointer;text-align:left}
+.tv-pop button:hover,.tv-pop label:hover{background:var(--fill)}
+.tv-pop button[aria-pressed="true"]{background:var(--series);color:#fff}
+.tv-pop .sw{display:inline-block;width:14px;height:3px;border-radius:2px}
+.tv-wrap{position:relative}
+.tv-chart{height:460px;border-radius:14px;overflow:hidden}
+.tv-legend{position:absolute;z-index:3;left:10px;top:8px;font-size:12.5px;pointer-events:none;color:var(--ink2);line-height:1.5}
+.tv-legend b{color:var(--ink)}
+.tv-note{margin-top:6px}
+.tv-wrap:fullscreen{background:var(--card);padding:12px}
+.tv-wrap:fullscreen .tv-chart{height:calc(100vh - 60px)}
+#tvDraw[aria-pressed="true"]{background:var(--series);color:#fff}
+@media (max-width:600px){.tv-chart{height:360px}.tv-pop{max-height:60vh}}
 .line{fill:none;stroke:var(--series);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .area{fill:url(#areaGrad)}
 .lvl{stroke-width:1.5;stroke-dasharray:5 4}.xh{stroke:var(--ink3);stroke-width:1;stroke-dasharray:3 3}
@@ -196,13 +217,24 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
   <div class="kpis" id="kpis"></div>
 
   <section class="card">
-    <h2 id="priceTitle">Precio y operaciones (últimas 48 h)</h2>
+    <h2 id="priceTitle">Precio y operaciones</h2>
     <div class="tabs" id="tabs" role="group" aria-label="Moneda"></div>
-    <div class="chart-opts">
-      <div class="tabs" id="chartKind" role="group" aria-label="Tipo de gráfico">
-        <button type="button" data-k="velas">Velas</button><button type="button" data-k="linea">Línea</button></div>
-      <div class="tabs" id="chartTf" role="group" aria-label="Temporalidad">
-        <button type="button" data-k="15m">15 min · 48 h</button><button type="button" data-k="1h">1 hora · 7 días</button></div>
+    <div class="tv-bar" id="tvBar" hidden>
+      <div class="tabs" id="tfQuick" role="group" aria-label="Temporalidad"></div>
+      <details class="tv-menu" id="tfMenu"><summary aria-label="Más temporalidades">⌄</summary><div class="tv-pop" id="tfPop"></div></details>
+      <div class="tabs" id="tvKind" role="group" aria-label="Tipo de gráfico">
+        <button type="button" data-k="velas" title="Velas">Velas</button><button type="button" data-k="linea" title="Línea">Línea</button></div>
+      <details class="tv-menu" id="indMenu"><summary>ƒx Indicadores</summary><div class="tv-pop" id="indPop"></div></details>
+      <div class="tabs" role="group" aria-label="Herramientas">
+        <button type="button" id="tvDraw" title="Clic en el gráfico para marcar un precio">― Línea</button>
+        <button type="button" id="tvClear" title="Borrar las líneas dibujadas">Borrar</button>
+        <button type="button" id="tvFit" title="Ver todo">Ajustar</button>
+        <button type="button" id="tvFull" title="Pantalla completa">⛶</button></div>
+    </div>
+    <div class="tv-wrap" id="tvWrap" hidden>
+      <div class="tv-legend" id="tvLegend"></div>
+      <div class="tv-chart" id="tvChart"></div>
+      <div class="muted small tv-note" id="tvNote"></div>
     </div>
     <div class="chart" id="priceChart"></div>
     <div class="legend">
@@ -320,6 +352,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
   <p class="muted small" style="margin-top:18px">El panel solo puede cambiar el botón Operar / Solo cierre y la agresividad; nunca los topes de seguridad. Se actualiza solo cada 15 segundos.
   Horas en tu zona horaria. El día del bot (techo de operaciones y pérdida diaria) se cuenta en hora UTC.</p>
 </main>
+<script src="/grafico.js"></script>
 <script>
 "use strict";
 var D = null, SEL = null, PENDING_LVL = null;
@@ -473,26 +506,253 @@ function lineChart(el, pts, opts) {
   svg.addEventListener("mouseleave", function () { tip.style.display = "none"; xh.style.display = "none"; });
 }
 
-var CHART = {kind: "velas", tf: "15m"};
-try { var cs = JSON.parse(localStorage.getItem("jarvis-grafico") || "{}"); if (cs.kind) CHART.kind = cs.kind; if (cs.tf) CHART.tf = cs.tf; } catch (e) {}
-function renderChartOpts() {
-  [["chartKind", "kind"], ["chartTf", "tf"]].forEach(function (g) {
-    $(g[0]).querySelectorAll("button").forEach(function (b) {
-      b.setAttribute("aria-pressed", String(b.dataset.k === CHART[g[1]]));
-      b.onclick = function () {
-        CHART[g[1]] = b.dataset.k;
-        try { localStorage.setItem("jarvis-grafico", JSON.stringify(CHART)); } catch (e) {}
-        renderChartOpts(); renderPrice();
-      };
+// ---------------------------------------------------------------- Gráfico estilo TradingView / Hyperliquid
+// TradingView Lightweight Charts™ (Apache 2.0), servido por el propio panel en /grafico.js.
+// Velas de 1 minuto a 1 mes desde la API pública de Binance (vía /api/velas); sin internet usa las del bot.
+var TF_GROUPS = [["Minutos", [["1m", "1 minuto"], ["3m", "3 minutos"], ["5m", "5 minutos"], ["15m", "15 minutos"], ["30m", "30 minutos"]]],
+  ["Horas", [["1h", "1 hora"], ["2h", "2 horas"], ["4h", "4 horas"], ["6h", "6 horas"], ["8h", "8 horas"], ["12h", "12 horas"]]],
+  ["Días", [["1d", "1 día"], ["3d", "3 días"], ["1w", "1 semana"], ["1M", "1 mes"]]]];
+var TF_QUICK = ["5m", "15m", "1h", "4h", "1d"];
+var TF_SHORT = {"1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m", "30m": "30m", "1h": "1h", "2h": "2h", "4h": "4h", "6h": "6h",
+  "8h": "8h", "12h": "12h", "1d": "D", "3d": "3D", "1w": "S", "1M": "M"};
+var TF_MS = {"1m": 6e4, "3m": 18e4, "5m": 3e5, "15m": 9e5, "30m": 18e5, "1h": 36e5, "2h": 72e5, "4h": 144e5, "6h": 216e5,
+  "8h": 288e5, "12h": 432e5, "1d": 864e5, "3d": 2592e5, "1w": 6048e5, "1M": 2592e6};
+var IND = [["vol", "Volumen", null], ["ema20", "EMA 20", "#ff9f0a"], ["ema50", "EMA 50", "#af52de"], ["ema200", "EMA 200", "#5ac8fa"],
+  ["bb", "Bandas de Bollinger (20, 2)", "#8e8e93"], ["vwap", "VWAP del día", "#ff2d55"], ["rsi", "RSI 14 (abajo)", "#ffcc00"]];
+var TV = {cfg: {tf: "15m", kind: "velas", ind: {vol: true, ema20: true, ema50: true}}, chart: null, s: {}, bars: [], key: "",
+  draw: false, lines: {}, priceLines: [], drawn: [], timer: null, fitNext: true};
+try { var tvc = JSON.parse(localStorage.getItem("jarvis-tv") || "{}"); if (tvc.tf && TF_MS[tvc.tf]) TV.cfg.tf = tvc.tf;
+  if (tvc.kind) TV.cfg.kind = tvc.kind; if (tvc.ind) TV.cfg.ind = tvc.ind;
+  TV.lines = JSON.parse(localStorage.getItem("jarvis-tv-lineas") || "{}"); } catch (e) {}
+function tvSave() { try { localStorage.setItem("jarvis-tv", JSON.stringify(TV.cfg)); localStorage.setItem("jarvis-tv-lineas", JSON.stringify(TV.lines)); } catch (e) {} }
+function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function tvTime(ms) { return Math.floor(ms / 1000) - new Date(ms).getTimezoneOffset() * 60; }  // el gráfico muestra hora local
+
+function tvTheme() {
+  if (!TV.chart) return;
+  var ink = cssv("--ink2"), grid = cssv("--grid");
+  TV.chart.applyOptions({layout: {background: {type: "solid", color: cssv("--card")}, textColor: ink, fontFamily: "Inter, -apple-system, sans-serif"},
+    grid: {vertLines: {color: grid}, horzLines: {color: grid}}, rightPriceScale: {borderColor: grid}, timeScale: {borderColor: grid}});
+  var up = cssv("--good"), dn = cssv("--bad");
+  if (TV.s.candle) TV.s.candle.applyOptions({upColor: up, downColor: dn, wickUpColor: up, wickDownColor: dn, borderVisible: false});
+  if (TV.s.line) TV.s.line.applyOptions({color: cssv("--series")});
+}
+
+function tvInit() {
+  var LC = window.LightweightCharts;
+  TV.chart = LC.createChart($("tvChart"), {autoSize: true, crosshair: {mode: LC.CrosshairMode.Normal},
+    timeScale: {timeVisible: true, secondsVisible: false, rightOffset: 4}, localization: {locale: "es-MX", priceFormatter: price}});
+  TV.s.candle = TV.chart.addCandlestickSeries({priceLineVisible: true});
+  TV.s.line = TV.chart.addLineSeries({lineWidth: 2, priceLineVisible: true, visible: false});
+  TV.s.vol = TV.chart.addHistogramSeries({priceScaleId: "vol", priceFormat: {type: "volume"}, lastValueVisible: false, priceLineVisible: false});
+  ["ema20", "ema50", "ema200", "vwap"].forEach(function (k) {
+    var c = IND.filter(function (x) { return x[0] === k; })[0][2];
+    TV.s[k] = TV.chart.addLineSeries({color: c, lineWidth: 1.5, lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false});
+  });
+  ["bbU", "bbM", "bbL"].forEach(function (k) {
+    TV.s[k] = TV.chart.addLineSeries({color: "#8e8e93", lineWidth: 1, lineStyle: k === "bbM" ? 2 : 0, lastValueVisible: false,
+      priceLineVisible: false, crosshairMarkerVisible: false});
+  });
+  TV.s.rsi = TV.chart.addLineSeries({priceScaleId: "rsi", color: "#ffcc00", lineWidth: 1.5, lastValueVisible: true, priceLineVisible: false});
+  [70, 30].forEach(function (v) { TV.s.rsi.createPriceLine({price: v, color: "#8e8e93", lineWidth: 1, lineStyle: 2, axisLabelVisible: false}); });
+  tvTheme();
+  TV.chart.subscribeCrosshairMove(tvLegend);
+  TV.chart.subscribeClick(function (p) {
+    if (!TV.draw || !p.point) return;
+    var main = TV.cfg.kind === "velas" ? TV.s.candle : TV.s.line, v = main.coordinateToPrice(p.point.y);
+    if (v == null) return;
+    (TV.lines[SEL] = TV.lines[SEL] || []).push(v);
+    TV.draw = false; $("tvDraw").setAttribute("aria-pressed", "false"); tvSave(); tvDrawn();
+  });
+  $("tvDraw").onclick = function () { TV.draw = !TV.draw; this.setAttribute("aria-pressed", String(TV.draw)); };
+  $("tvClear").onclick = function () { TV.lines[SEL] = []; tvSave(); tvDrawn(); };
+  $("tvFit").onclick = function () { TV.chart.timeScale().fitContent(); };
+  $("tvFull").onclick = function () {
+    var w = $("tvWrap");
+    if (document.fullscreenElement) document.exitFullscreen(); else if (w.requestFullscreen) w.requestFullscreen();
+  };
+  document.addEventListener("click", function (e) {  // cerrar menús al tocar fuera
+    ["tfMenu", "indMenu"].forEach(function (id) { var m = $(id); if (m.open && !m.contains(e.target)) m.open = false; });
+  });
+}
+
+function tvMenus() {
+  $("tfQuick").innerHTML = TF_QUICK.concat(TF_QUICK.indexOf(TV.cfg.tf) < 0 ? [TV.cfg.tf] : []).map(function (k) {
+    return '<button type="button" data-k="' + k + '" aria-pressed="' + (k === TV.cfg.tf) + '">' + TF_SHORT[k] + "</button>";
+  }).join("");
+  $("tfPop").innerHTML = TF_GROUPS.map(function (g) {
+    return "<h4>" + g[0] + "</h4>" + g[1].map(function (t) {
+      return '<button type="button" data-k="' + t[0] + '" aria-pressed="' + (t[0] === TV.cfg.tf) + '">' + t[1] + "</button>"; }).join("");
+  }).join("");
+  [$("tfQuick"), $("tfPop")].forEach(function (box) {
+    box.querySelectorAll("button").forEach(function (b) {
+      b.onclick = function () { TV.cfg.tf = b.dataset.k; $("tfMenu").open = false; TV.fitNext = true; tvSave(); tvMenus(); tvLoad(); };
+    });
+  });
+  $("tvKind").querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.k === TV.cfg.kind));
+    b.onclick = function () { TV.cfg.kind = b.dataset.k; tvSave(); tvMenus(); tvPaint(); };
+  });
+  $("indPop").innerHTML = IND.map(function (x) {
+    return '<label><input type="checkbox" data-k="' + x[0] + '"' + (TV.cfg.ind[x[0]] ? " checked" : "") + ">" +
+      (x[2] ? '<span class="sw" style="background:' + x[2] + '"></span>' : "") + esc(x[1]) + "</label>";
+  }).join("");
+  $("indPop").querySelectorAll("input").forEach(function (c) {
+    c.onchange = function () { TV.cfg.ind[c.dataset.k] = c.checked; tvSave(); tvPaint(); };
+  });
+}
+
+function ema(vals, n) {
+  var k = 2 / (n + 1), out = [], e = null;
+  vals.forEach(function (v, i) { e = e == null ? v : v * k + e * (1 - k); out.push(i >= n - 1 ? e : null); });
+  return out;
+}
+function rsi(vals, n) {
+  var out = [null], g = 0, l = 0;
+  for (var i = 1; i < vals.length; i++) {
+    var d = vals[i] - vals[i - 1], up = Math.max(d, 0), dn = Math.max(-d, 0);
+    if (i <= n) { g += up / n; l += dn / n; out.push(i === n ? 100 - 100 / (1 + g / (l || 1e-12)) : null); }
+    else { g = (g * (n - 1) + up) / n; l = (l * (n - 1) + dn) / n; out.push(100 - 100 / (1 + g / (l || 1e-12))); }
+  }
+  return out;
+}
+function series(bars, vals) {
+  var out = [];
+  vals.forEach(function (v, i) { if (v != null && isFinite(v)) out.push({time: tvTime(bars[i][0]), value: v}); });
+  return out;
+}
+
+function tvPaint() {
+  if (!TV.chart) return;
+  var bars = TV.bars, ind = TV.cfg.ind, velas = TV.cfg.kind === "velas", up = cssv("--good"), dn = cssv("--bad");
+  var closes = bars.map(function (b) { return b[4]; });
+  TV.s.candle.applyOptions({visible: velas}); TV.s.line.applyOptions({visible: !velas});
+  TV.s.candle.setData(bars.map(function (b) { return {time: tvTime(b[0]), open: b[1], high: b[2], low: b[3], close: b[4]}; }));
+  TV.s.line.setData(bars.map(function (b) { return {time: tvTime(b[0]), value: b[4]}; }));
+  var hasVol = bars.length && bars[0].length > 5;
+  TV.s.vol.applyOptions({visible: !!(ind.vol && hasVol)});
+  TV.s.vol.setData(hasVol ? bars.map(function (b) {
+    return {time: tvTime(b[0]), value: b[5], color: (b[4] >= b[1] ? up : dn) + "66"}; }) : []);
+  [["ema20", 20], ["ema50", 50], ["ema200", 200]].forEach(function (e) {
+    TV.s[e[0]].applyOptions({visible: !!ind[e[0]]}); TV.s[e[0]].setData(ind[e[0]] ? series(bars, ema(closes, e[1])) : []);
+  });
+  var bu = [], bm = [], bl = [];
+  if (ind.bb) closes.forEach(function (c, i) {
+    if (i < 19) { bu.push(null); bm.push(null); bl.push(null); return; }
+    var w = closes.slice(i - 19, i + 1), m = w.reduce(function (a, x) { return a + x; }, 0) / 20;
+    var sd = Math.sqrt(w.reduce(function (a, x) { return a + (x - m) * (x - m); }, 0) / 20);
+    bm.push(m); bu.push(m + 2 * sd); bl.push(m - 2 * sd);
+  });
+  TV.s.bbU.setData(series(bars, bu)); TV.s.bbM.setData(series(bars, bm)); TV.s.bbL.setData(series(bars, bl));
+  ["bbU", "bbM", "bbL"].forEach(function (k) { TV.s[k].applyOptions({visible: !!ind.bb}); });
+  var vw = [];  // VWAP que se reinicia cada día UTC (solo tiene sentido por debajo de 1 día)
+  if (ind.vwap && hasVol && TF_MS[TV.cfg.tf] < 864e5) {
+    var day = null, pv = 0, vv = 0;
+    bars.forEach(function (b) { var d = Math.floor(b[0] / 864e5); if (d !== day) { day = d; pv = 0; vv = 0; }
+      pv += (b[2] + b[3] + b[4]) / 3 * b[5]; vv += b[5]; vw.push(vv ? pv / vv : null); });
+  }
+  TV.s.vwap.applyOptions({visible: vw.length > 0}); TV.s.vwap.setData(series(bars, vw));
+  TV.s.rsi.applyOptions({visible: !!ind.rsi}); TV.s.rsi.setData(ind.rsi ? series(bars, rsi(closes, 14)) : []);
+  // Zonas: precio arriba; volumen abajo; RSI en una franja inferior propia
+  var main = velas ? TV.s.candle : TV.s.line;
+  TV.chart.priceScale("right").applyOptions({scaleMargins: {top: 0.06, bottom: ind.rsi ? 0.32 : (ind.vol ? 0.2 : 0.06)}});
+  TV.chart.priceScale("vol").applyOptions({scaleMargins: ind.rsi ? {top: 0.6, bottom: 0.25} : {top: 0.82, bottom: 0}});
+  TV.chart.priceScale("rsi").applyOptions({scaleMargins: {top: 0.8, bottom: 0.02}});
+  tvMarks(main);
+  tvDrawn();
+  if (TV.fitNext && bars.length) { TV.chart.timeScale().fitContent(); TV.fitNext = false; }
+  tvLegend({});
+}
+
+function tvSnap(ms) {  // hora de la vela que contiene ms (los marcadores deben caer sobre una vela)
+  var b = TV.bars, lo = 0, hi = b.length - 1;
+  if (!b.length || ms < b[0][0]) return null;
+  while (lo < hi) { var m = (lo + hi + 1) >> 1; if (b[m][0] <= ms) lo = m; else hi = m - 1; }
+  return tvTime(b[lo][0]);
+}
+
+function tvMarks(main) {
+  var marks = [], good = cssv("--good"), bad = cssv("--bad"), blue = cssv("--series");
+  function add(ms, m) { var t = tvSnap(ms); if (t != null) { m.time = t; marks.push(m); } }
+  D.trades.filter(function (t) { return t.symbol === SEL; }).forEach(function (t) {
+    add(Date.parse(t.opened_at), {position: t.side === "LONG" ? "belowBar" : "aboveBar", shape: t.side === "LONG" ? "arrowUp" : "arrowDown",
+      color: blue, text: t.side === "LONG" ? "Long" : "Short"});
+    add(Date.parse(t.closed_at), {position: t.side === "LONG" ? "aboveBar" : "belowBar", shape: "circle", color: t.pnl_net >= 0 ? good : bad,
+      text: money(t.pnl_net, true)});
+  });
+  D.positions.filter(function (p) { return p.symbol === SEL; }).forEach(function (p) {
+    add(Date.parse(p.opened_at), {position: p.side === "LONG" ? "belowBar" : "aboveBar", shape: p.side === "LONG" ? "arrowUp" : "arrowDown",
+      color: blue, text: "Abierta"});
+  });
+  marks.sort(function (a, b) { return a.time - b.time; });
+  TV.s.candle.setMarkers(main === TV.s.candle ? marks : []); TV.s.line.setMarkers(main === TV.s.line ? marks : []);
+  TV.priceLines.forEach(function (x) { x[0].removePriceLine(x[1]); });
+  TV.priceLines = [];
+  D.positions.filter(function (p) { return p.symbol === SEL; }).forEach(function (p) {
+    [[p.entry, blue, "Entrada"], [p.stop, bad, "Stop"], [p.take_profit, good, "Objetivo"]].forEach(function (l) {
+      if (l[0] == null) return;
+      TV.priceLines.push([main, main.createPriceLine({price: l[0], color: l[1], lineWidth: 1, lineStyle: l[2] === "Entrada" ? 0 : 2,
+        axisLabelVisible: true, title: l[2]})]);
     });
   });
 }
 
+function tvDrawn() {
+  var main = TV.cfg.kind === "velas" ? TV.s.candle : TV.s.line;
+  TV.drawn.forEach(function (x) { x[0].removePriceLine(x[1]); });
+  TV.drawn = (TV.lines[SEL] || []).map(function (v) {
+    return [main, main.createPriceLine({price: v, color: cssv("--ink3"), lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: ""})];
+  });
+}
+
+function tvLegend(p) {
+  var b = TV.bars, bar = null;
+  if (p && p.time != null) { for (var i = b.length - 1; i >= 0; i--) if (tvTime(b[i][0]) === p.time) { bar = b[i]; break; } }
+  bar = bar || b[b.length - 1];
+  if (!bar) { $("tvLegend").innerHTML = ""; return; }
+  var ch = bar[1] ? (bar[4] - bar[1]) / bar[1] : 0;
+  $("tvLegend").innerHTML = "<b>" + esc(coin(SEL)) + " · " + esc(TF_SHORT[TV.cfg.tf]) + "</b> &nbsp;A <b>" + esc(price(bar[1])) +
+    "</b> Máx <b>" + esc(price(bar[2])) + "</b> Mín <b>" + esc(price(bar[3])) + "</b> C <b>" + esc(price(bar[4])) +
+    '</b> <span class="' + (ch >= 0 ? "pos" : "neg") + '">' + (ch >= 0 ? "+" : "") + (ch * 100).toFixed(2) + "%</span>";
+}
+
+function tvFallback() {  // sin conexión con Binance: las velas que publica el bot (15 min y 1 h)
+  var c = ((D.candles || {})[SEL] || {}), tf = TV.cfg.tf === "1h" ? "1h" : "15m";
+  return {bars: c[tf] || [], tf: tf};
+}
+
+function tvLoad() {
+  var key = SEL + "|" + TV.cfg.tf, sym = SEL, tf = TV.cfg.tf;
+  if (key !== TV.key) { TV.key = key; TV.fitNext = true; }
+  fetch("/api/velas?symbol=" + encodeURIComponent(sym) + "&interval=" + encodeURIComponent(tf), {cache: "no-store"})
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (rows) {
+      if (sym !== SEL || tf !== TV.cfg.tf) return;
+      TV.bars = rows; $("tvNote").textContent = "Velas en vivo de Binance · se actualizan cada 10 s · horas en tu zona horaria."; tvPaint();
+    })
+    .catch(function () {
+      if (sym !== SEL || tf !== TV.cfg.tf) return;
+      var fb = tvFallback(); TV.bars = fb.bars;
+      $("tvNote").textContent = "Sin conexión con Binance desde el panel: se muestran las velas de " + (fb.tf === "1h" ? "1 hora" : "15 min") +
+        " que publica el bot.";
+      tvPaint();
+    });
+}
+
 function renderPrice() {
-  var bars = ((D.candles || {})[SEL] || {})[CHART.tf] || [], ms = CHART.tf === "1h" ? 3600000 : 900000;
+  if (!window.LightweightCharts) { renderPriceSvg(); return; }  // respaldo: gráfico simple
+  $("priceChart").hidden = true; $("tvBar").hidden = false; $("tvWrap").hidden = false;
+  $("priceTitle").textContent = "Precio y operaciones";
+  if (TV.chart) tvTheme();
+  if (!TV.chart) { tvInit(); tvMenus(); clearInterval(TV.timer); TV.timer = setInterval(function () { if (D && !document.hidden) tvLoad(); }, 10000); }
+  tvLoad();
+}
+
+function renderPriceSvg() {
+  var bars = ((D.candles || {})[SEL] || {})["15m"] || [], ms = 900000;
   var pts = bars.length ? bars.map(function (c) { return [c[0] + ms / 2, c[4]]; }) : (D.prices[SEL] || []);
-  var ohlc = bars.length && CHART.kind === "velas" ? bars : null, marks = [], levels = [];
-  $("priceTitle").textContent = "Precio y operaciones (" + (CHART.tf === "1h" && bars.length ? "últimos 7 días" : "últimas 48 h") + ")";
+  var ohlc = bars.length ? bars : null, marks = [], levels = [];
+  $("priceTitle").textContent = "Precio y operaciones (últimas 48 h)";
   var t0 = pts.length ? pts[0][0] - ms / 2 : 0;
   D.trades.filter(function (t) { return t.symbol === SEL; }).forEach(function (t) {
     marks.push({kind: "entry", side: t.side, t: Date.parse(t.opened_at), v: t.entry,
@@ -849,7 +1109,7 @@ function renderStats() {
   $("statList").innerHTML = rows.join("");
 }
 
-function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderChartOpts(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

@@ -365,7 +365,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   (contexto para IA/aprendizaje; con < 50 % de cuentas leídas = unknown). Nunca se copian operaciones.
 - Windows: `instalar.bat` (uv + Python 3.12 + `bot.revisar`), `iniciar_demo.bat` (paper con reinicio), `abrir_panel.bat`.
   `bot/integridad.py` corre antes de cada arranque: copia mezclada/incompleta → código 3 y el .bat no reinicia.
-  Panel: velas OHLC 15m (48 h) y 1h (7 días) en `panel_vivo.json["candles"]`, con la vela en curso.
+  Panel: gráfico TradingView Lightweight Charts 4.2.3 (Apache 2.0, `dashboard/vendor/`, servido en `/grafico.js`):
+  temporalidades 1m–1M vía `/api/velas` (proxy de `/fapi/v1/klines` público, caché 10 s, `dashboard/klines.py`),
+  EMA/Bollinger/VWAP/RSI/volumen, líneas dibujadas (localStorage). Sin Binance: velas 15m/1h de `panel_vivo.json`.
   Escrituras compartidas con el panel vía `core/fsutil.atomic_write_text` (reintenta PermissionError de Windows).
 - Papel sobrevive reinicios: `Engine.save_paper/restore_paper` (`state_<modo>_exchange.json`: saldo, posiciones,
   órdenes abiertas, funding y las `Position` del gestor). Sin archivo: saldo = equity del estado.

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import math
+from urllib.parse import parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -18,12 +19,14 @@ from bot.core import control
 from bot.core.config import Settings
 from bot.core.logging_setup import get_logger
 from bot.dashboard.data import collect
+from bot.dashboard.klines import KlineSource
 
 log = get_logger("bot.dashboard")
 
 CSRF_HEADER = "X-Jarvis-Panel"  # una web ajena no puede enviarla sin permiso CORS (que nunca se da)
 
 PAGE = Path(__file__).with_name("page.html")
+CHART_JS = Path(__file__).with_name("vendor") / "lightweight-charts.js"  # TradingView Lightweight Charts (Apache 2.0)
 
 
 def _clean(x: Any) -> Any:
@@ -37,8 +40,10 @@ def _clean(x: Any) -> Any:
     return x
 
 
-def make_handler(settings: Settings) -> type[BaseHTTPRequestHandler]:
+def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[BaseHTTPRequestHandler]:
     page = PAGE.read_bytes()
+    chart_js = CHART_JS.read_bytes()
+    klines = klines or KlineSource(settings.endpoints.binance.rest, settings.exchange.symbols)
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
@@ -63,6 +68,22 @@ def make_handler(settings: Settings) -> type[BaseHTTPRequestHandler]:
                 except Exception as exc:  # noqa: BLE001
                     log.error("panel: no se pudo leer el estado", extra={"err": repr(exc)}, exc_info=True)
                     self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+            elif path == "/grafico.js":
+                self._send(200, chart_js, "text/javascript; charset=utf-8")
+            elif path == "/api/velas":
+                if self.headers.get("Host") not in self._allowed_hosts():
+                    self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
+                    return
+                q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+                try:
+                    rows = klines.get(q.get("symbol", [""])[0], q.get("interval", [""])[0])
+                except ValueError as exc:
+                    self._send(400, json.dumps({"error": str(exc)}).encode(), "application/json")
+                    return
+                except Exception as exc:  # noqa: BLE001  (sin internet / Binance caído: el panel usa su respaldo)
+                    self._send(502, json.dumps({"error": repr(exc)}).encode(), "application/json")
+                    return
+                self._send(200, json.dumps(rows, separators=(",", ":")).encode(), "application/json")
             elif path == "/favicon.ico":
                 self._send(204, b"", "image/x-icon")
             else:
@@ -109,5 +130,6 @@ def make_handler(settings: Settings) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def serve(settings: Settings, port: int = 8765, host: str = "127.0.0.1") -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), make_handler(settings))
+def serve(settings: Settings, port: int = 8765, host: str = "127.0.0.1",
+          klines: KlineSource | None = None) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), make_handler(settings, klines))
