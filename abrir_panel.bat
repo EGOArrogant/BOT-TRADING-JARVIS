@@ -7,5 +7,7 @@ if not exist .venv\Scripts\python.exe (
   pause
   exit /b 1
 )
-.venv\Scripts\python.exe -m bot.main panel --mode paper
+set "CEL="
+if exist celular_activado.txt set "CEL=--celular"
+.venv\Scripts\python.exe -m bot.main panel --mode paper %CEL%
 pause

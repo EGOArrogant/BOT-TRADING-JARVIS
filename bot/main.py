@@ -190,19 +190,22 @@ def cmd_report(settings: Settings) -> int:
     return 0
 
 
-def cmd_panel(settings: Settings, port: int) -> int:
+def cmd_panel(settings: Settings, port: int, phone: bool = False) -> int:
     import webbrowser
 
     from bot.dashboard.server import serve
 
     settings = per_mode_storage(settings)
     try:
-        server = serve(settings, port)
+        server = serve(settings, port, phone=phone)
     except OSError as exc:
         print(f"no se pudo abrir el panel en el puerto {port} ({exc}). Prueba con otro: --port 8766")
         return 1
     url = f"http://127.0.0.1:{port}"
     print(f"Panel del modo '{settings.mode.value}' en {url}  (deja esta ventana abierta; Ctrl+C para cerrarlo)")
+    if phone:
+        print("Modo celular activo: en el panel de la PC, sección 'Ver en tu celular', escanea el código QR con el iPhone.")
+        print("Si Windows pregunta si permites el acceso a la red, elige 'Redes privadas' y 'Permitir acceso'.")
     try:
         webbrowser.open(url)
     except Exception:  # noqa: BLE001
@@ -225,6 +228,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--env-file", default=None)
     parser.add_argument("--approve", action="store_true", help="con `gates`: registrar aprobación si pasan")
     parser.add_argument("--port", type=int, default=8765, help="con `panel`: puerto local")
+    parser.add_argument("--celular", action="store_true", help="con `panel`: verlo también desde el celular (con clave)")
     args = parser.parse_args(argv)
 
     settings = load_settings(Path(args.config), args.mode) if args.config else load_settings(mode=args.mode)
@@ -243,7 +247,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "report":
         return cmd_report(settings)
     if args.command == "panel":
-        return cmd_panel(settings, args.port)
+        return cmd_panel(settings, args.port, args.celular)
     return run(settings, secrets)
 
 

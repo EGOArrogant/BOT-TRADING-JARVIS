@@ -10,3 +10,4 @@ bot/data/*
 bot/reports/*
 !bot/reports/.gitkeep
 *.egg-info/
+celular_activado.txt

@@ -18,6 +18,10 @@ escéptico y el código controla todo el riesgo. La especificación completa est
 
 `python -m bot.revisar` repite la revisión cuando quieras.
 
+**Ver el panel en el celular:** doble clic en `activar_celular.bat`, reinicia `iniciar_demo.bat` y en el panel de la
+PC, sección *Ver en tu celular*, escanea el QR con la cámara (mismo Wi-Fi; fuera de casa, con Tailscale). Sin la
+clave del QR nadie entra. `desactivar_celular.bat` lo apaga y cambia la clave.
+
 **Copia dañada:** antes de cada arranque `iniciar_demo.bat` ejecuta `python -m bot.integridad`, que importa cada
 módulo y comprueba los archivos de datos. Si la carpeta mezcla versiones (un ZIP nuevo extraído encima de uno
 viejo), no entra en un ciclo de reinicios: se detiene y explica cómo reinstalar en una carpeta nueva.

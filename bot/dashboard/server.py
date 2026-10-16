@@ -1,9 +1,12 @@
-"""Servidor del panel: solo en 127.0.0.1 (no se expone a internet).
+"""Servidor del panel: por defecto solo en 127.0.0.1 (no se expone a internet).
 
 Lee el estado del bot y solo puede escribir una cosa: `control.json`
 (botón Operar / Solo cierre y agresividad, que nunca superan config.yaml).
 
-    python -m bot.main panel --mode paper [--port 8765]
+    python -m bot.main panel --mode paper [--port 8765] [--celular]
+
+Con `--celular` también escucha en la red de casa / Tailscale, y todo lo que no venga de la propia PC
+necesita la clave del panel (ver `dashboard/remote.py`).
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from bot.core import control
 from bot.core.config import Settings
 from bot.core.logging_setup import get_logger
 from bot.dashboard.data import collect
+from bot.dashboard import remote
 from bot.dashboard.klines import KlineSource
 
 log = get_logger("bot.dashboard")
@@ -27,6 +31,11 @@ CSRF_HEADER = "X-Jarvis-Panel"  # una web ajena no puede enviarla sin permiso CO
 
 PAGE = Path(__file__).with_name("page.html")
 CHART_JS = Path(__file__).with_name("vendor") / "lightweight-charts.js"  # TradingView Lightweight Charts (Apache 2.0)
+QR_JS = Path(__file__).with_name("vendor") / "qrcode.js"  # QR Code Generator, Kazuhiko Arase (MIT)
+LOCKED_PAGE = """<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JARVIS</title><body style="font-family:-apple-system,sans-serif;padding:32px;max-width:520px;margin:auto;line-height:1.5">
+<h1>JARVIS · Panel</h1><p>Para ver el panel en este dispositivo, abre el panel en tu PC y escanea con la cámara
+el código QR de la sección <b>Ver en tu celular</b>.</p></body></html>""".encode()
 
 
 def _clean(x: Any) -> Any:
@@ -40,9 +49,11 @@ def _clean(x: Any) -> Any:
     return x
 
 
-def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[BaseHTTPRequestHandler]:
+def make_handler(settings: Settings, klines: KlineSource | None = None,
+                 remote_key: str | None = None) -> type[BaseHTTPRequestHandler]:
     page = PAGE.read_bytes()
     chart_js = CHART_JS.read_bytes()
+    qr_js = QR_JS.read_bytes()
     klines = klines or KlineSource(settings.endpoints.binance.rest, settings.exchange.symbols)
 
     class Handler(BaseHTTPRequestHandler):
@@ -54,14 +65,52 @@ def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[
             self.end_headers()
             self.wfile.write(body)
 
+        def _from_pc(self) -> bool:
+            return remote.is_loopback(self.client_address[0])
+
+        def _authorized(self) -> bool:
+            """La PC entra siempre (con Host local); un celular solo con la cookie de la clave."""
+            if self._from_pc():
+                return self.headers.get("Host") in self._allowed_hosts()
+            return remote_key is not None and remote.key_ok(remote.cookie_value(self.headers.get("Cookie")), remote_key)
+
         def do_GET(self) -> None:  # noqa: N802
             path = self.path.split("?", 1)[0]
+            q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+            if not self._from_pc() and path in ("/", "/index.html") and remote_key is not None \
+                    and remote.key_ok(q.get("t", [""])[0], remote_key):
+                # Primera visita desde el QR: guarda la clave en una cookie y quita la clave de la dirección
+                self.send_response(302)
+                self.send_header("Set-Cookie", f"{remote.COOKIE}={remote_key}; Max-Age=31536000; Path=/; HttpOnly; "
+                                               "SameSite=Strict")
+                self.send_header("Location", "/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if path == "/favicon.ico":
+                self._send(204, b"", "image/x-icon")
+                return
+            if not self._authorized():
+                if path in ("/", "/index.html"):
+                    self._send(401, LOCKED_PAGE, "text/html; charset=utf-8")
+                else:
+                    self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
+                return
             if path in ("/", "/index.html"):
                 self._send(200, page, "text/html; charset=utf-8")
-            elif path == "/api/estado":
-                if self.headers.get("Host") not in self._allowed_hosts():
-                    self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
+            elif path == "/api/acceso":
+                # Solo la PC ve la clave: con ella arma el QR para el celular
+                if not self._from_pc():
+                    self._send(403, b'{"error": "solo desde la PC"}', "application/json")
                     return
+                port = self.server.server_address[1]
+                body = {"enabled": remote_key is not None, "port": port,
+                        "urls": [{**ip, "url": f"http://{ip['ip']}:{port}/?t={remote_key}"} for ip in remote.local_ips()]
+                        if remote_key else []}
+                self._send(200, json.dumps(body).encode(), "application/json; charset=utf-8")
+            elif path == "/qr.js":
+                self._send(200, qr_js, "text/javascript; charset=utf-8")
+            elif path == "/api/estado":
                 try:
                     body = json.dumps(_clean(collect(settings)), ensure_ascii=False, default=str).encode()
                     self._send(200, body, "application/json; charset=utf-8")
@@ -71,10 +120,6 @@ def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[
             elif path == "/grafico.js":
                 self._send(200, chart_js, "text/javascript; charset=utf-8")
             elif path == "/api/velas":
-                if self.headers.get("Host") not in self._allowed_hosts():
-                    self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
-                    return
-                q = parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
                 try:
                     rows = klines.get(q.get("symbol", [""])[0], q.get("interval", [""])[0])
                 except ValueError as exc:
@@ -84,8 +129,6 @@ def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[
                     self._send(502, json.dumps({"error": repr(exc)}).encode(), "application/json")
                     return
                 self._send(200, json.dumps(rows, separators=(",", ":")).encode(), "application/json")
-            elif path == "/favicon.ico":
-                self._send(204, b"", "image/x-icon")
             else:
                 self._send(404, b"no encontrado", "text/plain; charset=utf-8")
 
@@ -95,10 +138,11 @@ def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[
 
         def _local_request(self) -> bool:
             """Bloquea peticiones de otras webs abiertas en el navegador (CSRF / DNS rebinding)."""
-            allowed = self._allowed_hosts()
+            if not self._authorized() or self.headers.get(CSRF_HEADER) != "1":
+                return False
+            allowed = self._allowed_hosts() if self._from_pc() else {self.headers.get("Host")}
             origin = self.headers.get("Origin")
-            return (self.headers.get("Host") in allowed and self.headers.get(CSRF_HEADER) == "1"
-                    and (origin is None or origin.split("://", 1)[-1] in allowed))
+            return origin is None or origin.split("://", 1)[-1] in allowed
 
         def do_POST(self) -> None:  # noqa: N802
             if self.path.split("?", 1)[0] != "/api/control":
@@ -130,6 +174,9 @@ def make_handler(settings: Settings, klines: KlineSource | None = None) -> type[
     return Handler
 
 
-def serve(settings: Settings, port: int = 8765, host: str = "127.0.0.1",
-          klines: KlineSource | None = None) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer((host, port), make_handler(settings, klines))
+def serve(settings: Settings, port: int = 8765, host: str | None = None,
+          klines: KlineSource | None = None, phone: bool = False) -> ThreadingHTTPServer:
+    """phone=True: también escucha en la red (0.0.0.0) y exige la clave a todo lo que no sea esta PC."""
+    key = remote.load_or_create_key(settings.storage.reports_dir) if phone else None
+    host = host or ("0.0.0.0" if phone else "127.0.0.1")
+    return ThreadingHTTPServer((host, port), make_handler(settings, klines, key))

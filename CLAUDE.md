@@ -355,7 +355,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Stream privado de usuario (`execution/user_stream.py`, `/private/ws/<listenKey>`): cualquier evento de cuenta
   despierta al gestor; con el stream sano se consulta cada 5 s, sin él cada 1 s. La verdad sigue siendo el REST.
 - Panel (`bot/dashboard/`, `python -m bot.main panel`): proceso aparte, solo lectura (SQLite en modo `ro`),
-  solo `127.0.0.1`. Lo que solo vive en memoria (posiciones, precios) lo publica el motor cada minuto en
+  solo `127.0.0.1`; con `--celular` (archivo `celular_activado.txt`, `activar_celular.bat`) escucha en 0.0.0.0 y
+  todo lo que no sea la PC necesita la clave de `reports/<modo>/panel_clave.txt` (QR en el panel de la PC → cookie
+  HttpOnly/SameSite=Strict). `/api/acceso` (con la clave) solo responde a la PC. `dashboard/remote.py`. Lo que solo vive en memoria (posiciones, precios) lo publica el motor cada minuto en
   `reports/<modo>/panel_vivo.json`; foto con > 3 min = "apagado".
 - Controles del panel (`core/control.py`, `reports/<modo>/control.json`): Operar/Solo cierre y agresividad 1–10.
   Nivel 10 = config.yaml; niveles menores solo endurecen (`control.apply` re-valida). El motor los relee en cada

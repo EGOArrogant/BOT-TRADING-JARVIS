@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panel JARVIS</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="JARVIS">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>try{var t=localStorage.getItem("jarvis-tema");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
@@ -77,6 +80,11 @@ background:transparent;color:var(--ink);cursor:pointer;text-align:left}
 .tv-pop button:hover,.tv-pop label:hover{background:var(--fill)}
 .tv-pop button[aria-pressed="true"]{background:var(--series);color:#fff}
 .tv-pop .sw{display:inline-block;width:14px;height:3px;border-radius:2px}
+.phone{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+.phone .qr{background:#fff;padding:10px;border-radius:16px;line-height:0}
+.phone .qr svg{width:200px;height:200px}
+.phone ol{margin:0;padding-left:20px;line-height:1.6;max-width:520px}
+.phone code{font-size:12.5px;word-break:break-all}
 .tv-wrap{position:relative}
 .tv-chart{height:460px;border-radius:14px;overflow:hidden}
 .tv-legend{position:absolute;z-index:3;left:10px;top:8px;font-size:12.5px;pointer-events:none;color:var(--ink2);line-height:1.5}
@@ -349,10 +357,15 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     <div class="scroll" id="decisions"></div>
   </section>
 
+  <section class="card" id="phoneCard" hidden>
+    <h2>Ver en tu celular</h2>
+    <div class="phone" id="phoneBody"></div>
+  </section>
   <p class="muted small" style="margin-top:18px">El panel solo puede cambiar el botón Operar / Solo cierre y la agresividad; nunca los topes de seguridad. Se actualiza solo cada 15 segundos.
   Horas en tu zona horaria. El día del bot (techo de operaciones y pérdida diaria) se cuenta en hora UTC.</p>
 </main>
 <script src="/grafico.js"></script>
+<script src="/qr.js"></script>
 <script>
 "use strict";
 var D = null, SEL = null, PENDING_LVL = null;
@@ -739,6 +752,48 @@ function tvLoad() {
     });
 }
 
+// ---------------------------------------------------------------- Ver en tu celular (solo se muestra en la PC)
+var ACCESS = null;
+function renderPhone() {
+  var h = location.hostname;
+  if (h !== "127.0.0.1" && h !== "localhost") return;  // en el celular no hace falta
+  $("phoneCard").hidden = false;
+  if (!ACCESS) {
+    ACCESS = {loading: true};
+    fetch("/api/acceso", {cache: "no-store"}).then(function (r) { return r.json(); })
+      .then(function (a) { ACCESS = a; renderPhone(); }).catch(function () { ACCESS = {enabled: false}; renderPhone(); });
+    return;
+  }
+  if (ACCESS.loading) return;
+  if (!ACCESS.enabled) {
+    $("phoneBody").innerHTML = '<ol><li>En la carpeta del bot, doble clic en <b>activar_celular.bat</b>.</li>' +
+      "<li>Cierra la ventana del bot y vuelve a abrir <b>iniciar_demo.bat</b>.</li>" +
+      "<li>Si Windows pregunta por el acceso a la red, elige <b>Redes privadas</b> y <b>Permitir acceso</b>.</li>" +
+      "<li>Vuelve a esta sección: aparecerá un código QR para escanear con la cámara del iPhone.</li></ol>";
+    return;
+  }
+  var home = ACCESS.urls.filter(function (u) { return u.kind === "casa"; })[0];
+  var ts = ACCESS.urls.filter(function (u) { return u.kind === "tailscale"; })[0];
+  function qrSvg(url) {
+    if (!window.qrcode) return "";
+    var q = window.qrcode(0, "M"); q.addData(url); q.make(); return q.createSvgTag(5, 0);
+  }
+  var html = "";
+  [[home, "En casa (mismo Wi-Fi)"], [ts, "Fuera de casa (Tailscale)"]].forEach(function (x) {
+    if (!x[0]) return;
+    html += '<div><div class="qr" aria-label="Código QR ' + esc(x[1]) + '">' + qrSvg(x[0].url) + '</div><div class="small" style="margin-top:6px"><b>' +
+      esc(x[1]) + "</b></div></div>";
+  });
+  if (!home && !ts) html += '<div class="neg">No encontré la dirección de esta PC en la red. ¿Está conectada al Wi-Fi o al cable?</div>';
+  html += "<ol><li>Abre la <b>cámara</b> del iPhone y apunta al código QR. Toca el aviso amarillo que aparece.</li>" +
+    "<li>El iPhone y la PC deben estar en el <b>mismo Wi-Fi</b>" + (ts ? " (o usa el código de Tailscale fuera de casa)" : "") + ".</li>" +
+    "<li>Para tenerlo como app: en Safari toca <b>Compartir</b> → <b>Agregar a pantalla de inicio</b>.</li>" +
+    "<li>Solo funciona mientras la PC esté encendida con el bot. Nadie más puede entrar sin este código.</li>" +
+    (ts ? "" : '<li class="muted">Para verlo fuera de casa (datos móviles): instala <b>Tailscale</b> (gratis) en la PC y en el iPhone con la misma cuenta y reinicia el panel; aparecerá un segundo código.</li>') +
+    "</ol>";
+  $("phoneBody").innerHTML = html;
+}
+
 function renderPrice() {
   if (!window.LightweightCharts) { renderPriceSvg(); return; }  // respaldo: gráfico simple
   $("priceChart").hidden = true; $("tvBar").hidden = false; $("tvWrap").hidden = false;
@@ -1109,7 +1164,7 @@ function renderStats() {
   $("statList").innerHTML = rows.join("");
 }
 
-function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function render() { renderStats(); renderHeader(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {
