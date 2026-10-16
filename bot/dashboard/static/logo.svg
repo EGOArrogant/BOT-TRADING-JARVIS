@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="JARVIS">
-<style>.lg-tile{fill:#101317}.lg-hood{fill:#1d5230}.lg-hood-in{fill:#123a22}.lg-m1{stop-color:#d5dbe2}.lg-m2{stop-color:#7f8995}.lg-m3{stop-color:#3b434d}.lg-edge{stroke:#262c33;stroke-width:.8}.lg-line{fill:none;stroke:#262c33;stroke-width:1;stroke-linecap:round}.lg-grille,.lg-rivet{fill:#262c33}.lg-eye{fill:#30d158}</style>
+<style>.lg-tile{fill:#000000}.lg-hood{fill:#3a3a3c}.lg-hood-in{fill:#242426}.lg-m1{stop-color:#9a9aa0}.lg-m2{stop-color:#5a5a5f}.lg-m3{stop-color:#2c2c2e}.lg-edge{stroke:#0f0f10;stroke-width:.8}.lg-line{fill:none;stroke:#0f0f10;stroke-width:1;stroke-linecap:round}.lg-grille,.lg-rivet{fill:#0f0f10}.lg-eye{fill:#30d158}</style>
   <defs>
     <linearGradient id="lg-metal" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" class="lg-m1"/><stop offset=".55" class="lg-m2"/><stop offset="1" class="lg-m3"/>
