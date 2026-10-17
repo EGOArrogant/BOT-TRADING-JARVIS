@@ -10,6 +10,8 @@ periódicas (1 min): equity, guardias, contrafactuales, reportes, aprendizaje.
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -969,7 +971,9 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
             engine.save_paper()
             recorder.flush()
             engine.alert("reiniciando para aplicar la actualización", "info")
-            raise SystemExit(updater.RESTART_CODE)
+            print("\n  Actualización lista: reiniciando JARVIS con la versión nueva...", flush=True)
+            logging.shutdown()
+            os._exit(updater.RESTART_CODE)  # salida limpia: estado y diario ya guardados
 
     comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler),
                           lambda: engine._loop(3600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols),
