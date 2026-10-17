@@ -386,6 +386,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   `/api/reportes`); campana con eventos `notif` (`core/notify.py`: entradas/salidas/resumen diario, también a
   Telegram con `configurar_telegram.bat`); "Reportar error" (`dashboard/diagnostics.py`: sin llaves; la IA solo
   aconseja, nunca cambia código). Logo SVG en línea: ojos verde/ámbar/rojo según estado.
+- Actualizar desde el panel (`bot/updater.py`, `/api/version`, `POST /api/actualizar`): git pull o ZIP de GitHub,
+  nunca toca `.env`, `bot/data`, `bot/reports`, `.venv`; luego `reiniciar.flag` → el motor guarda y sale con código 10
+  (`RESTART_CODE`) y los .bat/systemd lo rearrancan. Ideas del usuario: `POST /api/idea` → `reports/<modo>/ideas.md`.
 - Demo con capital nuevo: `bot/demo_reset.py` archiva la demo anterior en `bot/data/archivo/` (solo paper).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):

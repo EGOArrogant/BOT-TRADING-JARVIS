@@ -53,6 +53,7 @@ from bot.indicators.features import compute_features
 from bot.learning import counterfactual
 from bot.learning.champion_challenger import ChampionChallenger
 from bot.dashboard import snapshot as panel_snapshot
+from bot import updater
 from bot.core import notify
 from bot.dashboard.reports import day_report
 from bot.learning.daily_report import write_zone
@@ -960,8 +961,19 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
                 bids, asks = st.book.top(20)
                 recorder.record(f"{sym.lower()}@book20", {"bids": bids, "asks": asks, "E": st.book.event_ts_ms}, now)
 
+    started = datetime.now(UTC)
+
+    async def check_restart(now: datetime) -> None:
+        """Botón "Actualizar" del panel: guardar todo y salir; el .bat o systemd arrancan el código nuevo."""
+        if updater.restart_requested(started):
+            engine.save_paper()
+            recorder.flush()
+            engine.alert("reiniciando para aplicar la actualización", "info")
+            raise SystemExit(updater.RESTART_CODE)
+
     comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler),
-                          lambda: engine._loop(3600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols)]
+                          lambda: engine._loop(3600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols),
+                          lambda: engine._loop(5.0, check_restart)]
     await engine.run()
 
 

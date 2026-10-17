@@ -18,6 +18,11 @@ rem Antes de cada arranque: si la copia del bot esta danada, reiniciar no sirve.
 .venv\Scripts\python.exe -m bot.integridad
 if errorlevel 3 goto danado
 .venv\Scripts\python.exe -m bot.main --mode paper
+if errorlevel 10 if not errorlevel 11 (
+  echo.
+  echo  [%date% %time%] Actualizacion aplicada: arrancando la version nueva...
+  goto loop
+)
 echo.
 echo  [%date% %time%] El bot se detuvo por un error inesperado (por ejemplo, sin internet).
 echo  Se reinicia solo en 30 segundos y retoma la demo donde iba (saldo y posiciones).

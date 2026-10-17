@@ -103,6 +103,11 @@ border:0;border-radius:12px;padding:10px;resize:vertical}
 .dlg-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .ai-out{margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--series-soft);white-space:pre-wrap;line-height:1.55}
 #errBtn .nb{margin-left:4px;background:var(--bad);color:#fff}
+.idea-box{margin-top:16px}
+.idea-box textarea,#ideaText{width:100%;box-sizing:border-box;font:inherit;background:var(--fill);color:var(--ink);border:1px solid var(--glass-edge);
+border-radius:14px;padding:10px 12px;resize:vertical}
+.upd-list{margin:8px 0 10px;padding-left:20px;line-height:1.6}
+.upd-btn{background:var(--good);color:#fff}
 /* reportes */
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .rep-item{border-radius:16px;padding:14px 16px;background:var(--fill)}
@@ -416,6 +421,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
         </div>
       </div>
       <button type="button" class="btn ghost icon" id="errBtn" title="Reportar un error: junta los errores para copiarlos o pedir un diagnóstico a la IA">⚠<span class="nb" id="nbErr"></span></button>
+      <button type="button" class="btn upd-btn" id="updBtn" hidden title="Hay una versión nueva del bot">⟳ Actualizar</button>
       <button type="button" class="btn ghost icon" id="glassBtn" title="Vidrio: transparente o tintado (más fácil de leer)">◐</button>
       <button type="button" class="btn ghost icon" id="themeBtn" title="Cambiar entre modo claro y oscuro"></button>
     </div>
@@ -630,6 +636,21 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     <div class="scroll" id="decisions"></div>
   </section>
 
+  <section class="card" data-view="sistema" id="updCard">
+    <div class="row-head">
+      <h2 style="margin:0">Actualizaciones e ideas <span class="muted small">(mejoras nuevas del bot)</span></h2>
+      <div class="tools"><button type="button" class="btn ghost" id="updCheck">Buscar actualizaciones</button></div>
+    </div>
+    <div id="updBody" style="margin-top:10px" class="muted">Revisando…</div>
+    <div class="idea-box">
+      <label class="ctl-label" for="ideaText">¿Se te ocurrió una mejora? Escríbela aquí y guárdala; luego cópiala y pégala en el chat con Claude.
+        Cuando esté lista, aparecerá aquí como actualización.</label>
+      <textarea id="ideaText" rows="3" maxlength="2000" placeholder="Ejemplo: que me avise por Telegram cuando la ganancia del día pase de 1 dólar"></textarea>
+      <div class="dlg-actions"><button type="button" class="btn" id="ideaSave">Guardar idea</button>
+        <button type="button" class="btn ghost" id="ideaCopy">Copiar mis ideas</button></div>
+      <pre class="zone" id="ideaList" hidden></pre>
+    </div>
+  </section>
   <section class="card" id="phoneCard" data-view="sistema" hidden>
     <h2>Ver en tu celular</h2>
     <div class="phone" id="phoneBody"></div>
@@ -1647,6 +1668,54 @@ $("glassBtn").onclick = function () {
   paintGlassBtn();
 };
 paintGlassBtn();
+
+// ---------------------------------------------------------------- Actualizaciones e ideas
+var VERSION = null;
+function fdate(x) { return x ? new Date(x).toLocaleString("es-MX", {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"}) : "desconocida"; }
+function checkVersion(force) {
+  return fetch("/api/version" + (force ? "?force=1" : ""), {cache: "no-store"}).then(function (r) {
+    return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; });
+  }).then(function (v) { VERSION = v; renderUpdate(); })
+    .catch(function (e) { $("updBody").innerHTML = '<span class="neg">' + esc(e.message) + "</span>"; });
+}
+function renderUpdate() {
+  var v = VERSION; if (!v) return;
+  $("updBtn").hidden = !v.available;
+  var inst = "Versión instalada: <b>" + esc(fdate(v.local.date)) + "</b>" + (v.local.source === "git" ? " (servidor)" : "");
+  if (!v.available) { $("updBody").innerHTML = '<span class="pos"><b>✓ Estás al día.</b></span> ' + inst; return; }
+  $("updBody").innerHTML = '<b class="pos">Hay una versión nueva</b> (' + esc(fdate(v.remote.date)) + "). " + inst +
+    '<ul class="upd-list">' + v.changes.map(function (c) { return "<li>" + esc(c.title) + ' <span class="muted small">' + esc(fdate(c.date)) + "</span></li>"; }).join("") +
+    '</ul><button type="button" class="btn" id="updGo">Actualizar ahora</button> <span class="muted small">Tarda menos de un minuto. ' +
+    "No toca tu dinero, tu .env ni tus datos; el bot se reinicia solo y las posiciones abiertas siguen protegidas por su stop.</span>";
+  $("updGo").onclick = doUpdate;
+}
+function doUpdate() {
+  if (!confirm("¿Actualizar JARVIS ahora? El bot y el panel se reiniciarán solos en unos segundos.")) return;
+  $("updBody").innerHTML = "Descargando e instalando la versión nueva…";
+  post("/api/actualizar", {}).then(function (r) {
+    $("updBody").innerHTML = '<b class="pos">' + esc(r.message) + "</b>";
+    if (!r.updated) return;
+    var down = false, t = setInterval(function () {  // esperar a que el panel vuelva y recargar la página
+      fetch("/api/estado", {cache: "no-store"}).then(function (x) { if (x.ok && down) { clearInterval(t); location.reload(); } })
+        .catch(function () { down = true; });
+    }, 2000);
+  }).catch(function (e) { $("updBody").innerHTML = '<span class="neg">' + esc(e.message) + "</span>"; });
+}
+$("updCheck").onclick = function () { $("updBody").textContent = "Revisando…"; checkVersion(true); };
+$("updBtn").onclick = function () { location.hash = "#sistema"; setTimeout(function () { $("updCard").scrollIntoView({behavior: "smooth"}); }, 50); };
+function showIdeas(t) { $("ideaList").hidden = !t; $("ideaList").textContent = t || ""; }
+$("ideaSave").onclick = function () {
+  var t = $("ideaText").value.trim(); if (!t) return;
+  post("/api/idea", {text: t}).then(function (r) { $("ideaText").value = ""; showIdeas(r.ideas); });
+};
+$("ideaCopy").onclick = function () {
+  var t = "Ideas de mejora para JARVIS:\n" + ($("ideaList").textContent || ""), b = this;
+  function done() { b.textContent = "¡Copiado! Pégalo en el chat"; setTimeout(function () { b.textContent = "Copiar mis ideas"; }, 2500); }
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(t).then(done);
+  else { var ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); done(); }
+};
+fetch("/api/ideas").then(function (r) { return r.json(); }).then(function (j) { showIdeas(j.ideas); }).catch(function () {});
+checkVersion(false); setInterval(function () { if (!document.hidden) checkVersion(false); }, 30 * 60000);
 
 function render() { renderHeader(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 

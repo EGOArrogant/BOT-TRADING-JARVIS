@@ -13,6 +13,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import threading
+import time
+from datetime import UTC, datetime
 from urllib.parse import parse_qs
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +26,7 @@ from bot.core import control
 from bot.core.config import Settings
 from bot.core.logging_setup import get_logger
 from bot.dashboard.data import collect
+from bot import updater
 from bot.dashboard import diagnostics, remote, reports, snapshot
 from bot.dashboard.klines import KlineSource
 
@@ -62,6 +67,8 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
     public = {k: ((STATIC / f).read_bytes(), t) for k, (f, t) in PUBLIC.items()}
     klines = klines or KlineSource(settings.endpoints.binance.rest, settings.exchange.symbols)
     diagnoser = diagnoser or diagnostics.Diagnoser(None, settings.ai.reflection_model)
+    version_cache: dict[str, Any] = {}
+    update_lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
@@ -124,6 +131,18 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                 except Exception as exc:  # noqa: BLE001
                     log.error("panel: no se pudo leer el estado", extra={"err": repr(exc)}, exc_info=True)
                     self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+            elif path == "/api/version":
+                try:
+                    if not version_cache or time.monotonic() - version_cache["at"] > 60 or "force" in q:
+                        version_cache.update(at=time.monotonic(), data=updater.check())
+                    self._send(200, json.dumps(version_cache["data"]).encode(), "application/json; charset=utf-8")
+                except Exception as exc:  # noqa: BLE001
+                    self._send(502, json.dumps({"error": f"no se pudo consultar GitHub ({exc.__class__.__name__})",
+                                                "local": updater.local_version()}).encode(), "application/json")
+            elif path == "/api/ideas":
+                f = settings.storage.reports_dir / "ideas.md"
+                text = f.read_text(encoding="utf-8")[-6000:] if f.exists() else ""
+                self._send(200, json.dumps({"ideas": text}, ensure_ascii=False).encode(), "application/json; charset=utf-8")
             elif path == "/api/reportes":
                 try:
                     body = json.dumps(_clean(reports.collect(settings)), ensure_ascii=False, default=str).encode()
@@ -166,11 +185,46 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
 
         def do_POST(self) -> None:  # noqa: N802
             path = self.path.split("?", 1)[0]
-            if path not in ("/api/control", "/api/errores", "/api/diagnostico"):
+            if path not in ("/api/control", "/api/errores", "/api/diagnostico", "/api/actualizar", "/api/idea"):
                 self._send(404, b"no encontrado", "text/plain; charset=utf-8")
                 return
             if not self._local_request():
                 self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
+                return
+            if path == "/api/actualizar":
+                if not update_lock.acquire(blocking=False):
+                    self._send(409, b'{"error": "ya se esta actualizando"}', "application/json")
+                    return
+                try:
+                    out = updater.apply()
+                except Exception as exc:  # noqa: BLE001
+                    update_lock.release()
+                    log.error("panel: actualización falló", extra={"err": repr(exc)}, exc_info=True)
+                    self._send(500, json.dumps({"error": f"no se pudo actualizar: {exc}"}, ensure_ascii=False).encode(),
+                               "application/json")
+                    return
+                self._send(200, json.dumps(out, ensure_ascii=False).encode(), "application/json; charset=utf-8")
+                if out.get("updated"):  # el panel también se reinicia para cargar la página nueva
+                    log.info("panel: actualizado, reiniciando")
+                    threading.Timer(1.5, lambda: os._exit(updater.RESTART_CODE)).start()
+                else:
+                    update_lock.release()
+                return
+            if path == "/api/idea":
+                try:
+                    text = str(self._json_body(8000).get("text") or "").strip()
+                    if not text:
+                        raise ValueError("idea vacía")
+                    f = settings.storage.reports_dir / "ideas.md"
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    with open(f, "a", encoding="utf-8") as fh:
+                        fh.write(f"- {datetime.now(UTC).strftime('%Y-%m-%d %H:%M')} UTC — {text}\n")
+                    ideas = f.read_text(encoding="utf-8")[-6000:]
+                except Exception as exc:  # noqa: BLE001
+                    self._send(400, json.dumps({"error": str(exc)}).encode(), "application/json")
+                    return
+                self._send(200, json.dumps({"ok": True, "ideas": ideas}, ensure_ascii=False).encode(),
+                           "application/json; charset=utf-8")
                 return
             if path in ("/api/errores", "/api/diagnostico"):
                 try:

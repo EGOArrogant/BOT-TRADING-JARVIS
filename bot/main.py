@@ -210,8 +210,11 @@ def cmd_panel(settings: Settings, port: int, phone: bool = False, ai_key: str | 
     if phone:
         print("Modo celular activo: en el panel de la PC, sección 'Ver en tu celular', escanea el código QR con el iPhone.")
         print("Si Windows pregunta si permites el acceso a la red, elige 'Redes privadas' y 'Permitir acceso'.")
+    from bot import updater
+    reopened = updater.restart_requested(datetime.now(UTC) - timedelta(seconds=90))  # tras actualizar: la página ya está abierta
     try:
-        webbrowser.open(url)
+        if not reopened:
+            webbrowser.open(url)
     except Exception:  # noqa: BLE001
         pass
     try:
