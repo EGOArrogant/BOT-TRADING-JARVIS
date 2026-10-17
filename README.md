@@ -49,6 +49,18 @@ mejoró el resultado. La pausa por bajo rendimiento lo empeoró (queda apagada).
 las ganancias" (objetivo 4:1, 48 h, parcial en 2R) fue lo único que mejoró: positivo en ajuste y comprobación (PF 1.05);
 mover el stop a "sin pérdida" en 1R, el sesgo diario de BTC y filtrar por sesiones lo empeoraron. El chequeo de mirar al futuro
 (`python -m bot.backtest.lookahead`) no encontró fugas en los datos reales.
+Niveles de estructura (giros de 1 h, Fibonacci, espacio hasta soporte/resistencia; ~200 días de velas de 1 h de
+Hyperliquid, las 6 monedas): la posición dentro del último tramo (`ind.1h.fib_pos`) predice débil pero con el mismo
+signo en todas (IC ≈ −0.05 a 4 h: arriba del tramo, retroceso leve). El espacio hasta el siguiente nivel no hizo
+peores las rupturas, al contrario de la regla típica. Por eso solo son contexto para la IA y el diario; no filtran.
+
+**Gráfico del panel (Mercado):** herramientas de dibujo como TradingView en la barra de la izquierda (arriba en el
+celular): línea de tendencia, rayo, horizontal, vertical, canal, tridente, Fibonacci, pincel, texto, emoji, posición
+larga/corta (con R:R), regla, zoom, imán, bloquear, ocultar y borrar. Se guardan por moneda en ese navegador. El botón
+**JARVIS** muestra lo que hace el bot: cada operación como caja (entrada, stop, objetivo, salida), la posición abierta
+con su stop actual e invalidación, las señales que descartó (rombos) y el rango de 6 h cuya ruptura vigila
+`trend_breakout`; opcional, soportes/resistencias y Fibonacci de 1 h (los mismos niveles que recibe la IA). Toca una
+caja o un rombo para ver por qué entró o no y qué dijo la IA.
 
 **Actualizar:** cierra el bot y el panel y haz doble clic en `actualizar.bat`: baja la versión más reciente de GitHub
 y reemplaza solo el código (no toca `.env`, `bot/data` ni `bot/reports`).

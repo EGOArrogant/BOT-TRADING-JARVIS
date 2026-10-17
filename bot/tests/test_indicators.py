@@ -94,3 +94,40 @@ def test_compute_features_downtrend_and_insufficient():
     empty = compute_features(MarketState("XLMUSDT"), FeedStore(), NOW)
     assert empty["ind.1h.ema20"].status is DataStatus.UNKNOWN
     assert detect_regime(empty) is Regime.INSUFFICIENT
+
+
+def test_pivots_fibonacci_and_room_to_levels_without_lookahead():
+    up1, dn, up2 = np.linspace(95, 110, 16), np.linspace(110, 100, 11)[1:], np.linspace(100, 106, 7)[1:]
+    c = np.concatenate([up1, dn, up2])
+    h, l = c + 0.5, c - 0.5
+    highs, lows = ta.pivots(h, l, swing=3)
+    assert highs[-1] == (15, pytest.approx(110.5)) and lows[-1] == (25, pytest.approx(99.5))
+    assert len(c) - 1 - lows[-1][0] >= 3  # un giro necesita 3 velas cerradas después
+    for cut in range(10, len(c)):  # cortar el futuro no cambia los giros ya confirmados
+        hc, lc = ta.pivots(h[:cut], l[:cut], swing=3)
+        assert hc == [x for x in highs if x[0] <= cut - 4] and lc == [x for x in lows if x[0] <= cut - 4]
+    lv = ta.structure_levels(h, l, c, atr_last=2.0, swing=3)
+    assert lv["fib_pos"] == pytest.approx((106 - 99.5) / (110.5 - 99.5))
+    assert lv["room_up_atr"] == pytest.approx((110.5 - 106) / 2) and lv["room_down_atr"] == pytest.approx((106 - 99.5) / 2)
+    c2 = np.concatenate([c, np.linspace(107, 118, 6)])  # máximos nuevos: ninguna resistencia arriba
+    assert ta.structure_levels(c2 + 0.5, c2 - 0.5, c2, 2.0)["room_up_atr"] == ta.ROOM_CAP_ATR
+    assert ta.structure_levels(h[:5], l[:5], c[:5], 2.0)["fib_pos"] is None  # pocas velas: desconocido
+
+
+def test_structure_fields_reach_the_snapshot():
+    f = compute_features(_trend_state("ETHUSDT", 0.003), FeedStore(), NOW)
+    for k in ("swing_high", "swing_low", "fib_pos", "room_up_atr", "room_down_atr"):
+        assert f"ind.1h.{k}" in f
+    empty = compute_features(MarketState("XLMUSDT"), FeedStore(), NOW)
+    assert empty["ind.1h.fib_pos"].status is DataStatus.UNKNOWN
+
+
+def test_panel_levels_match_what_the_strategy_watches():
+    from bot.dashboard import snapshot
+    st = _trend_state("ETHUSDT", 0.003)
+    lv = snapshot.levels(st)
+    a15 = st.candles["15m"].arrays()
+    assert lv["range_15m"]["high"] == a15["h"][-24:].max() and lv["range_15m"]["low"] == a15["l"][-24:].min()
+    close = st.candles["1h"].arrays()["c"][-1]
+    assert all(p > close for p in lv["res"]) and all(p < close for p in lv["sup"]) and len(lv["res"]) <= 3
+    assert snapshot.levels(MarketState("XLMUSDT")) is None

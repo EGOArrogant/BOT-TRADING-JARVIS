@@ -25,7 +25,7 @@ from typing import Any
 from bot.core import control
 from bot.core.config import Settings
 from bot.core.logging_setup import get_logger
-from bot.dashboard.data import collect
+from bot.dashboard.data import chart_signals, collect
 from bot import updater
 from bot.dashboard import diagnostics, remote, reports, snapshot
 from bot.dashboard.klines import KlineSource
@@ -37,6 +37,7 @@ CSRF_HEADER = "X-Jarvis-Panel"  # una web ajena no puede enviarla sin permiso CO
 PAGE = Path(__file__).with_name("page.html")
 CHART_JS = Path(__file__).with_name("vendor") / "lightweight-charts.js"  # TradingView Lightweight Charts (Apache 2.0)
 QR_JS = Path(__file__).with_name("vendor") / "qrcode.js"  # QR Code Generator, Kazuhiko Arase (MIT)
+DRAW_JS = Path(__file__).with_name("dibujo.js")  # herramientas de dibujo y capa del bot sobre el gráfico
 STATIC = Path(__file__).with_name("static")
 PUBLIC = {"/logo.svg": ("logo.svg", "image/svg+xml"), "/favicon.ico": ("logo.svg", "image/svg+xml"),
           "/apple-touch-icon.png": ("apple-touch-icon.png", "image/png"), "/icon-512.png": ("icon-512.png", "image/png"),
@@ -64,6 +65,7 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
     page = PAGE.read_bytes()
     chart_js = CHART_JS.read_bytes()
     qr_js = QR_JS.read_bytes()
+    draw_js = DRAW_JS.read_bytes()
     public = {k: ((STATIC / f).read_bytes(), t) for k, (f, t) in PUBLIC.items()}
     klines = klines or KlineSource(settings.endpoints.binance.rest, settings.exchange.symbols)
     diagnoser = diagnoser or diagnostics.Diagnoser(None, settings.ai.reflection_model)
@@ -156,6 +158,20 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                     self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
             elif path == "/grafico.js":
                 self._send(200, chart_js, "text/javascript; charset=utf-8")
+            elif path == "/dibujo.js":
+                self._send(200, draw_js, "text/javascript; charset=utf-8")
+            elif path == "/api/senales":
+                try:
+                    body = json.dumps(_clean(chart_signals(settings, q.get("symbol", [""])[0])), ensure_ascii=False,
+                                      default=str).encode()
+                except ValueError as exc:
+                    self._send(400, json.dumps({"error": str(exc)}).encode(), "application/json")
+                    return
+                except Exception as exc:  # noqa: BLE001
+                    log.error("panel: no se pudieron leer las señales", extra={"err": repr(exc)}, exc_info=True)
+                    self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+                    return
+                self._send(200, body, "application/json; charset=utf-8")
             elif path == "/api/velas":
                 try:
                     rows = klines.get(q.get("symbol", [""])[0], q.get("interval", [""])[0])

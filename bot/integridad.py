@@ -20,7 +20,7 @@ import bot
 EXIT_BROKEN = 3
 ROOT = Path(bot.__file__).resolve().parent
 DATA_FILES = ("config.yaml", "macro_events.yaml", "strategy_overrides.yaml", "dashboard/page.html",
-              "dashboard/vendor/lightweight-charts.js", "dashboard/vendor/qrcode.js", "dashboard/static/logo.svg")
+              "dashboard/vendor/lightweight-charts.js", "dashboard/vendor/qrcode.js", "dashboard/dibujo.js", "dashboard/static/logo.svg")
 # Lo que el arranque necesita sí o sí: si falta, el ZIP es de otra versión
 REQUIRED_NAMES = {
     "bot.engine": ("run_live_like", "run_record", "Engine"),

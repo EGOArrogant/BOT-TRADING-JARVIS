@@ -202,6 +202,50 @@ def _trade_row(t: dict) -> dict[str, Any]:
     }
 
 
+def _brief_ai(raw: str | None) -> dict[str, Any] | None:
+    ai = json.loads(raw or "null")
+    if not isinstance(ai, dict):
+        return None
+    return {k: ai.get(k) for k in ("action", "confidence", "size_multiplier", "thesis", "invalidation", "key_evidence",
+                                   "risk_flags")}
+
+
+def chart_signals(settings: Settings, symbol: str, now: datetime | None = None, days: int = 14) -> dict[str, Any]:
+    """Para dibujar en el gráfico lo que hizo el bot en una moneda: cada operación (entrada, stop inicial, objetivo,
+    salida y lo que dijo la IA) y cada candidato de los últimos `days` días con su motivo. El nivel de ruptura
+    (`level`) es el máximo/mínimo de 6 h que vio la estrategia en ese momento (tomado del snapshot del diario)."""
+    if symbol not in settings.exchange.symbols:
+        raise ValueError("moneda desconocida")
+    now = now or datetime.now(UTC)
+    db = _connect(settings.storage.db_path)
+    level_sql = ("CASE side WHEN 'LONG' THEN json_extract(snapshot, '$.\"ind.15m.high_n\"') "
+                 "ELSE json_extract(snapshot, '$.\"ind.15m.low_n\"') END AS level")
+    try:
+        cands = _rows(db, f"SELECT id, ts, strategy, side, entry, stop, take_profit, status, reasons, ai, {level_sql} "
+                          "FROM candidates WHERE symbol = ? AND ts >= ? ORDER BY ts DESC LIMIT 300",
+                      (symbol, (now - timedelta(days=days)).isoformat()))
+        trades = _rows(db, "SELECT * FROM trades WHERE symbol = ? ORDER BY closed_at DESC LIMIT 200", (symbol,))
+        ids = [t["signal_id"] for t in trades if t.get("signal_id")]
+        linked = {r["id"]: r for r in _rows(
+            db, f"SELECT id, take_profit, ai, {level_sql} FROM candidates WHERE id IN ({','.join('?' * len(ids))})",
+            tuple(ids))} if ids else {}
+    finally:
+        if db is not None:
+            db.close()
+    signals = [{"id": c["id"], "ts": c["ts"], "strategy": c["strategy"], "side": c["side"], "entry": c["entry"],
+                "stop": c["stop"], "take_profit": c["take_profit"], "level": c["level"],
+                "status": CANDIDATE_TEXT.get(c["status"], c["status"]), "traded": c["status"] == "operado",
+                "reasons": json.loads(c["reasons"] or "[]"), "ai": _brief_ai(c["ai"])} for c in cands]
+    out_trades = []
+    for t in trades:
+        data = json.loads(t.get("data") or "{}")
+        cand = linked.get(t.get("signal_id")) or {}
+        out_trades.append({**_trade_row(t), "initial_stop": float(data.get("initial_stop_price", 0) or 0) or None,
+                           "take_profit": cand.get("take_profit"), "level": cand.get("level"),
+                           "ai": _brief_ai(cand.get("ai")), "mfe_r": data.get("mfe_r"), "mae_r": data.get("mae_r")})
+    return {"symbol": symbol, "signals": signals, "trades": out_trades}
+
+
 def _learning(db: sqlite3.Connection | None, min_cases: int, min_trades: int) -> dict[str, list]:
     learning: list[dict] = []
     pending: list[dict] = []
@@ -310,6 +354,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "equity_curve": [[capital_ts, eq] for capital_ts, eq in curve],
         "prices": (live or {}).get("prices", {}),
         "candles": (live or {}).get("candles", {}),
+        "levels": (live or {}).get("levels", {}),
         "last": (live or {}).get("last", {}),
         "positions": positions,
         "top_traders": (live or {}).get("top_traders"),

@@ -124,6 +124,56 @@ def structure(h: np.ndarray, l: np.ndarray, swing: int = 3, lookback: int = 60) 
     return 0
 
 
+def pivots(h: np.ndarray, l: np.ndarray, swing: int = 3, lookback: int = 120) -> tuple[list[tuple[int, float]], list[tuple[int, float]]]:
+    """Máximos y mínimos de giro confirmados: (índice en el array, precio), del más viejo al más nuevo.
+
+    Un giro necesita `swing` barras cerradas a cada lado, así que nunca mira el futuro: el último giro
+    confirmado tiene al menos `swing` barras de antigüedad.
+    """
+    n = len(h)
+    w = 2 * swing + 1
+    start = max(0, n - lookback)
+    if n - start < w:
+        return [], []
+    hs, ls = h[start:], l[start:]
+    hmax = np.lib.stride_tricks.sliding_window_view(hs, w).max(axis=1)
+    lmin = np.lib.stride_tricks.sliding_window_view(ls, w).min(axis=1)
+    mid = np.arange(swing, len(hs) - swing)
+    highs = [(start + int(i), float(hs[i])) for i in mid[hs[mid] == hmax]]
+    lows = [(start + int(i), float(ls[i])) for i in mid[ls[mid] == lmin]]
+    return highs, lows
+
+
+ROOM_CAP_ATR = 10.0  # "no hay nivel en la ventana": se reporta como 10 ATR o más (nunca 0)
+
+
+def structure_levels(h: np.ndarray, l: np.ndarray, c: np.ndarray, atr_last: float | None, swing: int = 3,
+                     lookback: int = 120) -> dict[str, float | None]:
+    """Estructura que mira un trader con Fibonacci y soportes/resistencias, calculada por reglas.
+
+    swing_high / swing_low: últimos giros confirmados. fib_pos: dónde está el precio dentro de ese tramo
+    (0 = en el mínimo, 1 = en el máximo, 0.618 = retroceso de Fibonacci 61.8 % desde abajo).
+    room_up_atr / room_down_atr: distancia en ATR a la resistencia (giro máximo) más cercana por arriba y al
+    soporte (giro mínimo) más cercano por abajo; ROOM_CAP_ATR = ninguno en la ventana.
+    """
+    out: dict[str, float | None] = {"swing_high": None, "swing_low": None, "fib_pos": None,
+                                    "room_up_atr": None, "room_down_atr": None}
+    highs, lows = pivots(h, l, swing, lookback)
+    if not highs or not lows or len(c) == 0:
+        return out
+    close = float(c[-1])
+    sh, sl = highs[-1][1], lows[-1][1]
+    out["swing_high"], out["swing_low"] = sh, sl
+    if sh > sl:
+        out["fib_pos"] = (close - sl) / (sh - sl)
+    if atr_last and atr_last > 0:
+        above = [p for _, p in highs if p > close]
+        below = [p for _, p in lows if p < close]
+        out["room_up_atr"] = min((min(above) - close) / atr_last, ROOM_CAP_ATR) if above else ROOM_CAP_ATR
+        out["room_down_atr"] = min((close - max(below)) / atr_last, ROOM_CAP_ATR) if below else ROOM_CAP_ATR
+    return out
+
+
 def daily_vwap(t_ms: np.ndarray, h: np.ndarray, l: np.ndarray, c: np.ndarray, v: np.ndarray) -> float | None:
     if len(t_ms) == 0:
         return None

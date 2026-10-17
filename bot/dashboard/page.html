@@ -189,14 +189,62 @@ background:transparent;color:var(--ink);cursor:pointer;text-align:left}
 .phone ol{margin:0;padding-left:20px;line-height:1.6;max-width:520px}
 .phone code{font-size:12.5px;word-break:break-all}
 .tv-wrap{position:relative}
-.tv-chart{height:460px;border-radius:14px;overflow:hidden}
+.tv-chart{height:480px;border-radius:14px;overflow:hidden}
 .tv-legend{position:absolute;z-index:3;left:10px;top:8px;font-size:12.5px;pointer-events:none;color:var(--ink2);line-height:1.5}
 .tv-legend b{color:var(--ink)}
 .tv-note{margin-top:6px}
-.tv-wrap:fullscreen{background:var(--card);padding:12px}
+.tv-wrap:fullscreen{background:var(--card);padding:12px 12px 12px 56px}
+.tv-wrap:fullscreen .jd-bar{left:12px;top:12px}
 .tv-wrap:fullscreen .tv-chart{height:calc(100vh - 60px)}
-#tvDraw[aria-pressed="true"]{background:var(--series);color:#fff}
-@media (max-width:600px){.tv-chart{height:360px}.tv-pop{max-height:60vh}}
+/* Herramientas de dibujo (dibujo.js): barra vertical a la izquierda, como TradingView */
+.tv-wrap{padding-left:44px}
+.tv-legend{left:54px}
+.tv-chart{position:relative}
+.jd-bar{position:absolute;left:0;top:0;width:38px;height:480px;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;
+  align-items:center;gap:1px;padding:4px 0;border-radius:14px;background:var(--fill)}
+.jd-bar::-webkit-scrollbar{display:none}
+.jd-b{flex:none;width:30px;height:28px;display:grid;place-items:center;border:0;border-radius:9px;background:transparent;color:var(--ink2);cursor:pointer;position:relative;padding:0}
+.jd-b svg{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.jd-b:hover{background:var(--card);color:var(--ink)}
+.jd-b[aria-pressed="true"]{background:var(--series);color:#fff}
+.jd-more::after{content:"";position:absolute;right:3px;bottom:3px;border:3px solid transparent;border-right-color:currentColor;border-bottom-color:currentColor;opacity:.6}
+.jd-jarvis{color:var(--series)}
+.jd-sep{flex:none;width:22px;height:1px;background:var(--grid);margin:3px 0}
+.jd-svg{position:absolute;left:0;top:0;z-index:3;pointer-events:none;overflow:visible}
+.jd-svg.jd-active{pointer-events:all;touch-action:none;cursor:crosshair}
+.jd-svg .jd-hit,.jd-svg .jd-handle{pointer-events:all;cursor:move;touch-action:none}
+.jd-svg .jd-user.locked .jd-hit{pointer-events:none}
+.jd-svg .jd-cap{pointer-events:all}
+.jd-menu{position:absolute;z-index:25;min-width:210px;max-width:290px;padding:6px;border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+.jd-menu h4{margin:6px 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.jd-menu button,.jd-menu label{display:flex;align-items:center;gap:8px;width:100%;font:inherit;font-size:14px;padding:8px;border:0;border-radius:9px;
+  background:transparent;color:var(--ink);cursor:pointer;text-align:left}
+.jd-menu button:hover,.jd-menu label:hover{background:var(--fill)}
+.jd-menu button svg{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.jd-menu .jd-tip{font-size:12px;color:var(--ink3);margin:6px 8px}
+.jd-emojis{display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+.jd-emojis button{font-size:22px;justify-content:center;padding:6px}
+.jd-colors{position:absolute;z-index:6;top:6px;left:50%;transform:translateX(-50%);display:flex;gap:6px;padding:6px 8px;border-radius:12px;background:var(--card);box-shadow:var(--shadow)}
+.jd-colors button{width:22px;height:22px;border-radius:50%;border:2px solid var(--card);cursor:pointer;padding:0}
+.jd-colors button[aria-pressed="true"]{outline:2px solid var(--ink)}
+.jd-colors .jd-del{background:transparent;border:0;font-size:15px;width:26px}
+.jd-info{position:absolute;z-index:6;left:52px;bottom:34px;width:min(360px,calc(100% - 64px));max-height:70%;overflow:auto;padding:12px 14px;border-radius:16px;
+  background:var(--card);box-shadow:var(--shadow);font-size:13.5px;line-height:1.45}
+.jd-info h4{margin:0 22px 2px 0;font-size:15px}
+.jd-info p{margin:6px 0}
+.jd-info table{border-collapse:collapse;margin:6px 0;width:100%}
+.jd-info td{padding:2px 0;vertical-align:top}
+.jd-info td:first-child{color:var(--ink2);padding-right:10px}
+.jd-info ul{margin:4px 0;padding-left:18px}
+.jd-info .jd-ai{margin-top:8px;padding:8px 10px;border-radius:12px;background:var(--fill)}
+.jd-info .jd-x{position:absolute;right:8px;top:8px;border:0;background:transparent;color:var(--ink2);font-size:15px;cursor:pointer}
+.tv-wrap:fullscreen .jd-bar{height:calc(100vh - 60px)}
+@media (max-width:600px){.tv-chart{height:360px}.tv-pop{max-height:60vh}
+  /* celular: la barra de dibujo va arriba del gráfico y se desliza de lado */
+  .tv-wrap{padding-left:0}.tv-legend{left:10px;top:48px}
+  .jd-bar{position:static;width:auto;height:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;margin-bottom:6px;padding:4px}
+  .jd-sep{width:1px;height:20px;margin:0 3px}.jd-b{width:34px;height:32px}
+  .jd-info{left:8px;width:calc(100% - 16px);bottom:30px}}
 .line{fill:none;stroke:var(--series);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .area{fill:url(#areaGrad)}
 .lvl{stroke-width:1.5;stroke-dasharray:5 4}.xh{stroke:var(--ink3);stroke-width:1;stroke-dasharray:3 3}
@@ -495,8 +543,6 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
         <button type="button" data-k="velas" title="Velas">Velas</button><button type="button" data-k="linea" title="Línea">Línea</button></div>
       <details class="tv-menu" id="indMenu"><summary>ƒx Indicadores</summary><div class="tv-pop" id="indPop"></div></details>
       <div class="tabs" role="group" aria-label="Herramientas">
-        <button type="button" id="tvDraw" title="Clic en el gráfico para marcar un precio">― Línea</button>
-        <button type="button" id="tvClear" title="Borrar las líneas dibujadas">Borrar</button>
         <button type="button" id="tvFit" title="Ver todo">Ajustar</button>
         <button type="button" id="tvFull" title="Pantalla completa">⛶</button></div>
     </div>
@@ -668,6 +714,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
   Horas en tu zona horaria. El día del bot (techo de operaciones y pérdida diaria) se cuenta en hora UTC.</p>
 </main>
 <script src="/grafico.js"></script>
+<script src="/dibujo.js"></script>
 <script src="/qr.js"></script>
 <script>
 "use strict";
@@ -836,11 +883,11 @@ var TF_MS = {"1m": 6e4, "3m": 18e4, "5m": 3e5, "15m": 9e5, "30m": 18e5, "1h": 36
 var IND = [["vol", "Volumen", null], ["ema20", "EMA 20", "#ff9f0a"], ["ema50", "EMA 50", "#af52de"], ["ema200", "EMA 200", "#5ac8fa"],
   ["bb", "Bandas de Bollinger (20, 2)", "#8e8e93"], ["vwap", "VWAP del día", "#ff2d55"], ["rsi", "RSI 14 (abajo)", "#ffcc00"]];
 var TV = {cfg: {tf: "15m", kind: "velas", ind: {vol: true, ema20: true, ema50: true}}, chart: null, s: {}, bars: [], key: "",
-  draw: false, lines: {}, priceLines: [], drawn: [], timer: null, fitNext: true};
+  lines: {}, priceLines: [], timer: null, fitNext: true};
 try { var tvc = JSON.parse(localStorage.getItem("jarvis-tv") || "{}"); if (tvc.tf && TF_MS[tvc.tf]) TV.cfg.tf = tvc.tf;
   if (tvc.kind) TV.cfg.kind = tvc.kind; if (tvc.ind) TV.cfg.ind = tvc.ind;
   TV.lines = JSON.parse(localStorage.getItem("jarvis-tv-lineas") || "{}"); } catch (e) {}
-function tvSave() { try { localStorage.setItem("jarvis-tv", JSON.stringify(TV.cfg)); localStorage.setItem("jarvis-tv-lineas", JSON.stringify(TV.lines)); } catch (e) {} }
+function tvSave() { try { localStorage.setItem("jarvis-tv", JSON.stringify(TV.cfg)); } catch (e) {} }
 function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function tvTime(ms) { return Math.floor(ms / 1000) - new Date(ms).getTimezoneOffset() * 60; }  // el gráfico muestra hora local
 
@@ -852,6 +899,7 @@ function tvTheme() {
   var up = cssv("--good"), dn = cssv("--bad");
   if (TV.s.candle) TV.s.candle.applyOptions({upColor: up, downColor: dn, wickUpColor: up, wickDownColor: dn, borderVisible: false});
   if (TV.s.line) TV.s.line.applyOptions({color: cssv("--series")});
+  if (window.JDraw) JDraw.themeChanged();
 }
 
 function tvInit() {
@@ -873,15 +921,16 @@ function tvInit() {
   [70, 30].forEach(function (v) { TV.s.rsi.createPriceLine({price: v, color: "#8e8e93", lineWidth: 1, lineStyle: 2, axisLabelVisible: false}); });
   tvTheme();
   TV.chart.subscribeCrosshairMove(tvLegend);
-  TV.chart.subscribeClick(function (p) {
-    if (!TV.draw || !p.point) return;
-    var main = TV.cfg.kind === "velas" ? TV.s.candle : TV.s.line, v = main.coordinateToPrice(p.point.y);
-    if (v == null) return;
-    (TV.lines[SEL] = TV.lines[SEL] || []).push(v);
-    TV.draw = false; $("tvDraw").setAttribute("aria-pressed", "false"); tvSave(); tvDrawn();
+  if (window.JDraw) JDraw.init({  // herramientas de dibujo y capa de JARVIS (dibujo.js)
+    chart: function () { return TV.chart; }, el: function () { return $("tvChart"); }, wrap: function () { return $("tvWrap"); },
+    main: function () { return TV.cfg.kind === "velas" ? TV.s.candle : TV.s.line; },
+    bars: function () { return TV.bars; },  // [ms UTC de apertura, A, Máx, Mín, C, vol]
+    tfMs: function () { return TF_MS[TV.cfg.tf]; }, sym: function () { return SEL; },
+    positions: function () { return (D && D.positions) || []; }, levels: function () { return (D && D.levels) || {}; },
+    cssv: cssv, price: price, money: money, esc: esc, coin: coin, strategy: function (k) { return PERF_NAMES[k] || k || ""; },
+    oldLines: function () { return Object.keys(TV.lines || {}).length ? TV.lines : null; },
+    clearOldLines: function () { TV.lines = {}; try { localStorage.removeItem("jarvis-tv-lineas"); } catch (e) {} }
   });
-  $("tvDraw").onclick = function () { TV.draw = !TV.draw; this.setAttribute("aria-pressed", String(TV.draw)); };
-  $("tvClear").onclick = function () { TV.lines[SEL] = []; tvSave(); tvDrawn(); };
   $("tvFit").onclick = function () { TV.chart.timeScale().fitContent(); };
   $("tvFull").onclick = function () {
     var w = $("tvWrap");
@@ -975,7 +1024,7 @@ function tvPaint() {
   TV.chart.priceScale("vol").applyOptions({scaleMargins: ind.rsi ? {top: 0.6, bottom: 0.25} : {top: 0.82, bottom: 0}});
   TV.chart.priceScale("rsi").applyOptions({scaleMargins: {top: 0.8, bottom: 0.02}});
   tvMarks(main);
-  tvDrawn();
+  if (window.JDraw) JDraw.refresh();
   if (TV.fitNext && bars.length) { TV.chart.timeScale().fitContent(); TV.fitNext = false; }
   tvLegend({});
 }
@@ -1013,14 +1062,6 @@ function tvMarks(main) {
   });
 }
 
-function tvDrawn() {
-  var main = TV.cfg.kind === "velas" ? TV.s.candle : TV.s.line;
-  TV.drawn.forEach(function (x) { x[0].removePriceLine(x[1]); });
-  TV.drawn = (TV.lines[SEL] || []).map(function (v) {
-    return [main, main.createPriceLine({price: v, color: cssv("--ink3"), lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: ""})];
-  });
-}
-
 function tvLegend(p) {
   var b = TV.bars, bar = null;
   if (p && p.time != null) { for (var i = b.length - 1; i >= 0; i--) if (tvTime(b[i][0]) === p.time) { bar = b[i]; break; } }
@@ -1039,7 +1080,7 @@ function tvFallback() {  // sin conexión con Binance: las velas que publica el 
 
 function tvLoad() {
   var key = SEL + "|" + TV.cfg.tf, sym = SEL, tf = TV.cfg.tf;
-  if (key !== TV.key) { TV.key = key; TV.fitNext = true; }
+  if (key !== TV.key) { TV.key = key; TV.fitNext = true; if (window.JDraw) JDraw.symbolChanged(); }
   fetch("/api/velas?symbol=" + encodeURIComponent(sym) + "&interval=" + encodeURIComponent(tf), {cache: "no-store"})
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
     .then(function (rows) {

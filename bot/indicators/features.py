@@ -86,6 +86,14 @@ def compute_features(state: MarketState, store: FeedStore, now: datetime,
     ts_1h = ms_to_dt(int(h1["t"][-1]) + INTERVAL_MS["1h"]) if len(h1["t"]) else None
     ts_1m = ms_to_dt(int(one_m["t"][-1]) + INTERVAL_MS["1m"]) if len(one_m["t"]) else None
 
+    # --- estructura de 1 h (giros, Fibonacci, espacio hasta soporte/resistencia): contexto para la IA y el panel
+    if len(h1["c"]) >= 60:
+        lv = ta.structure_levels(h1["h"], h1["l"], h1["c"], _last(ta.atr(h1["h"], h1["l"], h1["c"], 14)))
+    else:
+        lv = {}
+    for k in ("swing_high", "swing_low", "fib_pos", "room_up_atr", "room_down_atr"):
+        _put(out, f"ind.1h.{k}", lv.get(k), ts_1h)
+
     # --- volatilidad realizada
     _put(out, "ind.rv_1h", realized_vol(one_m["c"][-61:], 1) if len(one_m["c"]) >= 61 else None, ts_1m)
     _put(out, "ind.rv_24h", realized_vol(h1["c"][-25:], 60) if len(h1["c"]) >= 25 else None, ts_1h)

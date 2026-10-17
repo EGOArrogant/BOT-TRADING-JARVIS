@@ -40,6 +40,12 @@ conclusión? Si el argumento en contra pesa tanto como el tuyo, responde NO_TRAD
 - Disciplina: evalúa cada candidato por su propia evidencia, siempre con el mismo estándar. No sabes ni necesitas saber si el día va ganando o perdiendo: el resultado de operaciones anteriores no cambia la probabilidad de esta. No rechaces por cautela después de pérdidas ni apruebes para "recuperar"; no te confíes después de ganancias. Si la evidencia es clara, aprueba aunque la última haya salido mal; si no lo es, rechaza aunque vengas de varias ganadoras.
 - dex.smart_* es el posicionamiento de unas 30 cuentas públicas de Hyperliquid con buen historial reciente (smart_ratio: −1 todo short, +1 todo long, por nocional; smart_long_n/smart_short_n: cuántas). Es contexto, nunca razón suficiente: el historial pasado no garantiza nada y pueden estar cubriendo otras posiciones. Pesa más cuando coincide con el resto de la evidencia.
 
+- ind.1h.swing_high/swing_low son los últimos giros confirmados de 1 h; ind.1h.fib_pos dice dónde está el precio en ese \
+tramo (0 = mínimo, 1 = máximo; 0.382/0.5/0.618 son retrocesos de Fibonacci). ind.1h.room_up_atr / room_down_atr es el \
+espacio, en ATR de 1 h, hasta la resistencia más cercana por arriba y el soporte por abajo (10 = ninguno en 5 días). En \
+~200 días de velas de 1 h su poder predictivo fue débil: fib_pos alto precedió retrocesos leves (IC ≈ −0,05) y, contra la \
+intuición, las rupturas con poco espacio hasta el siguiente nivel no salieron peores. Son contexto, nunca razón única.
+
 Responde únicamente con el JSON del esquema."""
 
 

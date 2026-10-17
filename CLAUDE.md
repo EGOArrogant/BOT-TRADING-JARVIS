@@ -369,7 +369,11 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   `bot/integridad.py` corre antes de cada arranque: copia mezclada/incompleta → código 3 y el .bat no reinicia.
   Panel: gráfico TradingView Lightweight Charts 4.2.3 (Apache 2.0, `dashboard/vendor/`, servido en `/grafico.js`):
   temporalidades 1m–1M vía `/api/velas` (proxy de `/fapi/v1/klines` público, caché 10 s, `dashboard/klines.py`),
-  EMA/Bollinger/VWAP/RSI/volumen, líneas dibujadas (localStorage). Sin Binance: velas 15m/1h de `panel_vivo.json`.
+  EMA/Bollinger/VWAP/RSI/volumen. Sin Binance: velas 15m/1h de `panel_vivo.json`. Dibujo y capa del bot en
+  `dashboard/dibujo.js` (SVG sobre el gráfico, coordenadas tiempo/precio, localStorage `jarvis-dibujos`; operaciones y
+  señales por `/api/senales` = `data.chart_signals`; niveles en `panel_vivo.json` `levels` = `snapshot.levels`).
+  Estructura de 1 h (`ta.pivots`/`ta.structure_levels` → `ind.1h.swing_*`, `fib_pos`, `room_*_atr`): solo contexto
+  para la IA (IC débil, ver README); ningún filtro la usa.
   Escrituras compartidas con el panel vía `core/fsutil.atomic_write_text` (reintenta PermissionError de Windows).
 - Papel sobrevive reinicios: `Engine.save_paper/restore_paper` (`state_<modo>_exchange.json`: saldo, posiciones,
   órdenes abiertas, funding y las `Position` del gestor). Sin archivo: saldo = equity del estado.

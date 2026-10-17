@@ -3,11 +3,13 @@ import asyncio
 import json
 import threading
 import urllib.request
+
+import pytest
 from datetime import timedelta
 
 from bot.core.clock import utc_now
 from bot.dashboard import snapshot
-from bot.dashboard.data import collect
+from bot.dashboard.data import chart_signals, collect
 from bot.dashboard.server import _clean, serve
 from bot.learning.champion_challenger import ChampionChallenger
 from bot.learning.hypotheses import Hypothesis
@@ -57,6 +59,15 @@ def test_panel_shows_open_position_then_closed_trade(setup):
     t = d["trades"][0]
     assert t["exit_reason"] == "Stop-loss" and t["pnl_net"] < 0 and t["exit"] > 0
     assert d["kpis"]["cerradas_hoy"] == 1 and len(d["equity_curve"]) == 1
+
+    # Para el gráfico: la operación con su stop inicial y el candidato que la originó
+    cs = chart_signals(s, "ETHUSDT")
+    tr = cs["trades"][0]
+    assert tr["initial_stop"] and tr["initial_stop"] < tr["entry"] and tr["side"] == "LONG"
+    assert any(c["traded"] for c in cs["signals"]) and cs["symbol"] == "ETHUSDT"
+    assert chart_signals(s, "BTCUSDT")["trades"] == []
+    with pytest.raises(ValueError):
+        chart_signals(s, "FAKEUSDT")
     assert d["notifications"][0]["kind"] == "salida" and "Perdió" in d["notifications"][0]["title"]
 
 
@@ -128,11 +139,13 @@ def test_chart_candles_any_timeframe_with_cache_and_validation(setup):
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     try:
         assert len(urllib.request.urlopen(base + "/grafico.js").read()) > 100_000
+        assert b"JDraw" in urllib.request.urlopen(base + "/dibujo.js").read()
+        assert json.loads(urllib.request.urlopen(base + "/api/senales?symbol=ETHUSDT").read())["trades"] == []
         assert json.loads(urllib.request.urlopen(base + "/api/velas?symbol=ETHUSDT&interval=1d").read())[0][4] == 1.5
-        for q, code in (("symbol=FAKEUSDT&interval=1h", 400), ("symbol=ETHUSDT&interval=7m", 400),
-                        ("symbol=XLMUSDT&interval=1h", 502)):
+        for q, code in (("velas?symbol=FAKEUSDT&interval=1h", 400), ("velas?symbol=ETHUSDT&interval=7m", 400),
+                        ("velas?symbol=XLMUSDT&interval=1h", 502), ("senales?symbol=FAKEUSDT", 400)):
             try:
-                urllib.request.urlopen(base + "/api/velas?" + q)
+                urllib.request.urlopen(base + "/api/" + q)
                 raise AssertionError(q)
             except urllib.error.HTTPError as exc:
                 assert exc.code == code
