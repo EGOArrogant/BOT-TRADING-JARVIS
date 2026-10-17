@@ -607,7 +607,7 @@
     S.botAt = Date.now();
     fetch("/api/senales?symbol=" + encodeURIComponent(sym), {cache: "no-store"})
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(function (j) { if (j.symbol === H.sym()) { S.bot = j; S.botSym = j.symbol; schedule(); } })
+      .then(function (j) { if (j.symbol === H.sym()) { S.bot = j; S.botSym = j.symbol; schedule(); if (H.onBot) H.onBot(j); } })
       .catch(function () {});
   }
 
@@ -661,6 +661,12 @@
     refresh: function () { if (H) { fetchBot(false); schedule(); } },
     symbolChanged: function () { if (H) { S.sel = null; S.pending = null; S.temp = null; S.info.hidden = true; S.bot = null; fetchBot(true); schedule(); } },
     themeChanged: function () { if (H) { S.bar.dataset.k = ""; schedule(); } },
+    focus: function (ms) {  // centra el gráfico en ese momento (desde las tablas de abajo)
+      var l = H && msToLogical(ms);
+      if (l == null) return;
+      var r = H.chart().timeScale().getVisibleLogicalRange(), half = r ? Math.max(20, (r.to - r.from) / 2) : 60;
+      H.chart().timeScale().setVisibleLogicalRange({from: l - half, to: l + half});
+    },
     _state: S
   };
 })();

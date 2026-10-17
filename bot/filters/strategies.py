@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 from bot.core.config import Fees, StrategyParams
 from bot.core.models import DataPoint, Regime, Side, Signal
@@ -148,6 +149,28 @@ def trend_breakout(symbol: str, f: Fields, params: StrategyParams, fees: Fees, n
         return _build(symbol, "trend_breakout", Side.SHORT, f, params, fees, now, regime, None,
                       "la tendencia de 1 h deja de ser bajista", urgent=False, quality=quality)
     return None
+
+
+def breakout_checklist(f: Fields, params: StrategyParams) -> dict[str, Any]:
+    """Qué le falta a trend_breakout para dar señal, con las mismas condiciones que la estrategia (para el panel)."""
+    reg = f.get("ind.regime")
+    regime = reg.value if reg is not None and reg.is_ok else None
+    side = "LONG" if regime == Regime.TREND_UP.value else "SHORT" if regime == Regime.TREND_DOWN.value else None
+    close, hi, lo = _v(f, "ind.15m.close"), _v(f, "ind.15m.high_n"), _v(f, "ind.15m.low_n")
+    adx, relvol = _v(f, "ind.1h.adx"), _v(f, "ind.15m.rel_volume")
+    min_adx, min_rv = _p(params, "min_adx", 20), _p(params, "min_rel_volume", 1.2)
+    level = hi if side == "LONG" else lo if side == "SHORT" else None
+    broke = None if close is None or level is None else (close > level if side == "LONG" else close < level)
+    items = [
+        {"key": "trend", "label": "Tendencia clara en 1 h (EMAs alineadas)", "ok": side is not None, "value": regime},
+        {"key": "adx", "label": f"Fuerza de la tendencia (ADX 1 h) ≥ {min_adx:g}", "ok": adx is not None and adx >= min_adx,
+         "value": adx},
+        {"key": "volume", "label": f"Volumen ≥ {min_rv:g}× lo normal", "ok": relvol is not None and relvol >= min_rv,
+         "value": relvol},
+        {"key": "break", "label": "Una vela de 15 min cierra fuera del rango de 6 h", "ok": bool(broke), "value": close,
+         "level": level, "gap_pct": (level - close) / close if level is not None and close else None},
+    ]
+    return {"strategy": "trend_breakout", "side": side, "items": items, "ready": all(i["ok"] for i in items)}
 
 
 StrategyFn = Callable[[str, Fields, StrategyParams, Fees, datetime, Regime, float], Signal | None]

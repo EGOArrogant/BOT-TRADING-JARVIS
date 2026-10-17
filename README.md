@@ -54,6 +54,12 @@ Hyperliquid, las 6 monedas): la posición dentro del último tramo (`ind.1h.fib_
 signo en todas (IC ≈ −0.05 a 4 h: arriba del tramo, retroceso leve). El espacio hasta el siguiente nivel no hizo
 peores las rupturas, al contrario de la regla típica. Por eso solo son contexto para la IA y el diario; no filtran.
 
+**Mercado como terminal:** a todo lo ancho, como Hyperliquid: arriba la moneda (menú con las 6), precio de marca,
+cambio y rango de 24 h, volumen, interés abierto y funding con cuenta regresiva; al centro el gráfico grande; a la
+derecha **Análisis JARVIS** (qué condiciones de la estrategia se cumplen y cuáles faltan, la operación abierta y los
+mismos datos que recibe la IA) o el **Libro** de órdenes en vivo; abajo posiciones, señales, operaciones (clic = ir a
+ese momento del gráfico) y traders destacados.
+
 **Gráfico del panel (Mercado):** herramientas de dibujo como TradingView en la barra de la izquierda (arriba en el
 celular): línea de tendencia, rayo, horizontal, vertical, canal, tridente, Fibonacci, pincel, texto, emoji, posición
 larga/corta (con R:R), regla, zoom, imán, bloquear, ocultar y borrar. Se guardan por moneda en ese navegador. El botón

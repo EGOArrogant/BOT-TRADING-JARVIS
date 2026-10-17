@@ -152,3 +152,31 @@ def test_chart_candles_any_timeframe_with_cache_and_validation(setup):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_market_strip_and_order_book_from_public_endpoints(setup):
+    from bot.dashboard.klines import KlineSource
+    s, *_ = setup
+    seen = []
+
+    def fetch(url, params):
+        seen.append(url.rsplit("/", 1)[-1])
+        if url.endswith("premiumIndex"):
+            return {"markPrice": "101.5", "indexPrice": "101.4", "lastFundingRate": "0.0001", "nextFundingTime": 1_700_000_000_000}
+        if url.endswith("openInterest"):
+            return {"openInterest": "1000"}
+        if url.endswith("depth"):
+            return {"bids": [["100.9", "2"], ["100.8", "1"]], "asks": [["101.1", "3"]], "T": 5}
+        # 25 velas de 1 h: de 100 a 101,5 (la primera se descarta: quedan las últimas 24)
+        return [[i, "100", "102", "99", "101.5" if i == 24 else "100", "1", 0, "1000"] for i in range(25)]
+
+    src = KlineSource("https://x", s.exchange.symbols, fetch=fetch)
+    t = src.ticker("ETHUSDT")
+    assert t["mark"] == 101.5 and t["funding_rate"] == 0.0001 and t["oi_usd"] == 101_500
+    assert abs(t["change_pct"] - 0.015) < 1e-9 and t["quote_volume_24h"] == 24_000 and t["high_24h"] == 102
+    src.ticker("ETHUSDT")
+    assert seen.count("premiumIndex") == 1  # caché
+    d = src.depth("ETHUSDT")
+    assert d["bids"][0] == [100.9, 2.0] and d["asks"] == [[101.1, 3.0]]
+    with pytest.raises(ValueError):
+        src.ticker("FAKEUSDT")

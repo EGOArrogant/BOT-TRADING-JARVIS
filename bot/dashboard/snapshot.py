@@ -13,7 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from bot.core.fsutil import atomic_write_text, read_text_retry
-from bot.core.models import Position, Side
+from bot.core.config import StrategyParams
+from bot.core.models import DataPoint, Position, Side
+from bot.filters.strategies import breakout_checklist
 from bot.data_engine.market_state import MarketState
 from bot.indicators import ta
 
@@ -36,6 +38,25 @@ def _position(pos: Position, st: MarketState | None) -> dict[str, Any]:
         "invalidation_price": float(pos.invalidation_price) if pos.invalidation_price else None,
         "signal_id": pos.signal_id, "max_hold_hours": pos.max_hold_hours,
     }
+
+
+VIEW_KEYS = ("ind.1h.adx", "ind.15m.rel_volume", "ind.15m.cvd_ratio", "ind.funding_z", "funding.rate", "ind.oi_chg_1h",
+             "ind.oi_chg_24h", "ind.1h.fib_pos", "ind.1h.room_up_atr", "ind.1h.room_down_atr", "ind.vol_pct_30d",
+             "ind.corr_btc_24h", "sent.fng", "ind.fund_diff_z", "dex.smart_ratio", "market.spread_bps")
+
+
+def view(fields: dict[str, DataPoint], strategies: dict[str, StrategyParams], quality: float,
+         now: datetime) -> dict[str, Any]:
+    """Lo que vio el bot en una moneda en la última ventana de 15 min: régimen, datos clave y qué le falta a la
+    estrategia activa para dar señal. Solo para mostrar; las decisiones salen de los filtros, no de aquí."""
+    reg = fields.get("ind.regime")
+    out: dict[str, Any] = {"ts": now.isoformat(), "quality": round(quality, 3),
+                           "regime": reg.value if reg is not None and reg.is_ok else None,
+                           "fields": {k: (fields[k].value if k in fields and fields[k].is_ok else None) for k in VIEW_KEYS}}
+    tb = strategies.get("trend_breakout")
+    if tb is not None and tb.enabled:
+        out["checklist"] = breakout_checklist(fields, tb)
+    return out
 
 
 def levels(st: MarketState) -> dict[str, Any] | None:
@@ -62,7 +83,7 @@ def levels(st: MarketState) -> dict[str, Any] | None:
 
 
 def build(now: datetime, mode: str, states: dict[str, MarketState], positions: dict[str, Position],
-          top_traders: dict[str, Any] | None = None) -> dict[str, Any]:
+          top_traders: dict[str, Any] | None = None, views: dict[str, Any] | None = None) -> dict[str, Any]:
     prices: dict[str, list[list[float]]] = {}
     last: dict[str, float | None] = {}
     ohlc: dict[str, dict[str, list[list[float]]]] = {}
@@ -79,6 +100,9 @@ def build(now: datetime, mode: str, states: dict[str, MarketState], positions: d
         last[sym] = st.mark_price or st.last_price or (candles[-1].close if candles else None)
     return {"updated_at": now.isoformat(), "mode": mode, "prices": prices, "candles": ohlc, "last": last,
             "positions": [_position(p, states.get(s)) for s, p in positions.items()],
+            "views": views or {},
+            "market": {sym: {"mark": st.mark_price, "index": st.index_price, "funding_rate": st.funding_rate,
+                             "next_funding_ms": st.next_funding_ms} for sym, st in states.items()},
             "levels": {sym: lv for sym, st in states.items() if (lv := _safe_levels(st)) is not None},
             "top_traders": top_traders}
 

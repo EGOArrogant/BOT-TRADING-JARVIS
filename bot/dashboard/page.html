@@ -419,6 +419,71 @@ box-shadow:inset 0 1px 0 var(--glass-hi),0 2px 8px rgba(0,0,0,.10)}
 .more-pop a:hover,.more-pop a[aria-current="page"]{background:var(--fill)}
 .more-pop .ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--series-soft);outline-offset:2px}
+/* ---------- Mercado: terminal a todo lo ancho (como Hyperliquid) ---------- */
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+body[data-view="mercado"] main{max-width:1900px}
+body[data-view="mercado"] .page-head{display:none}
+.term{--tvh:max(460px,calc(100vh - 330px));display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.term .card{padding:12px 14px;border-radius:20px}
+.term section{margin-top:0}
+.term-head{position:relative;z-index:20;display:flex;align-items:center;gap:10px 18px;padding:8px 14px!important}
+.term-chart{position:relative;z-index:2}
+.coin-menu summary{display:flex;align-items:center;gap:9px;font-size:19px;padding:6px 10px;background:transparent!important;border:0!important}
+.coin-menu .chev{font-size:13px;color:var(--ink3)}
+.coin-ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;flex:none}
+.coin-pop{min-width:300px!important;padding:6px}
+.coin-pop button{display:grid!important;grid-template-columns:28px 1fr auto auto;gap:10px;align-items:center}
+.coin-pop .c{font-weight:700}.coin-pop .p{font-variant-numeric:tabular-nums}.coin-pop .ch{font-size:12.5px;min-width:56px;text-align:right}
+.reg{font-size:12.5px;font-weight:700;padding:5px 11px;border-radius:999px;background:var(--fill);color:var(--ink2);white-space:nowrap}
+.reg.up{background:var(--good-bg);color:var(--good)}.reg.down{background:var(--bad-bg);color:var(--bad)}.reg.hv{background:var(--warn-bg);color:var(--warn)}
+.term-stats{display:flex;gap:4px 26px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;padding:2px 0}
+.term-stats::-webkit-scrollbar{display:none}
+.st{display:flex;flex-direction:column;white-space:nowrap;line-height:1.3}
+.st .k{font-size:11.5px;color:var(--ink3)}.st .v{font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
+.st .v.big{font-size:17px}
+.term-main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:10px;align-items:start}
+.term-chart{min-width:0;padding:10px 12px 6px!important}
+.term .tv-bar{margin-bottom:8px}
+.term .tv-bar .tabs button,.term .tv-menu summary{padding:6px 11px;font-size:13px}
+.tv-spacer{flex:1}
+.term .tv-chart,.term .jd-bar{height:var(--tvh)}
+.term .tv-note{margin-top:4px}
+.term-side{display:flex;flex-direction:column;height:calc(var(--tvh) + 72px);overflow:auto}
+.term .side-tabs,.term .bot-tabs{margin-bottom:10px;align-self:flex-start}
+.term-bottom{min-height:160px}
+.term-bottom table td,.term-bottom table th{padding:8px 10px}
+.term-bottom tr.go{cursor:pointer}.term-bottom tr.go:hover td{background:var(--fill)}
+/* panel de análisis */
+.an-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:2px 0 8px}
+.an-h b{font-size:15px}
+.an-sec{margin:12px 0 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);font-weight:700}
+.chk{display:grid;grid-template-columns:20px 1fr auto;gap:6px;align-items:start;padding:6px 0;border-bottom:.5px solid var(--grid);font-size:13.5px}
+.chk:last-child{border-bottom:0}
+.chk .i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff;background:var(--off)}
+.chk.ok .i{background:var(--good)}.chk.no .i{background:var(--ink3)}
+.chk .v{font-variant-numeric:tabular-nums;color:var(--ink2);text-align:right}
+.verdict{margin:10px 0 2px;padding:10px 12px;border-radius:14px;background:var(--fill);font-size:13.5px;line-height:1.45}
+.verdict.ready{background:var(--good-bg)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:13.5px}
+.kv span:nth-child(odd){color:var(--ink2)}.kv span:nth-child(even){text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.an-pos{padding:10px 12px;border-radius:14px;background:var(--series-soft);font-size:13.5px}
+/* libro de órdenes */
+.book{font-variant-numeric:tabular-nums;font-size:12.5px}
+.book .r{position:relative;display:grid;grid-template-columns:1fr 1fr 1fr;padding:2.5px 6px}
+.book .r span{position:relative;z-index:1}.book .r span:not(:first-child){text-align:right}
+.book .r i{position:absolute;right:0;top:1px;bottom:1px;border-radius:3px;opacity:.16}
+.book .a span:first-child{color:var(--bad)}.book .a i{background:var(--bad)}
+.book .b span:first-child{color:var(--good)}.book .b i{background:var(--good)}
+.book .hd{color:var(--ink3);font-size:11.5px}
+.book .spr{display:flex;justify-content:center;gap:18px;padding:5px;margin:3px 0;border-radius:8px;background:var(--fill);font-size:12px}
+@media (max-width:1100px){.term-main{grid-template-columns:1fr}.term-side{height:auto;max-height:none}}
+@media (max-width:600px){
+  .term{--tvh:min(60vh,430px);margin-top:8px}
+  .term .card{padding:10px!important;border-radius:18px}
+  .term-head{flex-wrap:wrap}.term-stats{flex:1 1 100%;order:3;gap:4px 18px}
+  .term .tv-chart{height:var(--tvh)}
+  .term .jd-bar{height:auto}
+}
 </style>
 </head>
 <body>
@@ -533,41 +598,60 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
 
   <div class="kpis" id="kpis" data-view="inicio"></div>
 
-  <section class="card" data-view="mercado">
-    <h2 id="priceTitle">Precio y operaciones</h2>
-    <div class="tabs" id="tabs" role="group" aria-label="Moneda"></div>
-    <div class="tv-bar" id="tvBar" hidden>
-      <div class="tabs" id="tfQuick" role="group" aria-label="Temporalidad"></div>
-      <details class="tv-menu" id="tfMenu"><summary aria-label="Más temporalidades">⌄</summary><div class="tv-pop" id="tfPop"></div></details>
-      <div class="tabs" id="tvKind" role="group" aria-label="Tipo de gráfico">
-        <button type="button" data-k="velas" title="Velas">Velas</button><button type="button" data-k="linea" title="Línea">Línea</button></div>
-      <details class="tv-menu" id="indMenu"><summary>ƒx Indicadores</summary><div class="tv-pop" id="indPop"></div></details>
-      <div class="tabs" role="group" aria-label="Herramientas">
-        <button type="button" id="tvFit" title="Ver todo">Ajustar</button>
-        <button type="button" id="tvFull" title="Pantalla completa">⛶</button></div>
+  <!-- Mercado: terminal de análisis (como Hyperliquid): franja del mercado, gráfico grande, panel lateral y pestañas -->
+  <section class="term" data-view="mercado" aria-label="Mercado">
+    <div class="card term-head">
+      <details class="tv-menu coin-menu" id="coinMenu">
+        <summary aria-label="Elegir moneda"><span class="coin-ic" id="coinIc"></span><b id="coinName">—</b><span class="chev">⌄</span></summary>
+        <div class="tv-pop coin-pop" id="tabs" role="group" aria-label="Moneda"></div>
+      </details>
+      <span class="reg" id="thRegime" hidden></span>
+      <div class="term-stats" id="termStats"></div>
     </div>
-    <div class="tv-wrap" id="tvWrap" hidden>
-      <div class="tv-legend" id="tvLegend"></div>
-      <div class="tv-chart" id="tvChart"></div>
-      <div class="muted small tv-note" id="tvNote"></div>
+    <div class="term-main">
+      <div class="card term-chart">
+        <h2 id="priceTitle" class="sr-only">Precio y operaciones</h2>
+        <div class="tv-bar" id="tvBar" hidden>
+          <div class="tabs" id="tfQuick" role="group" aria-label="Temporalidad"></div>
+          <details class="tv-menu" id="tfMenu"><summary aria-label="Más temporalidades">⌄</summary><div class="tv-pop" id="tfPop"></div></details>
+          <div class="tabs" id="tvKind" role="group" aria-label="Tipo de gráfico">
+            <button type="button" data-k="velas" title="Velas">Velas</button><button type="button" data-k="linea" title="Línea">Línea</button></div>
+          <details class="tv-menu" id="indMenu"><summary>ƒx Indicadores</summary><div class="tv-pop" id="indPop"></div></details>
+          <span class="tv-spacer"></span>
+          <div class="tabs" role="group" aria-label="Vista">
+            <button type="button" id="tvFit" title="Ver todo">Ajustar</button>
+            <button type="button" id="tvFull" title="Pantalla completa">⛶</button></div>
+        </div>
+        <div class="tv-wrap" id="tvWrap" hidden>
+          <div class="tv-legend" id="tvLegend"></div>
+          <div class="tv-chart" id="tvChart"></div>
+          <div class="muted small tv-note" id="tvNote"></div>
+        </div>
+        <div class="chart" id="priceChart"></div>
+      </div>
+      <aside class="card term-side" aria-label="Panel lateral">
+        <div class="tabs side-tabs" id="sideTabs" role="group" aria-label="Panel lateral">
+          <button type="button" data-k="analisis" aria-pressed="true">Análisis JARVIS</button><button type="button" data-k="libro">Libro</button></div>
+        <div id="sideAn"></div>
+        <div id="sideBook" hidden></div>
+      </aside>
     </div>
-    <div class="chart" id="priceChart"></div>
-    <div class="legend">
-      <span><svg width="12" height="12"><path d="M6 1 L11 11 L1 11 Z" fill="var(--series)"/></svg>Entrada long</span>
-      <span><svg width="12" height="12"><path d="M6 11 L11 1 L1 1 Z" fill="var(--series)"/></svg>Entrada short</span>
-      <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--good)"/></svg>Cierre con ganancia</span>
-      <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--bad)"/></svg>Cierre con pérdida</span>
-      <span><svg width="22" height="12"><line x1="0" y1="6" x2="22" y2="6" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="5 4"/></svg>Stop-loss abierto</span>
-      <span><svg width="22" height="12"><line x1="0" y1="6" x2="22" y2="6" stroke="var(--good)" stroke-width="1.5" stroke-dasharray="5 4"/></svg>Take-profit abierto</span>
-    </div>
-  </section>
-
-  <section class="card" data-view="mercado">
-    <h2>Traders destacados <span class="muted small">(cuentas públicas de Hyperliquid que vienen ganando; el bot los observa, no los copia)</span></h2>
-    <div class="muted small" id="ttInfo" style="margin-bottom:8px"></div>
-    <div class="grid2" style="margin-top:0">
-      <div class="scroll" id="ttCoins"></div>
-      <div class="scroll" id="ttEvents"></div>
+    <div class="card term-bottom">
+      <div class="tabs bot-tabs" id="botTabs" role="group" aria-label="Detalle">
+        <button type="button" data-k="pos" aria-pressed="true">Posiciones <span class="nb" id="nbPos"></span></button>
+        <button type="button" data-k="sen">Señales</button><button type="button" data-k="ops">Operaciones</button>
+        <button type="button" data-k="tt">Traders destacados</button></div>
+      <div class="scroll" id="botPos"></div>
+      <div class="scroll" id="botSen" hidden></div>
+      <div class="scroll" id="botOps" hidden></div>
+      <div id="botTT" hidden>
+        <div class="muted small" id="ttInfo" style="margin-bottom:8px"></div>
+        <p class="muted small" style="margin:0 0 8px">Cuentas públicas de Hyperliquid que vienen ganando: el bot las observa, no las copia.</p>
+        <div class="grid2" style="margin-top:0">
+          <div class="scroll" id="ttCoins"></div>
+          <div class="scroll" id="ttEvents"></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -768,18 +852,6 @@ function renderKpis() {
         "simuladas con precios reales, para aprender");
 }
 
-function renderTabs() {
-  if (!SEL || D.symbols.indexOf(SEL) < 0) SEL = D.symbols[0];
-  $("tabs").innerHTML = D.symbols.map(function (s) {
-    var last = D.last[s];
-    return '<button type="button" data-s="' + esc(s) + '" aria-pressed="' + (s === SEL) + '">' + esc(coin(s)) +
-      (last ? ' <span class="muted small">' + price(last) + "</span>" : "") + "</button>";
-  }).join("");
-  $("tabs").querySelectorAll("button").forEach(function (b) {
-    b.onclick = function () { SEL = b.dataset.s; renderTabs(); renderPrice(); };
-  });
-}
-
 // Gráfico de línea genérico en SVG con cruz y tooltip. pts: [[ms, valor]]
 function lineChart(el, pts, opts) {
   opts = opts || {};
@@ -929,6 +1001,7 @@ function tvInit() {
     positions: function () { return (D && D.positions) || []; }, levels: function () { return (D && D.levels) || {}; },
     cssv: cssv, price: price, money: money, esc: esc, coin: coin, strategy: function (k) { return PERF_NAMES[k] || k || ""; },
     oldLines: function () { return Object.keys(TV.lines || {}).length ? TV.lines : null; },
+    onBot: function (j) { BOTDATA = j; renderAnalysis(); renderBottom(); },
     clearOldLines: function () { TV.lines = {}; try { localStorage.removeItem("jarvis-tv-lineas"); } catch (e) {} }
   });
   $("tvFit").onclick = function () { TV.chart.timeScale().fitContent(); };
@@ -1095,6 +1168,243 @@ function tvLoad() {
       tvPaint();
     });
 }
+
+// ---------------------------------------------------------------- Mercado: franja, análisis de JARVIS, libro y pestañas
+var COIN_COLOR = {BTC: "#f7931a", ETH: "#627eea", SOL: "#9945ff", XRP: "#3d4a57", DOGE: "#c2a633", XLM: "#14b6e7"};
+var COIN_GLYPH = {BTC: "₿", ETH: "Ξ", SOL: "◎", XRP: "✕", DOGE: "Ð", XLM: "✦"};
+var REGIME = {tendencia_alcista: ["Tendencia alcista", "up"], tendencia_bajista: ["Tendencia bajista", "down"],
+  rango: ["Rango (lateral)", ""], alta_volatilidad: ["Volatilidad alta", "hv"], datos_insuficientes: ["Datos insuficientes", ""]};
+var MK = {}, BOOK = null, SIDE = "analisis", BOT = "pos", BOTDATA = null, TERM_TICK = 0;
+try { SIDE = localStorage.getItem("jarvis-lado") || SIDE; BOT = localStorage.getItem("jarvis-abajo") || BOT; } catch (e) {}
+
+function coinIc(s) { var c = coin(s); return '<span class="coin-ic" style="background:' + (COIN_COLOR[c] || "#8e8e93") + '">' + esc(COIN_GLYPH[c] || c[0]) + "</span>"; }
+function usdc(v) { if (v == null) return "—";
+  return v.toLocaleString("es", {notation: "compact", maximumFractionDigits: 2}) + " US$"; }
+function change24(s) {  // respaldo sin Binance: con las velas de 1 h que publica el bot
+  var c = (((D.candles || {})[s] || {})["1h"]) || [];
+  if (c.length < 25) return null;
+  return c[c.length - 1][4] / c[c.length - 24][1] - 1;
+}
+function nowPrice(s) { var t = MK[s]; return (t && t.mark) || ((D.market || {})[s] || {}).mark || D.last[s] || null; }
+function countdown(ms) {
+  if (!ms) return "—";
+  var d = Math.max(0, ms - Date.now()) / 1000, h = Math.floor(d / 3600), m = Math.floor(d % 3600 / 60), sec = Math.floor(d % 60);
+  return [h, m, sec].map(function (x) { return String(x).padStart(2, "0"); }).join(":");
+}
+
+function renderTabs() {
+  if (!SEL || D.symbols.indexOf(SEL) < 0) SEL = D.symbols[0];
+  var c = coin(SEL);
+  $("coinIc").style.background = COIN_COLOR[c] || "#8e8e93"; $("coinIc").textContent = COIN_GLYPH[c] || c[0];
+  $("coinName").textContent = c + "-USDT";
+  $("tabs").innerHTML = "<h4>Monedas que sigue el bot</h4>" + D.symbols.map(function (s) {
+    var t = MK[s], ch = t && t.change_pct != null ? t.change_pct : change24(s);
+    return '<button type="button" data-s="' + esc(s) + '" aria-pressed="' + (s === SEL) + '">' + coinIc(s) + '<span class="c">' + esc(coin(s)) +
+      '</span><span class="p">' + esc(price(nowPrice(s))) + '</span><span class="ch ' + cls(ch) + '">' + esc(pct(ch, true)) + "</span></button>";
+  }).join("");
+  $("tabs").querySelectorAll("button").forEach(function (b) {
+    b.onclick = function () { SEL = b.dataset.s; $("coinMenu").open = false; BOOK = null; renderTabs(); renderPrice(); renderTerm(); loadTicker(); loadBook(); };
+  });
+}
+
+function loadTicker() {
+  var sym = SEL;
+  fetch("/api/mercado?symbol=" + encodeURIComponent(sym), {cache: "no-store"})
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) { MK[sym] = j; if (sym === SEL) renderTermStats(); })
+    .catch(function () { if (sym === SEL) renderTermStats(); });
+}
+function loadBook() {
+  if (SIDE !== "libro") return;
+  var sym = SEL;
+  fetch("/api/libro?symbol=" + encodeURIComponent(sym), {cache: "no-store"})
+    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) { if (sym === SEL) { BOOK = j; renderBook(); } })
+    .catch(function () { if (sym === SEL) { BOOK = {error: true}; renderBook(); } });
+}
+
+function renderTermStats() {
+  var t = MK[SEL], live = (D.market || {})[SEL] || {}, mark = nowPrice(SEL);
+  var ch = t && t.change_pct != null ? t.change_pct : change24(SEL);
+  var fr = t ? t.funding_rate : live.funding_rate, nf = t ? t.next_funding_ms : live.next_funding_ms;
+  var st = [
+    ["Precio de marca", '<span class="v big ' + cls(ch) + '">' + esc(price(mark)) + "</span>"],
+    ["Índice", esc(price(t ? t.index : live.index))],
+    ["Cambio 24 h", '<span class="' + cls(ch) + '">' + esc(pct(ch, true)) + "</span>"],
+    ["Rango 24 h", t ? esc(price(t.low_24h)) + " – " + esc(price(t.high_24h)) : "—"],
+    ["Volumen 24 h", esc(usdc(t && t.quote_volume_24h))],
+    ["Interés abierto", esc(usdc(t && t.oi_usd))],
+    ["Funding / próximo cobro", '<span class="' + cls(-(fr || 0)) + '">' + (fr == null ? "—" : (fr * 100).toFixed(4) + "%") +
+      '</span> <span id="fundCd">' + countdown(nf) + "</span>"]
+  ];
+  $("termStats").innerHTML = st.map(function (x) {
+    return '<div class="st"><span class="k">' + esc(x[0]) + '</span><span class="v">' + x[1] + "</span></div>"; }).join("");
+  $("termStats").dataset.nf = nf || "";
+  var v = (D.views || {})[SEL], rg = v && REGIME[v.regime];
+  $("thRegime").hidden = !rg;
+  if (rg) { $("thRegime").textContent = rg[0]; $("thRegime").className = "reg " + rg[1]; }
+}
+
+function fmtField(k, v) {
+  if (v == null) return '<span class="muted">desconocido</span>';
+  switch (k) {
+    case "funding.rate": return (v * 100).toFixed(4) + "% cada 8 h";
+    case "ind.oi_chg_1h": case "ind.oi_chg_24h": return pct(v, true);
+    case "ind.15m.rel_volume": return v.toFixed(2) + "× lo normal";
+    case "ind.15m.cvd_ratio": return (v >= 0 ? "compradores " : "vendedores ") + Math.abs(v * 100).toFixed(0) + "%";
+    case "ind.1h.fib_pos": return (v * 100).toFixed(0) + "% del tramo";
+    case "ind.1h.room_up_atr": case "ind.1h.room_down_atr": return v >= 10 ? "sin nivel cerca" : v.toFixed(1) + " ATR";
+    case "ind.vol_pct_30d": return "percentil " + v.toFixed(0);
+    case "sent.fng": return v.toFixed(0) + (v <= 25 ? " (miedo extremo)" : v <= 45 ? " (miedo)" : v < 55 ? " (neutral)" : v < 75 ? " (codicia)" : " (codicia extrema)");
+    case "dex.smart_ratio": return v > 0.1 ? "más en LONG (" + v.toFixed(2) + ")" : v < -0.1 ? "más en SHORT (" + v.toFixed(2) + ")" : "repartidos (" + v.toFixed(2) + ")";
+    case "market.spread_bps": return v.toFixed(1) + " pb";
+    default: return v.toFixed(2);
+  }
+}
+var CONTEXT = [["Funding", "funding.rate"], ["Funding vs 30 días (z)", "ind.funding_z"], ["Interés abierto 1 h", "ind.oi_chg_1h"],
+  ["Interés abierto 24 h", "ind.oi_chg_24h"], ["Volumen", "ind.15m.rel_volume"], ["Flujo de 3 h", "ind.15m.cvd_ratio"],
+  ["Fibonacci (posición)", "ind.1h.fib_pos"], ["Hasta la resistencia", "ind.1h.room_up_atr"], ["Hasta el soporte", "ind.1h.room_down_atr"],
+  ["Volatilidad vs 30 días", "ind.vol_pct_30d"], ["Correlación con BTC", "ind.corr_btc_24h"], ["Miedo y codicia", "sent.fng"],
+  ["Traders destacados", "dex.smart_ratio"], ["Spread", "market.spread_bps"]];
+
+function renderAnalysis() {
+  var el = $("sideAn"), v = (D.views || {})[SEL];
+  if (!v) { el.innerHTML = '<div class="empty">JARVIS revisa cada moneda al cerrar cada vela de 15 min. Aparecerá aquí después de la primera revisión.</div>'; return; }
+  var age = (Date.now() - Date.parse(v.ts)) / 1000, ck = v.checklist, h = "";
+  h += '<div class="an-h"><b>Lo que ve JARVIS</b><span class="muted small">revisó ' + esc(ago(age)) + "</span></div>";
+  if (ck) {
+    var cur = nowPrice(SEL);
+    h += '<div class="an-sec">' + (ck.side ? "Para entrar en " + ck.side + " necesita" : "Ruptura a favor de la tendencia") + "</div>";
+    h += ck.items.map(function (it) {
+      var val = "";
+      if (it.key === "trend") val = it.value ? (REGIME[it.value] || [it.value])[0] : "—";
+      else if (it.key === "adx") val = it.value == null ? "—" : it.value.toFixed(0);
+      else if (it.key === "volume") val = it.value == null ? "—" : it.value.toFixed(2) + "×";
+      else if (it.key === "break") {
+        if (it.level == null) val = "—";
+        else if (it.ok) val = "rompió " + price(it.level);
+        else { var gap = cur ? it.level / cur - 1 : it.gap_pct; val = price(it.level) + (gap != null ? " (falta " + pct(gap, true) + ")" : ""); }
+      }
+      return '<div class="chk ' + (it.ok ? "ok" : "no") + '"><span class="i">' + (it.ok ? "✓" : "✕") + "</span><span>" + esc(it.label) +
+        '</span><span class="v">' + esc(val) + "</span></div>";
+    }).join("");
+    var miss = ck.items.filter(function (i) { return !i.ok; }).length;
+    h += '<div class="verdict' + (ck.ready ? " ready" : "") + '">' + (ck.ready
+      ? "<b>Se cumplen todas.</b> Es candidato: pasa por los filtros de riesgo y la IA decide si entra."
+      : !ck.side ? "Sin tendencia clara en 1 h: esta estrategia no busca entradas en esta moneda ahora."
+      : "Falta" + (miss > 1 ? "n " + miss + " condiciones" : " 1 condición") + ". Se revisa al cerrar cada vela de 15 min.") + "</div>";
+  }
+  var p = (D.positions || []).filter(function (x) { return x.symbol === SEL; })[0];
+  if (p) {
+    var risk = Math.abs(p.entry - (p.initial_stop || p.stop)), r = risk && p.mark ? (p.side === "LONG" ? p.mark - p.entry : p.entry - p.mark) / risk : null;
+    h += '<div class="an-sec">Operación abierta</div><div class="an-pos"><b>' + esc(side(p.side)) + "</b> desde " + esc(when(p.opened_at)) +
+      '<div class="kv" style="margin-top:6px"><span>Entrada</span><span>' + esc(price(p.entry)) + "</span><span>Stop</span><span>" + esc(price(p.stop)) +
+      "</span><span>Objetivo</span><span>" + esc(price(p.take_profit)) + '</span><span>Va</span><span class="' + cls(p.pnl_unrealized) + '">' +
+      esc(money(p.pnl_unrealized, true)) + (r != null ? " (" + (r >= 0 ? "+" : "") + r.toFixed(2) + "R)" : "") + "</span></div></div>";
+  }
+  h += '<div class="an-sec">Contexto (lo mismo que recibe la IA)</div><div class="kv">' + CONTEXT.map(function (c) {
+    return "<span>" + esc(c[0]) + "</span><span>" + fmtField(c[1], v.fields[c[1]]) + "</span>"; }).join("") +
+    "<span>Calidad de los datos</span><span>" + Math.round(v.quality * 100) + "%</span></div>";
+  var sig = BOTDATA && BOTDATA.symbol === SEL ? BOTDATA.signals.slice(0, 3) : [];
+  if (sig.length) h += '<div class="an-sec">Últimas señales</div>' + sig.map(function (c) {
+    return '<div class="chk ' + (c.traded ? "ok" : "no") + '"><span class="i">' + (c.side === "LONG" ? "▲" : "▼") + "</span><span>" + esc(c.status) +
+      '<br><span class="muted small">' + esc((c.reasons && c.reasons[0]) || (c.ai && c.ai.thesis) || "") + '</span></span><span class="v">' + esc(when(c.ts)) + "</span></div>";
+  }).join("");
+  el.innerHTML = h;
+}
+
+function renderBook() {
+  var el = $("sideBook");
+  if (!BOOK) { el.innerHTML = '<div class="empty">Cargando el libro de órdenes…</div>'; return; }
+  if (BOOK.error) { el.innerHTML = '<div class="empty">Sin conexión con Binance desde el panel: el libro no está disponible.</div>'; return; }
+  var n = 11, asks = BOOK.asks.slice(0, n), bids = BOOK.bids.slice(0, n), ta = 0, tb = 0;
+  var ra = asks.map(function (x) { ta += x[1]; return [x[0], x[1], ta]; }), rb = bids.map(function (x) { tb += x[1]; return [x[0], x[1], tb]; });
+  var mx = Math.max(ta, tb) || 1, c = coin(SEL), all = asks.concat(bids).map(function (x) { return x[0]; }).sort(function (a, b) { return a - b; });
+  var step = Infinity;  // decimales según la separación real entre niveles (el tick de la moneda)
+  for (var k = 1; k < all.length; k++) if (all[k] - all[k - 1] > 1e-12) step = Math.min(step, all[k] - all[k - 1]);
+  var dec = isFinite(step) ? Math.min(6, Math.max(0, Math.ceil(-Math.log10(step) - 1e-9))) : 2;
+  function bp(v) { return v == null ? "—" : v.toLocaleString("es", {minimumFractionDigits: dec, maximumFractionDigits: dec}); }
+  function q(v) { return v.toLocaleString("es", {maximumFractionDigits: v >= 100 ? 0 : v >= 1 ? 2 : 4}); }
+  function row(x, k) { return '<div class="r ' + k + '"><i style="width:' + (x[2] / mx * 100).toFixed(1) + '%"></i><span>' + esc(bp(x[0])) +
+    "</span><span>" + esc(q(x[1])) + "</span><span>" + esc(q(x[2])) + "</span></div>"; }
+  var spread = asks.length && bids.length ? asks[0][0] - bids[0][0] : null;
+  el.innerHTML = '<div class="book"><div class="r hd"><span>Precio</span><span>Tamaño (' + esc(c) + ")</span><span>Total (" + esc(c) + ")</span></div>" +
+    ra.reverse().map(function (x) { return row(x, "a"); }).join("") +
+    '<div class="spr"><span>Spread</span><b>' + esc(bp(spread)) + "</b><span>" + (spread != null ? (spread / bids[0][0] * 100).toFixed(3) + "%" : "") + "</span></div>" +
+    rb.map(function (x) { return row(x, "b"); }).join("") + '</div><p class="muted small">Libro de Binance en vivo (20 niveles, cada 2 s). El bot usa este libro para simular sus llenados.</p>';
+}
+
+function goTable(el, cols, rows, empty, go) {
+  table(el, cols, rows, empty);
+  if (!rows.length) return;
+  el.querySelectorAll("tbody tr").forEach(function (tr, i) {
+    tr.classList.add("go"); tr.title = "Ver en el gráfico";
+    tr.onclick = function () { go(rows[i]); };
+  });
+}
+function focusChart(iso) { if (window.JDraw && JDraw.focus) { JDraw.focus(Date.parse(iso)); window.scrollTo({top: 0, behavior: "smooth"}); } }
+
+function renderBottom() {
+  $("nbPos").textContent = (D.positions || []).length || "";
+  goTable($("botPos"), [
+    {h: "Moneda", f: function (p) { return coinIc(p.symbol) + " " + esc(coin(p.symbol)); }},
+    {h: "Dirección", f: function (p) { return '<b class="' + (p.side === "LONG" ? "pos" : "neg") + '">' + esc(side(p.side)) + "</b>"; }},
+    {h: "Tamaño", n: 1, f: function (p) { return esc(String(p.qty)) + " " + esc(coin(p.symbol)); }},
+    {h: "Valor", n: 1, f: function (p) { return esc(money(p.qty * (p.mark || p.entry))); }},
+    {h: "Entrada", n: 1, f: function (p) { return esc(price(p.entry)); }},
+    {h: "Precio", n: 1, f: function (p) { return esc(price(p.mark)); }},
+    {h: "Ganancia", n: 1, f: function (p) { return '<b class="' + cls(p.pnl_unrealized) + '">' + esc(money(p.pnl_unrealized, true)) + "</b>"; }},
+    {h: "Stop", n: 1, f: function (p) { return esc(price(p.stop)); }},
+    {h: "Objetivo", n: 1, f: function (p) { return esc(price(p.take_profit)); }},
+    {h: "Abrió", f: function (p) { return esc(when(p.opened_at)); }}
+  ], D.positions || [], "No hay operaciones abiertas.", function (p) {
+    if (p.symbol !== SEL) { SEL = p.symbol; renderTabs(); renderPrice(); renderTerm(); }
+    setTimeout(function () { focusChart(p.opened_at); }, 400);
+  });
+  var bd = BOTDATA && BOTDATA.symbol === SEL ? BOTDATA : {signals: [], trades: []};
+  goTable($("botSen"), [
+    {h: "Hora", f: function (c) { return esc(when(c.ts)); }},
+    {h: "Dirección", f: function (c) { return esc(side(c.side)); }},
+    {h: "Qué pasó", f: function (c) { return '<b class="' + (c.traded ? "pos" : "") + '">' + esc(c.status) + "</b>"; }},
+    {h: "Por qué", w: 1, f: function (c) { return esc((c.reasons || []).join("; ") || (c.ai && c.ai.thesis) || ""); }},
+    {h: "Entrada", n: 1, f: function (c) { return esc(price(c.entry)); }},
+    {h: "Stop", n: 1, f: function (c) { return esc(price(c.stop)); }}
+  ], bd.signals, "Sin señales de " + coin(SEL) + " en los últimos 14 días.", function (c) { focusChart(c.ts); });
+  goTable($("botOps"), [
+    {h: "Abrió", f: function (t) { return esc(when(t.opened_at)); }},
+    {h: "Dirección", f: function (t) { return esc(side(t.side)); }},
+    {h: "Entrada", n: 1, f: function (t) { return esc(price(t.entry)); }},
+    {h: "Salida", n: 1, f: function (t) { return esc(price(t.exit)); }},
+    {h: "Resultado", n: 1, f: function (t) { return '<b class="' + cls(t.pnl_net) + '">' + esc(money(t.pnl_net, true)) + "</b>"; }},
+    {h: "R", n: 1, f: function (t) { return esc((t.r >= 0 ? "+" : "") + t.r.toFixed(2)); }},
+    {h: "Cierre", f: function (t) { return esc(t.exit_reason); }}
+  ], bd.trades, "Sin operaciones cerradas en " + coin(SEL) + ".", function (t) { focusChart(t.opened_at); });
+  [["pos", "botPos"], ["sen", "botSen"], ["ops", "botOps"], ["tt", "botTT"]].forEach(function (x) { $(x[1]).hidden = BOT !== x[0]; });
+  $("botTabs").querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.k === BOT)); });
+}
+
+function renderTerm() {
+  if (!D) return;
+  renderTermStats(); renderAnalysis(); renderBottom();
+  $("sideAn").hidden = SIDE !== "analisis"; $("sideBook").hidden = SIDE !== "libro";
+  $("sideTabs").querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.k === SIDE)); });
+  if (SIDE === "libro") renderBook();
+}
+
+$("sideTabs").querySelectorAll("button").forEach(function (b) {
+  b.onclick = function () { SIDE = b.dataset.k; try { localStorage.setItem("jarvis-lado", SIDE); } catch (e) {} renderTerm(); loadBook(); };
+});
+$("botTabs").querySelectorAll("button").forEach(function (b) {
+  b.onclick = function () { BOT = b.dataset.k; try { localStorage.setItem("jarvis-abajo", BOT); } catch (e) {} renderBottom(); };
+});
+document.addEventListener("pointerdown", function (e) { var m = $("coinMenu"); if (m.open && !m.contains(e.target)) m.open = false; }, true);
+setInterval(function () {  // la franja y el libro se refrescan solo con Mercado a la vista
+  if (VIEW !== "mercado" || document.hidden || !D) return;
+  TERM_TICK++;
+  var cd = $("fundCd"); if (cd) cd.textContent = countdown(+$("termStats").dataset.nf || 0);
+  if (TERM_TICK % 5 === 0) loadTicker();
+  if (TERM_TICK % 2 === 0) loadBook();
+}, 1000);
 
 // ---------------------------------------------------------------- Ver en tu celular (solo se muestra en la PC)
 var ACCESS = null;
@@ -1539,6 +1849,7 @@ function moveInd() {
 }
 function showView(v, first) {
   var changed = v !== VIEW; VIEW = v;
+  document.body.dataset.view = v;
   document.querySelectorAll("[data-view]").forEach(function (el) {
     var on = el.dataset.view.split(" ").indexOf(v) >= 0;
     el.classList.toggle("off", !on);
@@ -1553,7 +1864,7 @@ function showView(v, first) {
   moveInd();
   if (changed && !first) window.scrollTo(0, 0);
   if (D) {  // lo que necesita estar visible para dibujarse bien
-    if (v === "mercado") renderPrice();
+    if (v === "mercado") { renderPrice(); renderTerm(); loadTicker(); loadBook(); }
     if (v === "inicio") renderEquity();
     if (v === "sistema") renderPhone();
   }
@@ -1778,7 +2089,7 @@ $("ideaCopy").onclick = function () {
 fetch("/api/ideas").then(function (r) { return r.json(); }).then(function (j) { showIdeas(j.ideas); }).catch(function () {});
 checkVersion(false); setInterval(function () { if (!document.hidden) checkVersion(false); }, 30 * 60000);
 
-function render() { renderHeader(); renderActivity(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function render() { renderHeader(); renderActivity(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTerm(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

@@ -372,6 +372,10 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   EMA/Bollinger/VWAP/RSI/volumen. Sin Binance: velas 15m/1h de `panel_vivo.json`. Dibujo y capa del bot en
   `dashboard/dibujo.js` (SVG sobre el gráfico, coordenadas tiempo/precio, localStorage `jarvis-dibujos`; operaciones y
   señales por `/api/senales` = `data.chart_signals`; niveles en `panel_vivo.json` `levels` = `snapshot.levels`).
+  Mercado = terminal a todo lo ancho (`body[data-view=mercado]`): franja `/api/mercado` (premiumIndex + openInterest +
+  24 velas de 1 h, caché 5 s), libro `/api/libro` (`/fapi/v1/depth` 20, caché 2 s), ambos en `dashboard/klines.py`;
+  panel "Análisis JARVIS" = `panel_vivo.json` `views` (`snapshot.view`, lo que vio el motor en la última ventana +
+  `strategies.breakout_checklist`); pestañas abajo: posiciones, señales, operaciones (clic = `JDraw.focus`), traders.
   Estructura de 1 h (`ta.pivots`/`ta.structure_levels` → `ind.1h.swing_*`, `fib_pos`, `room_*_atr`): solo contexto
   para la IA (IC débil, ver README); ningún filtro la usa.
   Escrituras compartidas con el panel vía `core/fsutil.atomic_write_text` (reintenta PermissionError de Windows).

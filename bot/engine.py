@@ -123,6 +123,7 @@ class Engine:
                                     {"ws_market": 30, "ws_public": 30, "macro": 36 * 3600})
         self._closed_15m: dict[str, dict[int, float]] = {s: {} for s in comps.states}
         self._last_window: int | None = None
+        self.views: dict[str, dict] = {}  # lo que vio el bot en cada moneda (panel: Mercado → Análisis)
         self._entry_lock = asyncio.Lock()
         self._in_flight: set[str] = set()
         self._clean_reconciles = 0
@@ -219,6 +220,10 @@ class Engine:
         for sym in self.c.states:
             fields, quality = self._fields(sym, now)
             snapshots[sym] = fields
+            try:
+                self.views[sym] = panel_snapshot.view(fields, strategies, quality, now)
+            except Exception as exc:  # noqa: BLE001  (solo informativo: nunca frena la evaluación)
+                log.warning("vista del panel falló", extra={"sym": sym, "err": repr(exc)})
             for sig in generate(sym, fields, strategies, self.s.exchange.fees, now, quality):
                 out = run_filters(sig, fields, now, self.state, self.risk, self.eff.risk, self.eff.filters, events,
                                   macro_ok, macro_upd, exposures)
@@ -707,7 +712,7 @@ class Engine:
         try:
             positions = self.manager.positions if self.manager else {}
             snap = panel_snapshot.build(now, self.s.mode.value, self.c.states, positions,
-                                        self.c.top_traders.summary() if self.c.top_traders else None)
+                                        self.c.top_traders.summary() if self.c.top_traders else None, self.views)
             snap["system"] = {**self.system_status(now), "ai_key": bool(self.secrets.anthropic_api_key)}
             panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME, snap)
         except Exception as exc:  # noqa: BLE001

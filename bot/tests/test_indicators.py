@@ -131,3 +131,15 @@ def test_panel_levels_match_what_the_strategy_watches():
     close = st.candles["1h"].arrays()["c"][-1]
     assert all(p > close for p in lv["res"]) and all(p < close for p in lv["sup"]) and len(lv["res"]) <= 3
     assert snapshot.levels(MarketState("XLMUSDT")) is None
+
+
+def test_panel_view_explains_what_the_strategy_needs():
+    from bot.core.config import StrategyParams
+    from bot.dashboard import snapshot
+    f = compute_features(_trend_state("ETHUSDT", 0.003), FeedStore(), NOW)
+    v = snapshot.view(f, {"trend_breakout": StrategyParams.model_validate({"min_adx": 20, "min_rel_volume": 1.2})}, 0.9, NOW)
+    assert v["regime"] == Regime.TREND_UP.value and v["checklist"]["side"] == "LONG"
+    keys = [i["key"] for i in v["checklist"]["items"]]
+    assert keys == ["trend", "adx", "volume", "break"] and v["checklist"]["ready"] == all(i["ok"] for i in v["checklist"]["items"])
+    assert set(v["fields"]) == set(snapshot.VIEW_KEYS)
+    assert "checklist" not in snapshot.view(f, {}, 0.9, NOW)

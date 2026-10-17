@@ -158,6 +158,17 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                     self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
             elif path == "/grafico.js":
                 self._send(200, chart_js, "text/javascript; charset=utf-8")
+            elif path in ("/api/mercado", "/api/libro"):
+                try:
+                    sym = q.get("symbol", [""])[0]
+                    body = klines.ticker(sym) if path == "/api/mercado" else klines.depth(sym)
+                except ValueError as exc:
+                    self._send(400, json.dumps({"error": str(exc)}).encode(), "application/json")
+                    return
+                except Exception as exc:  # noqa: BLE001  (sin Binance: el panel usa lo que publica el bot)
+                    self._send(502, json.dumps({"error": repr(exc)}).encode(), "application/json")
+                    return
+                self._send(200, json.dumps(_clean(body), separators=(",", ":")).encode(), "application/json")
             elif path == "/dibujo.js":
                 self._send(200, draw_js, "text/javascript; charset=utf-8")
             elif path == "/api/senales":
