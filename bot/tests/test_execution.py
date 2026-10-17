@@ -15,6 +15,8 @@ from bot.position.manager import PositionManager
 from bot.risk.engine import SymbolRules
 
 S = load_settings()
+# Las pruebas fijan el parcial en 1.5R: validan la lógica, no el valor que elija config.yaml
+S = S.model_copy(update={"position": S.position.model_copy(update={"partial_take_r": 1.5})})
 RULES = SymbolRules(tick_size=0.01, step_size=0.001, min_qty=0.001, min_notional=5.0)
 FAST = ExecutionConfig(post_only_timeout_s=0.3, post_only_retries=1, market_entry_min_edge=4.0,
                        stop_confirm_timeout_s=0.5, reconcile_interval_s=30)

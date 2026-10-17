@@ -45,7 +45,9 @@ y las guardias de riesgo activas. Solo `trend_breakout` aguantó el periodo sin 
 estrategia tiene todavía ventaja confirmada: por eso todo sigue en demo.
 Pantalla de IC (`python -m bot.research.ic`, 13 meses, dos mitades): solo el cambio de open interest en 1 h predice
 de forma estable la hora siguiente (IC ≈ +0.04, diferencia que paga costos), pero como filtro de `trend_breakout` no
-mejoró el resultado. La pausa por bajo rendimiento lo empeoró (queda apagada). El chequeo de mirar al futuro
+mejoró el resultado. La pausa por bajo rendimiento lo empeoró (queda apagada). Ideas de un trader humano (vídeo): "dejar correr
+las ganancias" (objetivo 4:1, 48 h, parcial en 2R) fue lo único que mejoró: positivo en ajuste y comprobación (PF 1.05);
+mover el stop a "sin pérdida" en 1R, el sesgo diario de BTC y filtrar por sesiones lo empeoraron. El chequeo de mirar al futuro
 (`python -m bot.backtest.lookahead`) no encontró fugas en los datos reales.
 
 **Actualizar:** cierra el bot y el panel y haz doble clic en `actualizar.bat`: baja la versión más reciente de GitHub

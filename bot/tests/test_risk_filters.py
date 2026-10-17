@@ -302,7 +302,8 @@ def test_trend_breakout_follows_the_trend_only():
     p = S.strategies["trend_breakout"]
     up = strat_fields(**{"ind.15m.close": 100.0, "ind.15m.high_n": 99.5})
     s = trend_breakout("SOLUSDT", up, p, S.exchange.fees, NOW, Regime.TREND_UP, 1.0)
-    assert s and s.side is Side.LONG and s.stop == pytest.approx(100 - 3.0) and s.take_profit == pytest.approx(106.0)
+    assert s and s.side is Side.LONG and s.stop == pytest.approx(100 - p.stop_atr_multiple)
+    assert s.take_profit == pytest.approx(100 + p.target_atr_multiple)
     assert trend_breakout("SOLUSDT", up, p, S.exchange.fees, NOW, Regime.TREND_DOWN, 1.0) is None  # contra tendencia
     assert trend_breakout("SOLUSDT", up, p, S.exchange.fees, NOW, Regime.RANGE, 1.0) is None
     assert trend_breakout("SOLUSDT", strat_fields(**{"ind.15m.rel_volume": 0.8}), p, S.exchange.fees, NOW,

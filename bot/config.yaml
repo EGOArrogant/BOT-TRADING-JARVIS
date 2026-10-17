@@ -71,10 +71,10 @@ execution:
   reconcile_interval_s: 30
 
 position:
-  partial_take_r: 1.5
+  partial_take_r: 2.0     # mover el stop a "sin pérdida" antes (1R) empeoraba mucho: cortaba las ganadoras
   partial_take_fraction: 0.5
   trailing_atr_multiple: 2.0
-  time_exit_hours: 24   # la investigación mostró que cortar a las 6 h sin avanzar perdía las mejores operaciones
+  time_exit_hours: 48   # la investigación mostró que cortar pronto sin avanzar perdía las mejores operaciones
   time_exit_min_r: 0.5
 
 ai:
@@ -185,13 +185,15 @@ news:
 # (con aprobación humana por defecto). Nada de riesgo, stops ni ejecución aquí.
 strategies:
   # Investigación 2026-10 (13 meses, 6 monedas, walk-forward y guardias reales): solo trend_breakout aguantó el
-  # periodo completo sin tocar la detención por caída (≈ −0.04R/op antes de la IA, PF 0.93, ~1 op/día).
+  # periodo completo sin tocar la detención por caída. "Dejar correr las ganancias" (objetivo 4:1, hasta 48 h, parcial
+  # en 2R) fue la primera versión positiva en ajuste Y comprobación (+0.037R / +0.035R por op, PF 1.05; meseta estable
+  # con objetivos 10–14 ATR y 36–72 h). Ventaja pequeña y aún no confirmada estadísticamente: por eso sigue en demo.
   # Las otras tres perdían de forma consistente (−0.13R a −0.28R/op) y quedan apagadas; se pueden reactivar aquí.
   trend_breakout:
     enabled: true
-    target_atr_multiple: 6.0
+    target_atr_multiple: 12.0
     stop_atr_multiple: 3.0
-    max_hold_hours: 24
+    max_hold_hours: 48
     min_adx: 20
     min_rel_volume: 1.2
   trend_pullback:
