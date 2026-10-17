@@ -51,6 +51,7 @@ REASONS = [
     ("pausa", "el bot estaba en pausa tras varias pérdidas seguidas"),
     ("pérdida diaria", "ya había perdido el máximo permitido ese día"),
     ("exposición", "ya había demasiado dinero apostado en la misma dirección"),
+    ("bajo rendimiento", "esa moneda venía perdiendo en esa dirección y está en pausa un día"),
 ]
 
 

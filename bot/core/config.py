@@ -81,6 +81,11 @@ class LimitsConfig(_Strict):
     symbol_cooldown_minutes: int = Field(ge=0)
     reversal_cooldown_minutes: int = Field(ge=0)
     candidate_window_minutes: int = Field(ge=1)
+    # Bloqueo por bajo rendimiento (idea de freqtrade): si las últimas N operaciones de una moneda en una misma
+    # dirección perdieron en total más de X % del capital, esa moneda+dirección no abre nada durante H horas.
+    underperf_lookback_trades: int = Field(default=3, ge=2)
+    underperf_max_loss_pct: float = Field(default=0.012, gt=0)
+    underperf_lock_hours: float = Field(default=24.0, gt=0)
 
     @model_validator(mode="after")
     def _caps_consistent(self) -> LimitsConfig:

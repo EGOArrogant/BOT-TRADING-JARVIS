@@ -312,3 +312,17 @@ def test_trend_breakout_follows_the_trend_only():
     assert s2 and s2.side is Side.SHORT and s2.edge_ratio >= 3
     assert trend_breakout("SOLUSDT", strat_fields(**{"ind.1h.adx": None}), p, S.exchange.fees, NOW,
                           Regime.TREND_UP, 1.0) is None  # dato desconocido: no hay señal
+
+
+def test_underperformance_lock_pauses_a_losing_coin_side():
+    risk = RiskEngine(S.risk, S.limits, S.exchange)
+    st = BotState.fresh(1000.0, NOW.date())
+    for h in (6, 4, 2):  # tres pérdidas seguidas de SOL long que suman 1,5 % del capital
+        st.closes.append(CloseRecord(symbol="SOLUSDT", side=Side.LONG, closed_at=NOW - timedelta(hours=h), pnl_net=-5.0))
+    chk = risk.symbol_limits(st, "SOLUSDT", Side.LONG, NOW, [])
+    assert not chk.ok and "bajo rendimiento" in chk.reason
+    assert risk.symbol_limits(st, "SOLUSDT", Side.SHORT, NOW + timedelta(hours=5), []).ok  # la otra dirección sigue
+    assert risk.symbol_limits(st, "SOLUSDT", Side.LONG, NOW + timedelta(hours=21), []).ok is False
+    assert risk.symbol_limits(st, "SOLUSDT", Side.LONG, NOW + timedelta(hours=27), []).ok  # se levanta solo
+    st.closes[-1] = CloseRecord(symbol="SOLUSDT", side=Side.LONG, closed_at=NOW - timedelta(hours=2), pnl_net=+8.0)
+    assert risk.symbol_limits(st, "SOLUSDT", Side.LONG, NOW + timedelta(hours=2), []).ok  # ya no viene perdiendo

@@ -45,6 +45,10 @@ limits:
   symbol_cooldown_minutes: 60
   reversal_cooldown_minutes: 240
   candidate_window_minutes: 15
+  # Pausa una moneda+dirección que viene perdiendo: 3 operaciones seguidas con pérdida total > 1,2 % del capital → 24 h
+  underperf_lookback_trades: 3
+  underperf_max_loss_pct: 0.012
+  underperf_lock_hours: 24
 
 filters:
   min_edge_cost_multiple: 3.0
