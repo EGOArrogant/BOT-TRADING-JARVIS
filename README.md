@@ -35,6 +35,12 @@ Con el bot en el servidor, apaga el de la PC (dos copias con el mismo Telegram c
 **Comandos de Telegram:** `/estado`, `/posiciones`, `/hoy`, `/solo_cierre`, `/operar`, `/ayuda`. Solo responde a tu chat;
 ningún comando abre operaciones ni cambia límites.
 
+**Investigación de estrategias (2026-10):** 13 meses de datos de Binance (velas 15 min, open interest, funding, F&G,
+funding de Hyperliquid), backtest walk-forward (ajuste sep-25..abr-26, comprobación may-26..oct-26) con costos reales
+y las guardias de riesgo activas. Solo `trend_breakout` aguantó el periodo sin tocar la detención (~−0.04R/op, PF 0.93,
+~1 op/día, antes de la IA); las otras tres perdían de forma consistente y quedan apagadas en `config.yaml`. Ninguna
+estrategia tiene todavía ventaja confirmada: por eso todo sigue en demo.
+
 **Actualizar:** cierra el bot y el panel y haz doble clic en `actualizar.bat`: baja la versión más reciente de GitHub
 y reemplaza solo el código (no toca `.env`, `bot/data` ni `bot/reports`).
 

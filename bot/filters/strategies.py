@@ -125,12 +125,38 @@ def funding_reversion(symbol: str, f: Fields, params: StrategyParams, fees: Fees
     return None
 
 
+def trend_breakout(symbol: str, f: Fields, params: StrategyParams, fees: Fees, now: datetime,
+                   regime: Regime, quality: float) -> Signal | None:
+    """Ruptura del máximo/mínimo de las últimas 6 h a favor de la tendencia de 1 h, con volumen.
+
+    Validada con 13 meses de datos (walk-forward, guardias reales): la única variante que no tocó la detención
+    por caída; casi en equilibrio antes de la IA (ver README, "Investigación de estrategias").
+    """
+    if regime not in (Regime.TREND_UP, Regime.TREND_DOWN):
+        return None
+    need = [_v(f, k) for k in ("ind.15m.close", "ind.15m.high_n", "ind.15m.low_n", "ind.15m.atr", "ind.1h.adx",
+                               "ind.15m.rel_volume")]
+    if any(x is None for x in need):
+        return None
+    close, hi, lo, atr, adx1h, relvol = need  # type: ignore[misc]
+    if adx1h < _p(params, "min_adx", 20) or relvol < _p(params, "min_rel_volume", 1.2):
+        return None
+    if regime is Regime.TREND_UP and close > hi:
+        return _build(symbol, "trend_breakout", Side.LONG, f, params, fees, now, regime, None,
+                      "la tendencia de 1 h deja de ser alcista", urgent=False, quality=quality)
+    if regime is Regime.TREND_DOWN and close < lo:
+        return _build(symbol, "trend_breakout", Side.SHORT, f, params, fees, now, regime, None,
+                      "la tendencia de 1 h deja de ser bajista", urgent=False, quality=quality)
+    return None
+
+
 StrategyFn = Callable[[str, Fields, StrategyParams, Fees, datetime, Regime, float], Signal | None]
 
 STRATEGIES: dict[str, StrategyFn] = {
     "trend_pullback": trend_pullback,
     "range_breakout": range_breakout,
     "funding_reversion": funding_reversion,
+    "trend_breakout": trend_breakout,
 }
 
 

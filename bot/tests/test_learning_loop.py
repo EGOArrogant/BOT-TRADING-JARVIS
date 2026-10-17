@@ -55,7 +55,8 @@ def test_hypothesis_semantics():
     p = Hypothesis(kind="strategy_param", description="objetivo más largo", strategy="trend_pullback",
                    param="target_atr_multiple", value=3.0)
     eff = effective_strategies(S.strategies, [p])
-    assert eff["trend_pullback"].target_atr_multiple == 3.0 and S.strategies["trend_pullback"].target_atr_multiple == 2.5
+    base = S.strategies["trend_pullback"].target_atr_multiple
+    assert eff["trend_pullback"].target_atr_multiple == 3.0 and S.strategies["trend_pullback"].target_atr_multiple == base
     ok, why = overrides_allow([block], sig(1), f)
     assert not ok and "aprendido" in why
 

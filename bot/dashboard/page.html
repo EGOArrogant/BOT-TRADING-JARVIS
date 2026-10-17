@@ -1350,7 +1350,7 @@ function renderBitacora() {
 
 var PERF = "strategy";
 var PERF_NAMES = {LONG: "Long (sube)", SHORT: "Short (baja)", trend_pullback: "Retroceso en tendencia",
-  range_breakout: "Ruptura de rango", funding_reversion: "Reversión por funding", adoptada: "Recuperada tras reinicio"};
+  range_breakout: "Ruptura de rango", funding_reversion: "Reversión por funding", trend_breakout: "Ruptura a favor de la tendencia", adoptada: "Recuperada tras reinicio"};
 function renderPerf() {
   $("perfTabs").querySelectorAll("button").forEach(function (b) {
     b.setAttribute("aria-pressed", String(b.dataset.k === PERF));

@@ -23,7 +23,8 @@ DAYS = 60
 COIN = {"BTCUSDT": "Bitcoin", "ETHUSDT": "Ethereum", "SOLUSDT": "Solana", "XRPUSDT": "XRP", "DOGEUSDT": "Dogecoin",
         "XLMUSDT": "Stellar"}
 STRATEGY = {"trend_pullback": "retroceso dentro de una tendencia", "range_breakout": "ruptura de un rango",
-            "funding_reversion": "giro por exceso de apuestas en un sentido"}
+            "funding_reversion": "giro por exceso de apuestas en un sentido",
+            "trend_breakout": "ruptura a favor de la tendencia"}
 EXIT = {"stop": "tocó su stop-loss (la pérdida máxima prevista)", "take_profit": "llegó a su objetivo",
         "trailing": "el stop que la iba siguiendo protegió la ganancia", "time": "pasó el tiempo sin avanzar",
         "time_max": "llegó al tiempo máximo", "invalidation": "la idea dejó de cumplirse",

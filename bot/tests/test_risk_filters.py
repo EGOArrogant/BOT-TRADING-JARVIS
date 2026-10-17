@@ -15,7 +15,12 @@ from bot.filters.checks import (
     run_filters,
     select_best,
 )
-from bot.filters.strategies import funding_reversion, generate, range_breakout, trend_pullback
+from bot.core.config import StrategyParams
+from bot.filters.strategies import funding_reversion, generate, range_breakout, trend_breakout, trend_pullback
+
+# Parámetros fijos: las pruebas validan la lógica, no los valores que elija config.yaml
+TP_PARAMS = StrategyParams(enabled=True, target_atr_multiple=2.5, stop_atr_multiple=1.2, max_hold_hours=8, min_adx=20,
+                           max_ema_distance_atr=0.5)
 from bot.risk.costs import estimate_costs
 from bot.risk.engine import OpenExposure, RiskEngine, SymbolRules, round_step, round_tick
 
@@ -252,7 +257,7 @@ def strat_fields(**over):
 
 
 def test_trend_pullback_long_and_short():
-    p = S.strategies["trend_pullback"]
+    p = TP_PARAMS
     s = trend_pullback("ETHUSDT", strat_fields(), p, S.exchange.fees, NOW, Regime.TREND_UP, 1.0)
     assert s and s.side is Side.LONG and s.stop == pytest.approx(100 - 1.2) and s.invalidation_price == 99.0
     assert s.stop_distance_pct >= 0.01  # ≥ 1 ATR
@@ -288,5 +293,22 @@ def test_funding_reversion_short_on_greed():
 def test_generate_uses_regime_field():
     f = strat_fields()
     f["ind.regime"] = DataPoint.ok(Regime.TREND_UP.value, "calc", NOW)
-    names = {s.strategy for s in generate("ETHUSDT", f, S.strategies, S.exchange.fees, NOW, 1.0)}
+    names = {s.strategy for s in generate("ETHUSDT", f, {**S.strategies, "trend_pullback": TP_PARAMS}, S.exchange.fees,
+                                          NOW, 1.0)}
     assert "trend_pullback" in names
+
+
+def test_trend_breakout_follows_the_trend_only():
+    p = S.strategies["trend_breakout"]
+    up = strat_fields(**{"ind.15m.close": 100.0, "ind.15m.high_n": 99.5})
+    s = trend_breakout("SOLUSDT", up, p, S.exchange.fees, NOW, Regime.TREND_UP, 1.0)
+    assert s and s.side is Side.LONG and s.stop == pytest.approx(100 - 3.0) and s.take_profit == pytest.approx(106.0)
+    assert trend_breakout("SOLUSDT", up, p, S.exchange.fees, NOW, Regime.TREND_DOWN, 1.0) is None  # contra tendencia
+    assert trend_breakout("SOLUSDT", up, p, S.exchange.fees, NOW, Regime.RANGE, 1.0) is None
+    assert trend_breakout("SOLUSDT", strat_fields(**{"ind.15m.rel_volume": 0.8}), p, S.exchange.fees, NOW,
+                          Regime.TREND_UP, 1.0) is None  # sin volumen no hay ruptura
+    dn = strat_fields(**{"ind.15m.close": 96.0, "ind.15m.low_n": 97.0})
+    s2 = trend_breakout("SOLUSDT", dn, p, S.exchange.fees, NOW, Regime.TREND_DOWN, 1.0)
+    assert s2 and s2.side is Side.SHORT and s2.edge_ratio >= 3
+    assert trend_breakout("SOLUSDT", strat_fields(**{"ind.1h.adx": None}), p, S.exchange.fees, NOW,
+                          Regime.TREND_UP, 1.0) is None  # dato desconocido: no hay señal

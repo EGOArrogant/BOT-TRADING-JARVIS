@@ -67,7 +67,7 @@ position:
   partial_take_r: 1.5
   partial_take_fraction: 0.5
   trailing_atr_multiple: 2.0
-  time_exit_hours: 6
+  time_exit_hours: 24   # la investigación mostró que cortar a las 6 h sin avanzar perdía las mejores operaciones
   time_exit_min_r: 0.5
 
 ai:
@@ -177,15 +177,25 @@ news:
 # Parámetros de estrategia. Es lo único que el aprendizaje puede proponer cambiar
 # (con aprobación humana por defecto). Nada de riesgo, stops ni ejecución aquí.
 strategies:
-  trend_pullback:
+  # Investigación 2026-10 (13 meses, 6 monedas, walk-forward y guardias reales): solo trend_breakout aguantó el
+  # periodo completo sin tocar la detención por caída (≈ −0.04R/op antes de la IA, PF 0.93, ~1 op/día).
+  # Las otras tres perdían de forma consistente (−0.13R a −0.28R/op) y quedan apagadas; se pueden reactivar aquí.
+  trend_breakout:
     enabled: true
-    target_atr_multiple: 2.5
-    stop_atr_multiple: 1.2
-    max_hold_hours: 8
+    target_atr_multiple: 6.0
+    stop_atr_multiple: 3.0
+    max_hold_hours: 24
     min_adx: 20
+    min_rel_volume: 1.2
+  trend_pullback:
+    enabled: false
+    target_atr_multiple: 4.0
+    stop_atr_multiple: 2.0
+    max_hold_hours: 24
+    min_adx: 30
     max_ema_distance_atr: 0.5
   range_breakout:
-    enabled: true
+    enabled: false
     target_atr_multiple: 3.0
     stop_atr_multiple: 1.2
     max_hold_hours: 6
@@ -193,7 +203,7 @@ strategies:
     max_range_atr: 4.0
     min_rel_volume: 1.5
   funding_reversion:
-    enabled: true
+    enabled: false
     target_atr_multiple: 2.0
     stop_atr_multiple: 1.5
     max_hold_hours: 12
