@@ -389,6 +389,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Actualizar desde el panel (`bot/updater.py`, `/api/version`, `POST /api/actualizar`): git pull o ZIP de GitHub,
   nunca toca `.env`, `bot/data`, `bot/reports`, `.venv`; luego `reiniciar.flag` → el motor guarda y sale con código 10
   (`RESTART_CODE`) y los .bat/systemd lo rearrancan. Ideas del usuario: `POST /api/idea` → `reports/<modo>/ideas.md`.
+- Telegram entrante (`core/telegram_commands.py`): solo TELEGRAM_CHAT_ID; /estado /posiciones /hoy /solo_cierre /operar.
+  Ningún comando abre operaciones. Servidor: `deploy/instalar_servidor.sh` (systemd jarvis-bot/jarvis-panel, Tailscale,
+  iptables: puerto del panel solo por tailscale0).
 - Demo con capital nuevo: `bot/demo_reset.py` archiva la demo anterior en `bot/data/archivo/` (solo paper).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):

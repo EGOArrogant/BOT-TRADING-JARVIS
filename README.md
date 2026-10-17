@@ -25,6 +25,16 @@ salida y resumen diario llega a Telegram y a la campana del panel.
 PC, sección *Ver en tu celular*, escanea el QR con la cámara (mismo Wi-Fi; fuera de casa, con Tailscale). Sin la
 clave del QR nadie entra. `desactivar_celular.bat` lo apaga y cambia la clave.
 
+**Servidor en la nube (24/7, sin depender de la PC):** crea un servidor Ubuntu 24.04 (por ejemplo Oracle Cloud
+"Always Free" con región de casa en México: Querétaro o Monterrey) y en su consola ejecuta
+`curl -fsSL https://raw.githubusercontent.com/EGOArrogant/BOT-TRADING-JARVIS/main/deploy/instalar_servidor.sh | sudo bash`.
+Instala todo, revisa que Binance responda desde ahí, crea los servicios `jarvis-bot` y `jarvis-panel` (arrancan solos)
+y Tailscale: el panel solo se abre desde tus dispositivos de Tailscale y con la clave del QR que muestra al final.
+Con el bot en el servidor, apaga el de la PC (dos copias con el mismo Telegram chocan).
+
+**Comandos de Telegram:** `/estado`, `/posiciones`, `/hoy`, `/solo_cierre`, `/operar`, `/ayuda`. Solo responde a tu chat;
+ningún comando abre operaciones ni cambia límites.
+
 **Actualizar:** cierra el bot y el panel y haz doble clic en `actualizar.bat`: baja la versión más reciente de GitHub
 y reemplaza solo el código (no toca `.env`, `bot/data` ni `bot/reports`).
 

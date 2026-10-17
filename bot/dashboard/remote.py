@@ -14,7 +14,9 @@ from __future__ import annotations
 import hmac
 import ipaddress
 import secrets
+import shutil
 import socket
+import subprocess
 from pathlib import Path
 
 from bot.core.fsutil import atomic_write_text, read_text_retry
@@ -70,6 +72,11 @@ def local_ips() -> list[dict[str, str]]:
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
             found.append(str(info[4][0]))
     except OSError:
+        pass
+    try:  # en un servidor la IP de Tailscale no siempre aparece por el nombre del equipo
+        if shutil.which("tailscale"):
+            found += subprocess.run(["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=5).stdout.split()
+    except (OSError, ValueError, subprocess.SubprocessError):
         pass
     out, seen = [], set()
     for ip in found:

@@ -978,6 +978,9 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
     comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler),
                           lambda: engine._loop(3600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols),
                           lambda: engine._loop(5.0, check_restart)]
+    if settings.alerts.telegram_enabled and secrets.telegram_bot_token and secrets.telegram_chat_id:
+        from bot.core.telegram_commands import TelegramCommands  # /estado, /hoy, /solo_cierre... desde el teléfono
+        comps.extra_tasks.append(TelegramCommands(secrets.telegram_bot_token, secrets.telegram_chat_id, engine).run)
     await engine.run()
 
 

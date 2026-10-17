@@ -85,7 +85,8 @@ def main() -> int:
     set_env({"TELEGRAM_BOT_TOKEN": token, "TELEGRAM_CHAT_ID": chat_id})
     try:
         call(token, "sendMessage", chat_id=chat_id,
-             text="JARVIS · ✅ Listo: aquí te avisaré de cada entrada, salida y resumen del día.")
+             text="JARVIS · ✅ Listo: aquí te avisaré de cada entrada, salida y resumen del día.\n"
+                  "Escribe /ayuda para ver los comandos (por ejemplo /estado o /solo_cierre).")
     except Exception:  # noqa: BLE001
         pass
     print("\n [OK] Guardado. Revisa tu Telegram: te llegó un mensaje de prueba.")
