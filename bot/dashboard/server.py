@@ -34,7 +34,8 @@ CHART_JS = Path(__file__).with_name("vendor") / "lightweight-charts.js"  # Tradi
 QR_JS = Path(__file__).with_name("vendor") / "qrcode.js"  # QR Code Generator, Kazuhiko Arase (MIT)
 STATIC = Path(__file__).with_name("static")
 PUBLIC = {"/logo.svg": ("logo.svg", "image/svg+xml"), "/favicon.ico": ("logo.svg", "image/svg+xml"),
-          "/apple-touch-icon.png": ("apple-touch-icon.png", "image/png")}  # el logo no necesita clave
+          "/apple-touch-icon.png": ("apple-touch-icon.png", "image/png"), "/icon-512.png": ("icon-512.png", "image/png"),
+          "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json")}  # sin clave: solo logo e iconos
 LOCKED_PAGE = """<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>JARVIS</title><link rel="icon" href="/logo.svg"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <body style="font-family:-apple-system,sans-serif;padding:32px;max-width:520px;margin:auto;line-height:1.5">
