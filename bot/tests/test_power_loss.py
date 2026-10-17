@@ -62,3 +62,4 @@ def test_engine_starts_after_power_loss_and_resumes_by_itself(setup):
     for _ in range(3):
         asyncio.run(eng.reconcile(now))
     assert not eng.state.safe_mode  # todo cuadra con el exchange: vuelve a operar
+    assert not BotState.load_or_new(s.storage.state_path, 27.0, now.date()).safe_mode  # y queda guardado

@@ -482,6 +482,7 @@ class Engine:
             if self._clean_reconciles >= 3 and self.state.safe_mode_reason.startswith(("conciliación", "posicion",
                                                                                        "cantidad", "lado", "gestor")):
                 self.state.safe_mode, self.state.safe_mode_reason = False, ""
+                self.state.save(self.s.storage.state_path)  # que el panel y un reinicio lo vean de inmediato
                 self.alert("modo seguro levantado tras 3 conciliaciones limpias", level="warning")
 
     # ------------------------------------------------------------ papel: sobrevivir apagones
