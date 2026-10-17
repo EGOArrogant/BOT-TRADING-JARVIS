@@ -104,3 +104,15 @@ def test_activity_explains_why_it_is_not_trading():
     bad = activity([], 0, {"code": "falla", "label": "Sin saldo en Anthropic"}, {"code": "operando"}, ["trend_breakout"])
     assert bad["level"] == "bad" and "Sin saldo" in bad["items"][0]["text"]
     assert activity(cands, 2, {"code": "ok"}, {"code": "operando"}, ["trend_breakout"])["level"] == "ok"
+
+
+def test_ai_brier_rewards_informative_confidence():
+    from bot.metrics.performance import ai_brier
+    good = [{"ai_confidence": 0.9, "r": 1.0}] * 8 + [{"ai_confidence": 0.55, "r": -1.0}] * 8
+    bad = [{"ai_confidence": 0.55, "r": 1.0}] * 8 + [{"ai_confidence": 0.9, "r": -1.0}] * 8
+    assert ai_brier(good)["skill"] > 0 > ai_brier(bad)["skill"]
+    assert ai_brier([{"ai_confidence": None, "r": 1}])["n"] == 0
+    a = reports.analysis([{**t, "symbol": "ETHUSDT", "side": "LONG", "strategy": "trend_breakout", "pnl_net": t["r"],
+                           "fees": 0.01, "pnl_gross": t["r"], "opened_at": "2026-10-01T00:00:00+00:00",
+                           "closed_at": "2026-10-01T02:00:00+00:00"} for t in good], [], 27, 0.005, 0.10)
+    assert any(x["title"] == "¿La IA sabe cuánto sabe?" and "sí ayuda" in x["text"] for x in a)

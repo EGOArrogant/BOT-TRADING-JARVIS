@@ -205,6 +205,16 @@ def analysis(trades: list[dict], cands: list[dict], capital: float, risk_per_tra
                                     f"{num(hi, sign=True)} veces lo "
                                     "arriesgado. Hacen falta más operaciones para saberlo.")}[rb["edge"]]
             out.append({"title": verdict[0], "tone": verdict[1], "text": verdict[2]})
+        from bot.metrics.performance import ai_brier
+        b = ai_brier(trades)
+        if b.get("n", 0) >= 5:
+            good = b["skill"] > 0
+            out.append({"title": "¿La IA sabe cuánto sabe?", "tone": "pos" if good else "neutral",
+                        "text": f"Cuando aprueba, dice en promedio {b['confianza_media'] * 100:.0f} % de confianza y acierta el "
+                                f"{b['acierto'] * 100:.0f} % (puntaje Brier {num(b['brier'])}; menor es mejor). "
+                                + ("Su confianza sí ayuda a distinguir las mejores operaciones." if good else
+                                   "Por ahora su confianza no distingue bien las buenas de las malas.")
+                                + (" Con menos de 20 operaciones todavía es orientativo." if b["n"] < 20 else "")})
         by: dict[str, dict[str, list[float]]] = {"coin": defaultdict(list), "strategy": defaultdict(list),
                                                  "side": defaultdict(list)}
         for t in trades:

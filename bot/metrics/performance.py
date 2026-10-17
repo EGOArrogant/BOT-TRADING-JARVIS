@@ -110,6 +110,24 @@ def ai_calibration(trades: list[dict], buckets: tuple[float, ...] = (0.0, 0.5, 0
     return out
 
 
+def ai_brier(trades: list[dict]) -> dict:
+    """Brier de la confianza de la IA frente a si la operación ganó (0 = perfecta; menor es mejor).
+
+    `skill` compara contra decir siempre la tasa de acierto histórica: > 0 = la confianza informa algo,
+    ≤ 0 = la confianza no sirve (o está mal calibrada). Con n < 20, solo orientativo.
+    """
+    rows = [(float(t["ai_confidence"]), 1.0 if float(t["r"]) > 0 else 0.0) for t in trades
+            if t.get("ai_confidence") is not None]
+    if not rows:
+        return {"n": 0}
+    p = np.array([r[0] for r in rows])
+    y = np.array([r[1] for r in rows])
+    brier = float(np.mean((p - y) ** 2))
+    base = float(np.mean((y.mean() - y) ** 2))
+    return {"n": len(rows), "brier": brier, "skill": (1 - brier / base) if base > 0 else 0.0,
+            "confianza_media": float(p.mean()), "acierto": float(y.mean())}
+
+
 def rejection_stats(candidates: list[dict]) -> dict:
     n = len(candidates)
     if n == 0:

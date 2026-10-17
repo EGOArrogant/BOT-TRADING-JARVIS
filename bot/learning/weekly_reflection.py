@@ -21,7 +21,7 @@ from bot.core.logging_setup import get_logger
 from bot.learning.hypotheses import TUNABLE_PARAMS, Hypothesis
 from bot.learning.journal import Journal
 from bot.metrics import discipline, robustness
-from bot.metrics.performance import ai_calibration, by_dimension, rejection_stats, summarize
+from bot.metrics.performance import ai_brier, ai_calibration, by_dimension, rejection_stats, summarize
 
 log = get_logger("bot.reflection")
 
@@ -105,6 +105,7 @@ def build_week_payload(journal: Journal, start: datetime, end: datetime, capital
         "por_regimen": by_dimension(trades, "regime", capital) if trades else {},
         "por_hora": by_dimension(trades, "hour", capital) if trades else {},
         "calibracion_ia": ai_calibration(trades),
+        "brier_ia": ai_brier(trades),
         "candidatos": rejection_stats(cands_list),
         "contraste_top_bottom": _feature_contrast(trades, cands),
         "disciplina": discipline.evaluate(trades, cands_list, journal.events(start), capital)["checks"],
