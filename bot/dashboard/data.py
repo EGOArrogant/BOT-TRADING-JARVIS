@@ -57,6 +57,8 @@ def ai_health(calls: list[dict]) -> dict[str, Any]:
         reasons = " ".join(str(c["reason"]).lower() for c in last)
         if "credit" in reasons or "balance" in reasons or "billing" in reasons:
             label = "Sin saldo en Anthropic: recarga en console.anthropic.com"
+        elif "sin llave" in reasons:
+            label = "Falta la llave de la IA (Anthropic): doble clic en configurar_ia.bat"
         elif "api 401" in reasons or "authentication" in reasons or "api key" in reasons:
             label = "La llave de la IA no es válida: vuelve a ejecutar la revisión (python -m bot.revisar)"
         elif "api 429" in reasons:

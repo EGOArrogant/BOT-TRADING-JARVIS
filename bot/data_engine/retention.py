@@ -60,20 +60,26 @@ def compress_day(path: Path) -> int:
 
 
 def run(raw_dir: Path, today: date, retention_days: int, min_free_gb: float,
-        free_fn=free_gb) -> RetentionReport:
+        free_fn=free_gb, min_age_s: float = 1800) -> RetentionReport:
     rep = RetentionReport()
     if not raw_dir.exists():
         return rep
     sources = [d for d in raw_dir.iterdir() if d.is_dir()]
+    import time
     for src in sources:
         for f in sorted(src.glob("*.jsonl")):
             d = _day_of(f)
-            if d is not None and d < today:
-                try:
-                    rep.freed_mb += compress_day(f) / 1e6
-                    rep.compressed += 1
-                except OSError as exc:
-                    log.warning("no se pudo comprimir", extra={"file": str(f), "err": repr(exc)})
+            if d is None or d >= today:
+                continue
+            try:
+                if time.time() - f.stat().st_mtime < min_age_s:  # el grabador aún puede estar cerrando el día
+                    continue
+                rep.freed_mb += compress_day(f) / 1e6
+                rep.compressed += 1
+            except PermissionError:
+                pass  # abierto por otro proceso (Windows): se reintenta en la próxima revisión
+            except OSError as exc:
+                log.warning("no se pudo comprimir", extra={"file": str(f), "err": repr(exc)})
 
     def deletable() -> list[tuple[date, Path]]:
         out = []

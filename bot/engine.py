@@ -703,7 +703,7 @@ class Engine:
             positions = self.manager.positions if self.manager else {}
             snap = panel_snapshot.build(now, self.s.mode.value, self.c.states, positions,
                                         self.c.top_traders.summary() if self.c.top_traders else None)
-            snap["system"] = self.system_status(now)
+            snap["system"] = {**self.system_status(now), "ai_key": bool(self.secrets.anthropic_api_key)}
             panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME, snap)
         except Exception as exc:  # noqa: BLE001
             log.error("foto del panel falló", extra={"err": repr(exc)})

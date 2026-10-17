@@ -18,6 +18,9 @@ escéptico y el código controla todo el riesgo. La especificación completa est
 
 `python -m bot.revisar` repite la revisión cuando quieras.
 
+**Llave de la IA:** si el panel dice "Falta la llave de la IA", doble clic en `configurar_ia.bat`: pide la llave de
+Anthropic, la valida y la guarda en `.env`. Sin llave el bot nunca abre operaciones (por seguridad).
+
 **Notificaciones al teléfono:** doble clic en `configurar_telegram.bat` (te guía con @BotFather). Cada entrada,
 salida y resumen diario llega a Telegram y a la campana del panel.
 

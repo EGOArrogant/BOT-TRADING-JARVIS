@@ -1332,7 +1332,9 @@ function renderActivity() {
 
 function renderBanner() {
   var y = D.system || {}, items = [], bad = false;
-  if (y.ai && y.ai.code === "falla") { items.push("IA: " + y.ai.label); bad = true; }
+  if (y.ai_key === false) { items.push("Falta la llave de la IA (Anthropic) en el archivo .env: sin ella el bot nunca abre operaciones. " +
+    "Doble clic en configurar_ia.bat (en la carpeta del bot), pega tu llave y reinicia iniciar_demo.bat."); bad = true; }
+  else if (y.ai && y.ai.code === "falla") { items.push("IA: " + y.ai.label); bad = true; }
   if (y.low_disk) { items.push("Poco espacio en disco (" + y.free_gb + " GB libres): libera espacio en la PC"); bad = true; }
   if (y.safe_mode) items.push("Modo seguro activo: " + (y.safe_mode_reason || "") + ". No abre operaciones nuevas.");
   if ((y.unavailable || []).length) items.push("Monedas no disponibles en Binance (sin entradas): " + y.unavailable.map(coin).join(", "));

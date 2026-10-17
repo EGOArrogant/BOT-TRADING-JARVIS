@@ -26,7 +26,7 @@ def test_retention_compresses_and_deletes_only_high_volume(tmp_path):
         _make(raw, src, old)
         _make(raw, src, recent)
         _make(raw, src, TODAY)
-    rep = retention.run(raw, TODAY, retention_days=14, min_free_gb=1, free_fn=lambda p: 100.0)
+    rep = retention.run(raw, TODAY, retention_days=14, min_free_gb=1, free_fn=lambda p: 100.0, min_age_s=0)
     # hoy no se toca; lo demás se comprime
     assert (raw / "store" / f"{TODAY}.jsonl").exists() and rep.compressed == 8
     with gzip.open(raw / "btcusdt@kline_1m" / f"{recent}.jsonl.gz", "rt") as fh:
@@ -45,7 +45,7 @@ def test_low_disk_deletes_oldest_high_volume_first(tmp_path):
         _make(raw, "ethusdt@aggTrade", d)
         _make(raw, "store", d)
     free = iter([1.0, 1.5, 3.0, 3.0])          # GB libres tras cada borrado
-    rep = retention.run(raw, TODAY, retention_days=14, min_free_gb=2.0, free_fn=lambda p: next(free))
+    rep = retention.run(raw, TODAY, retention_days=14, min_free_gb=2.0, free_fn=lambda p: next(free), min_age_s=0)
     assert rep.deleted == [f"ethusdt@aggTrade/{days[0]}.jsonl.gz", f"ethusdt@aggTrade/{days[1]}.jsonl.gz"]
     assert not rep.low_disk and len(list((raw / "store").iterdir())) == 3
 
@@ -53,7 +53,7 @@ def test_low_disk_deletes_oldest_high_volume_first(tmp_path):
 def test_low_disk_alert_when_nothing_left_to_delete(tmp_path):
     raw = tmp_path / "raw"
     _make(raw, "store", TODAY - timedelta(days=3))
-    rep = retention.run(raw, TODAY, retention_days=14, min_free_gb=10.0, free_fn=lambda p: 1.0)
+    rep = retention.run(raw, TODAY, retention_days=14, min_free_gb=10.0, free_fn=lambda p: 1.0, min_age_s=0)
     assert rep.low_disk and rep.deleted == []
 
 

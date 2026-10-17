@@ -132,3 +132,28 @@ def test_demo_reset_never_blocks_startup_when_files_are_locked(tmp_path, monkeyp
     assert s.storage.db_path.exists()
     monkeypatch.undo()
     assert demo_reset.check(_settings(tmp_path, capital=27)) is not None  # en el siguiente arranque sí archiva
+
+
+def test_missing_anthropic_key_is_a_clean_no_trade():
+    import asyncio
+
+    from bot.ai_analyst.client import Analyst
+    from bot.core.models import AIAction
+
+    s = load_settings(mode="paper")
+    an = Analyst.__new__(Analyst)
+    an.cfg = s.ai
+
+    class B:
+        def available(self): return True
+        def consume(self): pass
+    an.budget = B()
+
+    async def boom(*a, **k):
+        raise TypeError("Could not resolve authentication method. Expected one of api_key, auth_token")
+    an._call = boom
+    res = asyncio.run(an.decide(None, "prompt"))
+    assert res.decision.action is AIAction.NO_TRADE and not res.valid and "sin llave" in res.reason
+    from bot.dashboard.data import ai_health
+    calls = [{"ts": "2026-10-17T03:00:00+00:00", "valid": 0, "reason": res.reason}] * 3
+    assert "configurar_ia.bat" in ai_health(calls)["label"]

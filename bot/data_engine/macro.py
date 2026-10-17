@@ -102,7 +102,8 @@ class MacroCalendar:
         self.updated_at = datetime.now(UTC)
         self.ok = ok
 
-    async def run(self, every_s: float) -> None:
+    async def run(self, every_s: float, retry_s: float = 900.0) -> None:
         while True:
             await self.refresh()
-            await asyncio.sleep(every_s)
+            # Si falló (p. ej. límite de consultas tras varios reinicios), reintentar en 15 min, no en 24 h
+            await asyncio.sleep(every_s if self.ok else min(every_s, retry_s))

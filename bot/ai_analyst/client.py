@@ -106,6 +106,12 @@ class Analyst:
             except anthropic.APIStatusError as exc:
                 return AnalystResult(Decision.no_trade("error API IA"), False,
                                      f"api {exc.status_code}: {str(getattr(exc, 'message', exc))[:160]}", raws)
+            except Exception as exc:  # noqa: BLE001  (p. ej. sin llave: TypeError del SDK) -> no operar, con motivo claro
+                msg = str(exc)
+                why = ("sin llave de Anthropic (api key): falta ANTHROPIC_API_KEY en .env"
+                       if "authentication" in msg.lower() or "api_key" in msg.lower() else f"falla IA: {msg[:160]}")
+                return AnalystResult(Decision.no_trade("IA no disponible"), False, why, raws,
+                                     latency_s=time.monotonic() - t0)
             usage = getattr(resp, "usage", None)
             if usage is not None:
                 tokens_in += getattr(usage, "input_tokens", 0) or 0
