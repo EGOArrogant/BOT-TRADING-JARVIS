@@ -403,7 +403,12 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Investigación: `bot/research/ic.py` (IC por indicador con BH-FDR), `bot/backtest/lookahead.py` (fugas de futuro,
   gancho `Backtester.on_features`), `metrics/multiple_testing.py` (Sharpe deflactado en `gates.paper_gate` con
   `RESEARCH_TRIALS`; BH-FDR + `welch_p` al promover retadores). Diario sellado: tabla `ledger` (cadena sha256) y
-  `Journal.verify_ledger()`, exigido por la puerta de papel. Estrategia activa: solo `trend_breakout` (ver README).
+  `Journal.verify_ledger()`, exigido por la puerta de papel. Estrategias activas: `trend_breakout` y
+  `discount_absorption` (método de Chris Kmer: descuento Fibonacci 70,5–88,6 % del impulso de 1 h + absorción +
+  giro; features `ind.1h.imp_*` de `ta.impulses` y `ind.15m.prev_*`; ver README). Parar tras 2 pérdidas seguidas se
+  probó y empeora: la pausa sigue en 4 pérdidas / 4 h.
+- Panel en rejilla de 12 columnas a partir de 1100 px (todas las secciones salvo Mercado, que es la terminal);
+  clases `dz-*` en `page.html`. Velas en verde/rojo de TradingView (`CANDLE_UP`/`CANDLE_DN`).
 - Demo con capital nuevo: `bot/demo_reset.py` archiva la demo anterior en `bot/data/archivo/` (solo paper).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):

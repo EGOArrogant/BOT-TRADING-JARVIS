@@ -24,7 +24,8 @@ COIN = {"BTCUSDT": "Bitcoin", "ETHUSDT": "Ethereum", "SOLUSDT": "Solana", "XRPUS
         "XLMUSDT": "Stellar"}
 STRATEGY = {"trend_pullback": "retroceso dentro de una tendencia", "range_breakout": "ruptura de un rango",
             "funding_reversion": "giro por exceso de apuestas en un sentido",
-            "trend_breakout": "ruptura a favor de la tendencia"}
+            "trend_breakout": "ruptura a favor de la tendencia",
+            "discount_absorption": "retroceso al descuento con absorción (método de Chris)"}
 EXIT = {"stop": "tocó su stop-loss (la pérdida máxima prevista)", "take_profit": "llegó a su objetivo",
         "trailing": "el stop que la iba siguiendo protegió la ganancia", "time": "pasó el tiempo sin avanzar",
         "time_max": "llegó al tiempo máximo", "invalidation": "la idea dejó de cumplirse",

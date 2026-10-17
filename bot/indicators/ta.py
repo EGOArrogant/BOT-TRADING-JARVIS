@@ -174,6 +174,31 @@ def structure_levels(h: np.ndarray, l: np.ndarray, c: np.ndarray, atr_last: floa
     return out
 
 
+def impulses(t_h: np.ndarray, h: np.ndarray, l: np.ndarray, t15: np.ndarray, h15: np.ndarray, l15: np.ndarray,
+             swing: int = 3, lookback: int = 120) -> dict[str, float | None]:
+    """Último impulso de 1 h en cada sentido, para medir retrocesos de Fibonacci (estrategia discount_absorption).
+
+    Alcista: último giro máximo (up_high) y el mínimo más bajo de los 3 giros mínimos anteriores (up_low); up_ext es
+    el mínimo de las velas de 15 min desde la hora de ese máximo (¿cuánto retrocedió ya?). Bajista: simétrico.
+    Solo usa velas cerradas (los giros necesitan `swing` horas después).
+    """
+    out: dict[str, float | None] = {k: None for k in ("up_high", "up_low", "up_ext", "dn_low", "dn_high", "dn_ext")}
+    highs, lows = pivots(h, l, swing, lookback)
+    if highs:
+        ih, top = highs[-1]
+        before = [x for x in lows if x[0] < ih][-3:]
+        if before:
+            m = t15 >= t_h[ih]
+            out.update(up_high=top, up_low=min(p for _, p in before), up_ext=float(l15[m].min()) if m.any() else None)
+    if lows:
+        il, bottom = lows[-1]
+        before = [x for x in highs if x[0] < il][-3:]
+        if before:
+            m = t15 >= t_h[il]
+            out.update(dn_low=bottom, dn_high=max(p for _, p in before), dn_ext=float(h15[m].max()) if m.any() else None)
+    return out
+
+
 def daily_vwap(t_ms: np.ndarray, h: np.ndarray, l: np.ndarray, c: np.ndarray, v: np.ndarray) -> float | None:
     if len(t_ms) == 0:
         return None

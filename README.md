@@ -49,6 +49,16 @@ mejoró el resultado. La pausa por bajo rendimiento lo empeoró (queda apagada).
 las ganancias" (objetivo 4:1, 48 h, parcial en 2R) fue lo único que mejoró: positivo en ajuste y comprobación (PF 1.05);
 mover el stop a "sin pérdida" en 1R, el sesgo diario de BTC y filtrar por sesiones lo empeoraron. El chequeo de mirar al futuro
 (`python -m bot.backtest.lookahead`) no encontró fugas en los datos reales.
+**Método de Chris Kmer** (campeón del Robbins World Cup, julio 2026; transcripción de su entrevista) en reglas como
+`discount_absorption`: entorno (impulso de 1 h), ubicación (retroceso al 70,5–88,6 % de Fibonacci sin pasar del 88,6 %),
+confirmación (en la vela anterior los agresores contrarios no lograron mover el precio y la vela actual gira a favor con
+su extremo más adentro), stop detrás de esos agresores y objetivo en el extremo del impulso (≥ 1,5 a 1). Con los 13
+meses: +0,41R por operación sola (ajuste +0,44 / comprobación +0,36, PF ≈ 1,5, 104 operaciones); **sin la confirmación
+pierde** (−0,16R en 1018 entradas), igual que con la zona del 61,8 % (−0,29R): exactamente su punto de "no anticipar".
+Junto a `trend_breakout` y con las guardias reales: +0,066R por operación (+0,041 / +0,103) contra +0,036R de
+`trend_breakout` sola, sin tocar la detención. Su regla de parar tras 2 pérdidas seguidas (pensada para el tilt humano)
+empeoró los resultados y llevó a la detención: no se adoptó. Implementación idéntica a la del laboratorio (10/10
+operaciones iguales) y sin fugas de futuro.
 Niveles de estructura (giros de 1 h, Fibonacci, espacio hasta soporte/resistencia; ~200 días de velas de 1 h de
 Hyperliquid, las 6 monedas): la posición dentro del último tramo (`ind.1h.fib_pos`) predice débil pero con el mismo
 signo en todas (IC ≈ −0.05 a 4 h: arriba del tramo, retroceso leve). El espacio hasta el siguiente nivel no hizo

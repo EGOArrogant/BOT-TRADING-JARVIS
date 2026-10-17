@@ -196,6 +196,24 @@ strategies:
     max_hold_hours: 48
     min_adx: 20
     min_rel_volume: 1.2
+  # Idea de Chris Kmer (campeón del Robbins World Cup, julio 2026) en reglas: retroceso al 70,5–88,6 % del último
+  # impulso de 1 h + absorción (agresores contrarios sin resultado) + giro; stop detrás de ellos, objetivo el extremo.
+  # 13 meses, 6 monedas, costos reales: sola +0.41R/op sin guardias (ajuste +0.44 / comprobación +0.36, PF ~1.5,
+  # n=104); SIN la confirmación pierde (−0.16R, n=1018) y con zona 61,8 % también (−0.29R). Junto a trend_breakout y con
+  # guardias reales: +0.066R/op (ajuste +0.041 / comprobación +0.103) contra +0.036R solo trend_breakout, sin tocar la
+  # detención. La regla de parar tras 2 pérdidas seguidas empeoró (lleva a la detención): no se adopta.
+  discount_absorption:
+    enabled: true
+    target_atr_multiple: 4.0    # no se usa: el objetivo es el extremo del impulso de 1 h
+    stop_atr_multiple: 1.0      # stop mínimo (CLAUDE.md §9); normalmente queda detrás de los agresores que fallaron
+    max_hold_hours: 12
+    zone_low: 0.705
+    zone_high: 0.886
+    invalid_beyond: 0.886
+    min_delta: 0.05
+    min_rr: 1.5
+    min_impulse_atr1h: 2.0
+    stop_buffer_atr: 0.1
   trend_pullback:
     enabled: false
     target_atr_multiple: 4.0

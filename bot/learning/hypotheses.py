@@ -29,6 +29,7 @@ TUNABLE_PARAMS = {
                        "min_rel_volume"},
     "funding_reversion": {"enabled", "target_atr_multiple", "max_hold_hours", "min_funding_z", "min_fng_extreme"},
     "trend_breakout": {"enabled", "target_atr_multiple", "max_hold_hours", "min_adx", "min_rel_volume"},
+    "discount_absorption": {"enabled", "max_hold_hours", "min_rr", "min_delta", "zone_low", "zone_high"},
 }
 FIELD_PREFIXES = ("ind.", "sent.", "deriv.", "dex.", "vol.", "onchain.")
 MIN_EDGE_FLOOR = 3.0

@@ -94,6 +94,23 @@ def compute_features(state: MarketState, store: FeedStore, now: datetime,
     for k in ("swing_high", "swing_low", "fib_pos", "room_up_atr", "room_down_atr"):
         _put(out, f"ind.1h.{k}", lv.get(k), ts_1h)
 
+    # --- impulso de 1 h + las dos últimas velas de 15 min (absorción y giro): estrategia discount_absorption
+    a15 = arrays["15m"]
+    ts_15 = out.get("ind.15m.close", DataPoint.unknown(SRC)).ts
+    imp = ta.impulses(h1["t"], h1["h"], h1["l"], a15["t"], a15["h"], a15["l"]) if len(h1["c"]) >= 60 else {}
+    for k in ("up_high", "up_low", "up_ext", "dn_low", "dn_high", "dn_ext"):
+        _put(out, f"ind.1h.imp_{k}", imp.get(k), ts_15)
+    if len(a15["c"]) >= 2:
+        v_prev = a15["v"][-2]
+        for k, arr in (("open", a15["o"]), ("high", a15["h"]), ("low", a15["l"])):
+            _put(out, f"ind.15m.{k}", float(arr[-1]), ts_15)
+        for k, arr in (("open", a15["o"]), ("high", a15["h"]), ("low", a15["l"]), ("close", a15["c"])):
+            _put(out, f"ind.15m.prev_{k}", float(arr[-2]), ts_15)
+        _put(out, "ind.15m.prev_delta_ratio", float(a15["delta"][-2] / v_prev) if v_prev > 0 else None, ts_15)
+    else:
+        for k in ("open", "high", "low", "prev_open", "prev_high", "prev_low", "prev_close", "prev_delta_ratio"):
+            _put(out, f"ind.15m.{k}", None, None)
+
     # --- volatilidad realizada
     _put(out, "ind.rv_1h", realized_vol(one_m["c"][-61:], 1) if len(one_m["c"]) >= 61 else None, ts_1m)
     _put(out, "ind.rv_24h", realized_vol(h1["c"][-25:], 60) if len(h1["c"]) >= 25 else None, ts_1h)

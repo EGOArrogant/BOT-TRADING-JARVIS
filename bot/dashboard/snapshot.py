@@ -15,7 +15,7 @@ from typing import Any
 from bot.core.fsutil import atomic_write_text, read_text_retry
 from bot.core.config import StrategyParams
 from bot.core.models import DataPoint, Position, Side
-from bot.filters.strategies import breakout_checklist
+from bot.filters.strategies import absorption_checklist, breakout_checklist
 from bot.data_engine.market_state import MarketState
 from bot.indicators import ta
 
@@ -53,9 +53,11 @@ def view(fields: dict[str, DataPoint], strategies: dict[str, StrategyParams], qu
     out: dict[str, Any] = {"ts": now.isoformat(), "quality": round(quality, 3),
                            "regime": reg.value if reg is not None and reg.is_ok else None,
                            "fields": {k: (fields[k].value if k in fields and fields[k].is_ok else None) for k in VIEW_KEYS}}
-    tb = strategies.get("trend_breakout")
-    if tb is not None and tb.enabled:
-        out["checklist"] = breakout_checklist(fields, tb)
+    out["checklists"] = []
+    for name, fn in (("trend_breakout", breakout_checklist), ("discount_absorption", absorption_checklist)):
+        p = strategies.get(name)
+        if p is not None and p.enabled:
+            out["checklists"].append(fn(fields, p))
     return out
 
 

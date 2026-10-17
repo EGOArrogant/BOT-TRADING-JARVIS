@@ -46,6 +46,11 @@ espacio, en ATR de 1 h, hasta la resistencia más cercana por arriba y el soport
 ~200 días de velas de 1 h su poder predictivo fue débil: fib_pos alto precedió retrocesos leves (IC ≈ −0,05) y, contra la \
 intuición, las rupturas con poco espacio hasta el siguiente nivel no salieron peores. Son contexto, nunca razón única.
 
+- Estrategias: trend_breakout = ruptura del rango de 6 h a favor de la tendencia de 1 h (compra caro a propósito: \
+continuación). discount_absorption = retroceso al 70,5–88,6 % del último impulso de 1 h donde los agresores contrarios \
+(delta en contra) no lograron mover el precio y la vela siguiente giró a favor; el stop va detrás de esos agresores y \
+el objetivo es el extremo del impulso. En backtest, sin esa confirmación de absorción la idea pierde: valórala.
+
 Responde únicamente con el JSON del esquema."""
 
 

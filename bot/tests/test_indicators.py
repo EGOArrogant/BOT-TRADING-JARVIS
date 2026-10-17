@@ -137,9 +137,11 @@ def test_panel_view_explains_what_the_strategy_needs():
     from bot.core.config import StrategyParams
     from bot.dashboard import snapshot
     f = compute_features(_trend_state("ETHUSDT", 0.003), FeedStore(), NOW)
-    v = snapshot.view(f, {"trend_breakout": StrategyParams.model_validate({"min_adx": 20, "min_rel_volume": 1.2})}, 0.9, NOW)
-    assert v["regime"] == Regime.TREND_UP.value and v["checklist"]["side"] == "LONG"
-    keys = [i["key"] for i in v["checklist"]["items"]]
-    assert keys == ["trend", "adx", "volume", "break"] and v["checklist"]["ready"] == all(i["ok"] for i in v["checklist"]["items"])
+    v = snapshot.view(f, {"trend_breakout": StrategyParams.model_validate({"min_adx": 20, "min_rel_volume": 1.2}),
+                          "discount_absorption": StrategyParams()}, 0.9, NOW)
+    tb, da = v["checklists"]
+    assert v["regime"] == Regime.TREND_UP.value and tb["side"] == "LONG"
+    assert [i["key"] for i in tb["items"]] == ["trend", "adx", "volume", "break"] and tb["ready"] == all(i["ok"] for i in tb["items"])
+    assert da["strategy"] == "discount_absorption" and [i["key"] for i in da["items"]] == ["impulse", "zone", "absorb", "shift"]
     assert set(v["fields"]) == set(snapshot.VIEW_KEYS)
-    assert "checklist" not in snapshot.view(f, {}, 0.9, NOW)
+    assert snapshot.view(f, {}, 0.9, NOW)["checklists"] == []

@@ -484,6 +484,33 @@ body[data-view="mercado"] .page-head{display:none}
   .term .tv-chart{height:var(--tvh)}
   .term .jd-bar{height:auto}
 }
+/* ---------- Todas las secciones en horizontal (rejilla de 12 columnas, como la terminal de Mercado) ---------- */
+@media (min-width:1100px){
+  body:not([data-view="mercado"]) main{max-width:1900px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:14px;align-items:start;grid-auto-flow:row}
+  body:not([data-view="mercado"]) main>*{grid-column:1/-1;order:10}
+  body:not([data-view="mercado"]) main>header.nav{order:-1}
+  body:not([data-view="mercado"]) main>section,body:not([data-view="mercado"]) main>.grid2,body:not([data-view="mercado"]) main>.card,body:not([data-view="mercado"]) main>.kpis{margin-top:14px}
+  body:not([data-view="mercado"]) main>.card{padding:16px 18px}
+  body:not([data-view="mercado"]) main>.page-head{order:0}
+  body:not([data-view="mercado"]) main>#banner,body:not([data-view="mercado"]) main>#err{order:1}
+  body:not([data-view="mercado"]) main>#kpis{order:2}
+  body:not([data-view="mercado"]) main>#actCard{order:3;grid-column:span 4}
+  body:not([data-view="mercado"]) main>.controls{order:4;grid-column:span 5}
+  body:not([data-view="mercado"]) main>#statusDetail{order:5;grid-column:span 3;align-self:stretch}
+  body:not([data-view="mercado"]) main>.dz-pos{order:6;grid-template-columns:5fr 7fr}
+  body:not([data-view="mercado"]) main>.dz-trades{grid-column:span 7}
+  body:not([data-view="mercado"]) main>.dz-dec{grid-column:span 5}
+  body:not([data-view="mercado"]) main>.dz-half{grid-column:span 6;align-self:stretch}
+  body:not([data-view="mercado"]) main>.dz-sys{grid-column:span 8;grid-row:span 2}
+  body:not([data-view="mercado"]) main>.dz-side{grid-column:span 4}
+  body:not([data-view="mercado"]) main>.dz-days{grid-column:span 7;grid-row:span 2}
+  body:not([data-view="mercado"]) main>.dz-side5{grid-column:span 5}
+  body:not([data-view="mercado"]) main>p{order:20}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  /* listas largas: se desplazan dentro de su tarjeta en vez de alargar la página */
+  #trades,#decisions,#bitacora,#repDays,#positions{max-height:calc(100vh - 250px);overflow:auto}
+  #trades thead th,#decisions thead th,#positions thead th{position:sticky;top:0;z-index:1;background:var(--card)}
+}
 </style>
 </head>
 <body>
@@ -655,7 +682,7 @@ body[data-view="mercado"] .page-head{display:none}
     </div>
   </section>
 
-  <div class="grid2" data-view="inicio">
+  <div class="grid2 dz-pos" data-view="inicio">
     <section class="card">
       <h2>Posiciones abiertas</h2>
       <div class="scroll" id="positions"></div>
@@ -666,7 +693,7 @@ body[data-view="mercado"] .page-head{display:none}
     </section>
   </div>
 
-  <section class="card" data-view="operaciones">
+  <section class="card dz-trades" data-view="operaciones">
     <div class="row-head">
       <h2 style="margin:0">Operaciones cerradas</h2>
       <div class="tools">
@@ -679,7 +706,7 @@ body[data-view="mercado"] .page-head{display:none}
     <div class="scroll" id="trades"></div>
   </section>
 
-  <section class="card" data-view="rendimiento">
+  <section class="card dz-half" data-view="rendimiento">
     <div class="row-head">
       <h2 style="margin:0">Rendimiento <span class="muted small">(todo el periodo de prueba)</span></h2>
       <div class="tabs" id="perfTabs" role="group" aria-label="Agrupar por" style="margin:0">
@@ -693,7 +720,7 @@ body[data-view="mercado"] .page-head{display:none}
       Con pocas operaciones (n) los números todavía son suerte.</div>
   </section>
 
-  <section class="card" data-view="rendimiento">
+  <section class="card dz-half" data-view="rendimiento">
     <div class="row-head">
       <h2 style="margin:0">¿Ventaja real o suerte? <span class="muted small">(estadística de la estrategia)</span></h2>
       <div class="tabs" id="statTabs" role="group" aria-label="Muestra" style="margin:0">
@@ -725,7 +752,7 @@ body[data-view="mercado"] .page-head{display:none}
     <ul class="disc" id="discList"></ul>
   </section>
 
-  <div class="grid2" data-view="sistema">
+  <div class="grid2 dz-sys" data-view="sistema">
     <section class="card">
       <h2>Salud del sistema</h2>
       <ul class="health" id="health"></ul>
@@ -743,7 +770,7 @@ body[data-view="mercado"] .page-head{display:none}
     </div>
     <div class="rep-grid" id="repAnalysis"><div class="muted">Cargando…</div></div>
   </section>
-  <section class="card" data-view="reportes">
+  <section class="card dz-days" data-view="reportes">
     <div class="row-head">
       <h2 style="margin:0">Resumen de cada día <span class="muted small">(día del bot en hora UTC)</span></h2>
       <div class="tabs" id="repFilter" role="group" aria-label="Filtrar días" style="margin:0">
@@ -755,11 +782,11 @@ body[data-view="mercado"] .page-head{display:none}
     </div>
     <div class="rep-days" id="repDays"></div>
   </section>
-  <section class="card" data-view="reportes">
+  <section class="card dz-side5" data-view="reportes">
     <h2>Reflexión semanal <span class="muted small">(la IA revisa la semana y propone como mucho 3 ideas para probar)</span></h2>
     <div id="repWeekly"></div>
   </section>
-  <section class="card" data-view="reportes">
+  <section class="card dz-side5" data-view="reportes">
     <details id="zoneBox">
       <summary><b>Versión técnica del reporte de hoy</b> <span class="muted small" id="zoneDay"></span></summary>
       <pre class="zone" id="zoneText"></pre>
@@ -770,12 +797,12 @@ body[data-view="mercado"] .page-head{display:none}
     </details>
   </section>
 
-  <section class="card" data-view="operaciones">
+  <section class="card dz-dec" data-view="operaciones">
     <h2>Decisiones recientes <span class="muted small">(qué vio y por qué operó o no)</span></h2>
     <div class="scroll" id="decisions"></div>
   </section>
 
-  <section class="card" data-view="sistema" id="updCard">
+  <section class="card dz-side" data-view="sistema" id="updCard">
     <div class="row-head">
       <h2 style="margin:0">Actualizaciones e ideas <span class="muted small">(mejoras nuevas del bot)</span></h2>
       <div class="tools"><button type="button" class="btn ghost" id="updCheck">Buscar actualizaciones</button></div>
@@ -790,7 +817,7 @@ body[data-view="mercado"] .page-head{display:none}
       <pre class="zone" id="ideaList" hidden></pre>
     </div>
   </section>
-  <section class="card" id="phoneCard" data-view="sistema" hidden>
+  <section class="card dz-side" id="phoneCard" data-view="sistema" hidden>
     <h2>Ver en tu celular</h2>
     <div class="phone" id="phoneBody"></div>
   </section>
@@ -960,6 +987,7 @@ try { var tvc = JSON.parse(localStorage.getItem("jarvis-tv") || "{}"); if (tvc.t
   if (tvc.kind) TV.cfg.kind = tvc.kind; if (tvc.ind) TV.cfg.ind = tvc.ind;
   TV.lines = JSON.parse(localStorage.getItem("jarvis-tv-lineas") || "{}"); } catch (e) {}
 function tvSave() { try { localStorage.setItem("jarvis-tv", JSON.stringify(TV.cfg)); } catch (e) {} }
+var CANDLE_UP = "#26a69a", CANDLE_DN = "#ef5350";  // verde y rojo suaves de TradingView (más fáciles de ver)
 function cssv(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
 function tvTime(ms) { return Math.floor(ms / 1000) - new Date(ms).getTimezoneOffset() * 60; }  // el gráfico muestra hora local
 
@@ -968,7 +996,7 @@ function tvTheme() {
   var ink = cssv("--ink2"), grid = cssv("--grid");
   TV.chart.applyOptions({layout: {background: {type: "solid", color: cssv("--card")}, textColor: ink, fontFamily: "Inter, -apple-system, sans-serif"},
     grid: {vertLines: {color: grid}, horzLines: {color: grid}}, rightPriceScale: {borderColor: grid}, timeScale: {borderColor: grid}});
-  var up = cssv("--good"), dn = cssv("--bad");
+  var up = CANDLE_UP, dn = CANDLE_DN;
   if (TV.s.candle) TV.s.candle.applyOptions({upColor: up, downColor: dn, wickUpColor: up, wickDownColor: dn, borderVisible: false});
   if (TV.s.line) TV.s.line.applyOptions({color: cssv("--series")});
   if (window.JDraw) JDraw.themeChanged();
@@ -1062,7 +1090,7 @@ function series(bars, vals) {
 
 function tvPaint() {
   if (!TV.chart) return;
-  var bars = TV.bars, ind = TV.cfg.ind, velas = TV.cfg.kind === "velas", up = cssv("--good"), dn = cssv("--bad");
+  var bars = TV.bars, ind = TV.cfg.ind, velas = TV.cfg.kind === "velas", up = CANDLE_UP, dn = CANDLE_DN;
   var closes = bars.map(function (b) { return b[4]; });
   TV.s.candle.applyOptions({visible: velas}); TV.s.line.applyOptions({visible: !velas});
   TV.s.candle.setData(bars.map(function (b) { return {time: tvTime(b[0]), open: b[1], high: b[2], low: b[3], close: b[4]}; }));
@@ -1270,11 +1298,12 @@ var CONTEXT = [["Funding", "funding.rate"], ["Funding vs 30 días (z)", "ind.fun
 function renderAnalysis() {
   var el = $("sideAn"), v = (D.views || {})[SEL];
   if (!v) { el.innerHTML = '<div class="empty">JARVIS revisa cada moneda al cerrar cada vela de 15 min. Aparecerá aquí después de la primera revisión.</div>'; return; }
-  var age = (Date.now() - Date.parse(v.ts)) / 1000, ck = v.checklist, h = "";
+  var age = (Date.now() - Date.parse(v.ts)) / 1000, h = "", cur = nowPrice(SEL);
+  var lists = v.checklists || (v.checklist ? [v.checklist] : []);
   h += '<div class="an-h"><b>Lo que ve JARVIS</b><span class="muted small">revisó ' + esc(ago(age)) + "</span></div>";
-  if (ck) {
-    var cur = nowPrice(SEL);
-    h += '<div class="an-sec">' + (ck.side ? "Para entrar en " + ck.side + " necesita" : "Ruptura a favor de la tendencia") + "</div>";
+  lists.forEach(function (ck) {
+    var name = PERF_NAMES[ck.strategy] || ck.strategy;
+    h += '<div class="an-sec">' + esc(name) + (ck.side ? " · " + ck.side : "") + "</div>";
     h += ck.items.map(function (it) {
       var val = "";
       if (it.key === "trend") val = it.value ? (REGIME[it.value] || [it.value])[0] : "—";
@@ -1285,15 +1314,18 @@ function renderAnalysis() {
         else if (it.ok) val = "rompió " + price(it.level);
         else { var gap = cur ? it.level / cur - 1 : it.gap_pct; val = price(it.level) + (gap != null ? " (falta " + pct(gap, true) + ")" : ""); }
       }
+      else if (it.key === "impulse") val = it.value == null ? "—" : price(it.value) + " → " + price(it.level);
+      else if (it.key === "zone") val = it.value == null ? "—" : (it.value * 100).toFixed(0) + "% (zona " + price(it.level) + "–" + price(it.level2) + ")";
+      else if (it.key === "absorb") val = it.value == null ? "—" : "delta " + (it.value * 100).toFixed(0) + "%";
       return '<div class="chk ' + (it.ok ? "ok" : "no") + '"><span class="i">' + (it.ok ? "✓" : "✕") + "</span><span>" + esc(it.label) +
         '</span><span class="v">' + esc(val) + "</span></div>";
     }).join("");
     var miss = ck.items.filter(function (i) { return !i.ok; }).length;
     h += '<div class="verdict' + (ck.ready ? " ready" : "") + '">' + (ck.ready
       ? "<b>Se cumplen todas.</b> Es candidato: pasa por los filtros de riesgo y la IA decide si entra."
-      : !ck.side ? "Sin tendencia clara en 1 h: esta estrategia no busca entradas en esta moneda ahora."
+      : !ck.side ? "Ahora no hay un impulso o tendencia clara: esta estrategia no busca entradas en esta moneda."
       : "Falta" + (miss > 1 ? "n " + miss + " condiciones" : " 1 condición") + ". Se revisa al cerrar cada vela de 15 min.") + "</div>";
-  }
+  });
   var p = (D.positions || []).filter(function (x) { return x.symbol === SEL; })[0];
   if (p) {
     var risk = Math.abs(p.entry - (p.initial_stop || p.stop)), r = risk && p.mark ? (p.side === "LONG" ? p.mark - p.entry : p.entry - p.mark) / risk : null;
@@ -1721,7 +1753,8 @@ function renderBitacora() {
 
 var PERF = "strategy";
 var PERF_NAMES = {LONG: "Long (sube)", SHORT: "Short (baja)", trend_pullback: "Retroceso en tendencia",
-  range_breakout: "Ruptura de rango", funding_reversion: "Reversión por funding", trend_breakout: "Ruptura a favor de la tendencia", adoptada: "Recuperada tras reinicio"};
+  range_breakout: "Ruptura de rango", funding_reversion: "Reversión por funding", trend_breakout: "Ruptura a favor de la tendencia",
+  discount_absorption: "Retroceso al descuento con absorción", adoptada: "Recuperada tras reinicio"};
 function renderPerf() {
   $("perfTabs").querySelectorAll("button").forEach(function (b) {
     b.setAttribute("aria-pressed", String(b.dataset.k === PERF));
