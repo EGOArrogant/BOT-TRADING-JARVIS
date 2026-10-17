@@ -127,6 +127,7 @@ class Backtester:
         self.store = store or FeedStore()
         self._scratch: dict[str, FeedStore] = {}
         self.warmup = warmup_bars_15m
+        self.on_features = None  # gancho (símbolo, cierre, indicadores): lo usa el chequeo de mirar al futuro
 
     def _funding_1h(self, sym: str, asof: datetime) -> float:
         """Funding por hora a la fecha: el grabado si existe, si no el supuesto."""
@@ -216,6 +217,8 @@ class Backtester:
                 if by_time[sym].get(t) is None:
                     continue
                 f = self._features(sym, states[sym], bar_close)
+                if self.on_features is not None:
+                    self.on_features(sym, bar_close, f)
                 for sig in generate(sym, f, strategies, self.s.exchange.fees, bar_close, quality=1.0):
                     candidates += 1
                     checks = [check_edge(sig, self.s.filters), check_extreme_vol(f, self.s.filters),
