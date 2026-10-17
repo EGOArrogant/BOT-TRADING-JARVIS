@@ -111,6 +111,8 @@ def paper_gate(db: Path, capital: float, risk_per_trade: float = 0.005, halt_dra
     checks["ventaja estadística (IC 95 % de la esperanza > 0)"] = bool(rob.get("enough") and rob["edge"] == "confirmada")
     checks[f"Monte Carlo: prob. de tocar la detención < {PAPER_MAX_HALT_PROB:.0%}"] = bool(
         rob.get("enough") and rob["mc_prob_halt"] < PAPER_MAX_HALT_PROB)
+    led = j.verify_ledger()
+    checks["diario sellado e íntegro (ninguna operación alterada)"] = led["ok"] and led["unsealed"] == 0
     j.close()
     return {"ok": all(checks.values()), "checks": checks, "dias": round(days, 1), "resumen": s,
             "robustez": {k: rob.get(k) for k in ("n", "expectancy_ci", "mc_dd_p95", "mc_prob_halt", "fragile")}}

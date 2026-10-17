@@ -3,9 +3,10 @@ cada operación cerrada y eventos operativos. Es la fuente del aprendizaje."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,10 @@ CREATE TABLE IF NOT EXISTS trades (
     data TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_trades_closed ON trades(closed_at);
+CREATE TABLE IF NOT EXISTS ledger (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, trade_id TEXT NOT NULL,
+    digest TEXT NOT NULL, prev TEXT NOT NULL, hash TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT
 );
@@ -117,7 +122,42 @@ class Journal:
              float(t.funding), float(t.r_multiple), float(t.slippage_pct), int(t.entry_maker), t.ai_confidence,
              t.model_dump_json()),
         )
+        self._seal(t.id)
         self.db.commit()
+
+    # ------------------------------------------------------------ sello del diario (cadena de huellas)
+    TRADE_COLS = ("id, signal_id, symbol, side, strategy, regime, opened_at, closed_at, exit_reason, pnl_gross, pnl_net,"
+                  " fees, funding, r, slippage_pct, entry_maker, ai_confidence, data")
+
+    def _digest(self, trade_id: str) -> str | None:
+        row = self.db.execute(f"SELECT {self.TRADE_COLS} FROM trades WHERE id=?", (trade_id,)).fetchone()
+        return hashlib.sha256(json.dumps(list(row), sort_keys=True, default=str).encode()).hexdigest() if row else None
+
+    def _seal(self, trade_id: str) -> None:
+        """Cada operación cerrada se encadena con la anterior: cambiar o borrar una rompe la cadena."""
+        digest = self._digest(trade_id)
+        last = self.db.execute("SELECT hash FROM ledger ORDER BY seq DESC LIMIT 1").fetchone()
+        prev = last[0] if last else "0" * 64
+        h = hashlib.sha256(f"{prev}|{trade_id}|{digest}".encode()).hexdigest()
+        self.db.execute("INSERT INTO ledger (ts, trade_id, digest, prev, hash) VALUES (?,?,?,?,?)",
+                        (datetime.now(UTC).isoformat(), trade_id, digest, prev, h))
+
+    def verify_ledger(self) -> dict[str, Any]:
+        """¿El diario de operaciones sigue igual que cuando se cerró cada operación?"""
+        prev, latest, broken = "0" * 64, {}, None
+        rows = self.db.execute("SELECT seq, trade_id, digest, prev, hash FROM ledger ORDER BY seq").fetchall()
+        for seq, tid, digest, p, h in rows:
+            if p != prev or hashlib.sha256(f"{p}|{tid}|{digest}".encode()).hexdigest() != h:
+                broken = seq
+                break
+            latest[tid] = digest
+            prev = h
+        ids = [r[0] for r in self.db.execute("SELECT id FROM trades")]
+        altered = [i for i in ids if i in latest and self._digest(i) != latest[i]]
+        missing = [i for i in latest if i not in set(ids)]
+        unsealed = [i for i in ids if i not in latest]
+        return {"ok": broken is None and not altered and not missing, "entries": len(rows), "broken_at": broken,
+                "altered": altered, "missing": missing, "unsealed": len(unsealed)}
 
     def record_event(self, ts: datetime, kind: str, payload: dict) -> None:
         self.db.execute("INSERT INTO events (ts, kind, payload) VALUES (?,?,?)", (ts.isoformat(), kind, _j(payload)))
