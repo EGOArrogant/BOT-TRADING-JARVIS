@@ -120,10 +120,10 @@ def activity(cands: list[dict], entries_24h: int, ai: dict[str, Any], status: di
                                                 "evidencia es clara. Su acierto se mide en Rendimiento → ¿Ventaja real o suerte?"})
     if st.get("sin_llenado"):
         items.append({"level": "info", "text": f"{st['sin_llenado']} órdenes no se llenaron (el precio no volvió a su nivel)."})
-    if entries_24h:
+    if items and items[0]["level"] == "bad":
+        head, level = "No está abriendo operaciones por una causa que hay que revisar (abajo).", "bad"
+    elif entries_24h:
         head, level = f"Operando: {entries_24h} entrada(s) en las últimas 24 h.", "ok"
-    elif items and items[0]["level"] == "bad":
-        head, level = "No está operando por una causa que hay que revisar.", "bad"
     else:
         head, level = "Sin entradas en 24 h: está esperando una oportunidad clara.", "warn" if cands else "info"
     return {"headline": head, "level": level, "items": items, "candidates": len(cands), "strategies": names,
