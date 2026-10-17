@@ -143,7 +143,7 @@ class RiskEngine:
             return Check(False, "máximo de operaciones por moneda hoy")
         closes = [c for c in state.closes if c.symbol == symbol]
         same = [c for c in closes if c.side is side][-self.limits.underperf_lookback_trades:]
-        if len(same) >= self.limits.underperf_lookback_trades and state.equity > 0:
+        if self.limits.underperf_enabled and len(same) >= self.limits.underperf_lookback_trades and state.equity > 0:
             lost = -sum(c.pnl_net for c in same) / state.equity
             until = same[-1].closed_at + timedelta(hours=self.limits.underperf_lock_hours)
             if lost > self.limits.underperf_max_loss_pct and now < until:

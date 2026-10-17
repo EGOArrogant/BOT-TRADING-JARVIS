@@ -392,6 +392,10 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Telegram entrante (`core/telegram_commands.py`): solo TELEGRAM_CHAT_ID; /estado /posiciones /hoy /solo_cierre /operar.
   Ningún comando abre operaciones. Servidor: `deploy/instalar_servidor.sh` (systemd jarvis-bot/jarvis-panel, Tailscale,
   iptables: puerto del panel solo por tailscale0).
+- Investigación: `bot/research/ic.py` (IC por indicador con BH-FDR), `bot/backtest/lookahead.py` (fugas de futuro,
+  gancho `Backtester.on_features`), `metrics/multiple_testing.py` (Sharpe deflactado en `gates.paper_gate` con
+  `RESEARCH_TRIALS`; BH-FDR + `welch_p` al promover retadores). Diario sellado: tabla `ledger` (cadena sha256) y
+  `Journal.verify_ledger()`, exigido por la puerta de papel. Estrategia activa: solo `trend_breakout` (ver README).
 - Demo con capital nuevo: `bot/demo_reset.py` archiva la demo anterior en `bot/data/archivo/` (solo paper).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):

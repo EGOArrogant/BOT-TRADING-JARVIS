@@ -45,7 +45,10 @@ limits:
   symbol_cooldown_minutes: 60
   reversal_cooldown_minutes: 240
   candidate_window_minutes: 15
-  # Pausa una moneda+dirección que viene perdiendo: 3 operaciones seguidas con pérdida total > 1,2 % del capital → 24 h
+  # Pausa una moneda+dirección que viene perdiendo (idea de freqtrade): 3 operaciones con pérdida total > 1,2 % → 24 h.
+  # APAGADA: con 13 meses de datos empeoró trend_breakout de −0,04R a −0,29R por operación y la llevó a la detención
+  # (bloqueaba justo las entradas que se recuperan tras una mala racha). Se puede encender con true.
+  underperf_enabled: false
   underperf_lookback_trades: 3
   underperf_max_loss_pct: 0.012
   underperf_lock_hours: 24

@@ -40,6 +40,10 @@ funding de Hyperliquid), backtest walk-forward (ajuste sep-25..abr-26, comprobac
 y las guardias de riesgo activas. Solo `trend_breakout` aguantó el periodo sin tocar la detención (~−0.04R/op, PF 0.93,
 ~1 op/día, antes de la IA); las otras tres perdían de forma consistente y quedan apagadas en `config.yaml`. Ninguna
 estrategia tiene todavía ventaja confirmada: por eso todo sigue en demo.
+Pantalla de IC (`python -m bot.research.ic`, 13 meses, dos mitades): solo el cambio de open interest en 1 h predice
+de forma estable la hora siguiente (IC ≈ +0.04, diferencia que paga costos), pero como filtro de `trend_breakout` no
+mejoró el resultado. La pausa por bajo rendimiento lo empeoró (queda apagada). El chequeo de mirar al futuro
+(`python -m bot.backtest.lookahead`) no encontró fugas en los datos reales.
 
 **Actualizar:** cierra el bot y el panel y haz doble clic en `actualizar.bat`: baja la versión más reciente de GitHub
 y reemplaza solo el código (no toca `.env`, `bot/data` ni `bot/reports`).

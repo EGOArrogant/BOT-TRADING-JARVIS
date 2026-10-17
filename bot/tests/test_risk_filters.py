@@ -315,7 +315,7 @@ def test_trend_breakout_follows_the_trend_only():
 
 
 def test_underperformance_lock_pauses_a_losing_coin_side():
-    risk = RiskEngine(S.risk, S.limits, S.exchange)
+    risk = RiskEngine(S.risk, S.limits.model_copy(update={"underperf_enabled": True}), S.exchange)
     st = BotState.fresh(1000.0, NOW.date())
     for h in (6, 4, 2):  # tres pérdidas seguidas de SOL long que suman 1,5 % del capital
         st.closes.append(CloseRecord(symbol="SOLUSDT", side=Side.LONG, closed_at=NOW - timedelta(hours=h), pnl_net=-5.0))
@@ -326,3 +326,5 @@ def test_underperformance_lock_pauses_a_losing_coin_side():
     assert risk.symbol_limits(st, "SOLUSDT", Side.LONG, NOW + timedelta(hours=27), []).ok  # se levanta solo
     st.closes[-1] = CloseRecord(symbol="SOLUSDT", side=Side.LONG, closed_at=NOW - timedelta(hours=2), pnl_net=+8.0)
     assert risk.symbol_limits(st, "SOLUSDT", Side.LONG, NOW + timedelta(hours=2), []).ok  # ya no viene perdiendo
+    st.closes[-1] = CloseRecord(symbol="SOLUSDT", side=Side.LONG, closed_at=NOW - timedelta(hours=2), pnl_net=-5.0)
+    assert RiskEngine(S.risk, S.limits, S.exchange).symbol_limits(st, "SOLUSDT", Side.LONG, NOW, []).ok  # apagada
