@@ -13,6 +13,7 @@ from pathlib import Path
 
 from bot.learning.journal import Journal
 from bot.metrics import robustness
+from bot.metrics.multiple_testing import deflated_sharpe
 from bot.metrics.performance import summarize
 
 PAPER_MIN_DAYS = 42
@@ -93,6 +94,10 @@ def _span_days(trades: list[dict]) -> float:
     return (last - first).total_seconds() / 86400
 
 
+RESEARCH_TRIALS = 60   # variantes probadas en la investigación de 2026-10 (rondas v1–v4 + estrategias)
+PAPER_MIN_DSR = 0.95
+
+
 def paper_gate(db: Path, capital: float, risk_per_trade: float = 0.005, halt_drawdown: float = 0.10) -> dict:
     if not db.exists():
         return {"ok": False, "motivo": "sin base de datos de papel"}
@@ -111,6 +116,9 @@ def paper_gate(db: Path, capital: float, risk_per_trade: float = 0.005, halt_dra
     checks["ventaja estadística (IC 95 % de la esperanza > 0)"] = bool(rob.get("enough") and rob["edge"] == "confirmada")
     checks[f"Monte Carlo: prob. de tocar la detención < {PAPER_MAX_HALT_PROB:.0%}"] = bool(
         rob.get("enough") and rob["mc_prob_halt"] < PAPER_MAX_HALT_PROB)
+    # Se probaron muchas variantes antes de elegir la estrategia: el Sharpe tiene que superar al mejor que daría el azar
+    dsr = deflated_sharpe([float(t["r"]) for t in trades], RESEARCH_TRIALS)
+    checks[f"Sharpe deflactado ≥ {PAPER_MIN_DSR:.0%} (descontando {RESEARCH_TRIALS} variantes probadas)"] = dsr["dsr"] >= PAPER_MIN_DSR
     led = j.verify_ledger()
     checks["diario sellado e íntegro (ninguna operación alterada)"] = led["ok"] and led["unsealed"] == 0
     j.close()

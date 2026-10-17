@@ -21,6 +21,7 @@ import numpy as np
 from bot.core.models import DataPoint, Signal
 from bot.learning.hypotheses import OVERRIDES_PATH, AppliedOverride, Hypothesis, save_override
 from bot.learning.journal import Journal
+from bot.metrics.multiple_testing import bh_fdr, welch_p
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS hypotheses (
@@ -38,6 +39,9 @@ ACTIVE, PENDING_APPROVAL, PROMOTED, REJECTED_H, RETIRED = "activa", "pendiente_a
 PASSED_STATUSES = ("operado", "no_seleccionado", "rechazado_ia", "rechazado_riesgo", "sin_llenado")
 
 
+FDR_Q = 0.10  # proporción tolerada de falsos descubrimientos entre retadores
+
+
 @dataclass
 class Evaluation:
     n_cases: int
@@ -48,6 +52,7 @@ class Evaluation:
     challenger_dd: float
     eligible: bool
     better: bool
+    p_value: float = 1.0      # p de que el retador sea mejor por suerte (Welch, unilateral)
 
     def as_dict(self) -> dict:
         return self.__dict__.copy()
@@ -141,15 +146,20 @@ class ChampionChallenger:
         xe = float(np.mean(ch)) if ch else 0.0
         cdd, xdd = r_drawdown(champ), r_drawdown(ch)
         eligible = len(ch) >= self.min_cases and n_tr >= self.min_trades
-        return Evaluation(len(ch), n_tr, ce, xe, cdd, xdd, eligible, eligible and xe > ce and xdd <= cdd)
+        return Evaluation(len(ch), n_tr, ce, xe, cdd, xdd, eligible, eligible and xe > ce and xdd <= cdd,
+                          welch_p(ch, champ))
 
     def review(self, now: datetime) -> list[tuple[Hypothesis, Evaluation]]:
         """Revisa hipótesis activas; las que ganan pasan a promoción (o a aprobación humana)."""
         out = []
-        for h in self.active():
-            ev = self.evaluate(h.id)
-            if ev is None:
-                continue
+        evals = [(h, ev) for h in self.active() if (ev := self.evaluate(h.id)) is not None]
+        # Varias ideas a la vez: solo cuentan las mejoras que sobreviven al control de falsos positivos (BH-FDR)
+        cand = [(h, ev) for h, ev in evals if ev.better]
+        keep = bh_fdr([ev.p_value for _, ev in cand], FDR_Q)
+        for (h, ev), ok in zip(cand, keep, strict=True):
+            if not ok:
+                ev.better = False
+        for h, ev in evals:
             self.db.execute("UPDATE hypotheses SET evaluation=? WHERE id=?", (json.dumps(ev.as_dict()), h.id))
             if ev.better:
                 if self.require_approval:

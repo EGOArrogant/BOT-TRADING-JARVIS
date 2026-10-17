@@ -75,14 +75,14 @@ def test_gates_require_metrics(tmp_path):
     assert not gates.live_allowed(tmp_path)
     j = Journal(tmp_path / "bot_paper.sqlite")
     t0 = datetime(2026, 1, 1, tzinfo=UTC)
-    for i in range(70):
+    for i in range(120):  # con 60 variantes probadas, el Sharpe deflactado pide una muestra grande
         win = i % 2 == 0
         j.record_trade(Trade(id=f"t{i}", signal_id=f"s{i}", symbol="ETHUSDT", side=Side.LONG, strategy="x",
                              regime=Regime.RANGE, qty=Decimal(1), entry_price=Decimal(100),
                              exit_price=Decimal(103 if win else 99), expected_entry_price=Decimal(100),
                              initial_stop_price=Decimal(99), entry_maker=True, fees=Decimal("0.1"),
                              pnl_gross=Decimal(3 if win else -1), mae_r=0, mfe_r=0,
-                             opened_at=t0 + timedelta(days=i * 0.7), closed_at=t0 + timedelta(days=i * 0.7, hours=2),
+                             opened_at=t0 + timedelta(days=i * 0.4), closed_at=t0 + timedelta(days=i * 0.4, hours=2),
                              exit_reason=ExitReason.TAKE_PROFIT))
     res = gates.approve(tmp_path, 10_000)
     assert res["paper"]["ok"] and not res["testnet"]["ok"] and not gates.live_allowed(tmp_path)
