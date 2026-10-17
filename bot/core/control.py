@@ -23,7 +23,7 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
 
 from bot.core.config import Settings
-from bot.core.fsutil import atomic_write_text, read_text_retry
+from bot.core.fsutil import atomic_write_text, read_with_backup
 from bot.core.logging_setup import get_logger
 
 log = get_logger("bot.control")
@@ -92,7 +92,7 @@ def load(path: Path) -> Control:
     if not path.exists():
         return Control()
     try:
-        return Control.model_validate_json(read_text_retry(path))
+        return read_with_backup(path, Control.model_validate_json)
     except (OSError, ValueError, ValidationError) as exc:
         log.error("control.json ilegible: solo cierre hasta corregirlo", extra={"err": repr(exc)})
         return Control(mode="solo_cierre")
@@ -100,5 +100,5 @@ def load(path: Path) -> Control:
 
 def save(path: Path, ctl: Control) -> Control:
     ctl = ctl.model_copy(update={"updated_at": datetime.now(UTC)})
-    atomic_write_text(path, json.dumps(ctl.model_dump(mode="json"), ensure_ascii=False, indent=1))
+    atomic_write_text(path, json.dumps(ctl.model_dump(mode="json"), ensure_ascii=False, indent=1), backup=True)
     return ctl

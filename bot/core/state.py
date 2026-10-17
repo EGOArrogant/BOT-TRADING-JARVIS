@@ -8,13 +8,16 @@ Las posiciones abiertas NO se confían a este archivo: se reconcilian con el exc
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from pydantic import AwareDatetime, BaseModel, Field
 
-from bot.core.fsutil import atomic_write_text, read_text_retry
+from bot.core.fsutil import atomic_write_text, read_with_backup
+from bot.core.logging_setup import get_logger
 from bot.core.models import Side
+
+log = get_logger("bot.state")
 
 
 class EntryRecord(BaseModel):
@@ -52,13 +55,30 @@ class BotState(BaseModel):
         return cls(equity=capital, peak_equity=capital, day_start_equity=capital, day=today)
 
     @classmethod
-    def load_or_new(cls, path: Path, capital: float, today: date) -> BotState:
-        if path.exists():
-            return cls.model_validate_json(read_text_retry(path))
-        return cls.fresh(capital, today)
+    def load_or_new(cls, path: Path, capital: float, today: date, repair: bool = True) -> BotState:
+        """Si el archivo se dañó (apagón), usa el respaldo; si tampoco hay, arranca en modo seguro (sin entradas
+        hasta que la conciliación confirme que todo cuadra). `repair=False` (panel): no escribe nada."""
+        if not path.exists():
+            return cls.fresh(capital, today)
+        try:
+            return read_with_backup(path, cls.model_validate_json, lambda exc: log.error(
+                "estado dañado: se recuperó del respaldo", extra={"err": repr(exc)[:200]}))
+        except (OSError, ValueError) as exc:
+            log.error("estado dañado y sin respaldo válido: se reconstruye en modo seguro", extra={"err": repr(exc)[:200]})
+            if repair:
+                try:
+                    path.replace(path.with_name(f"{path.name}.danado-{datetime.now(UTC):%Y%m%d-%H%M%S}"))
+                except OSError:
+                    pass
+            st = cls.fresh(capital, today)
+            st.safe_mode = True
+            # Empieza por "conciliación": el motor lo levanta solo tras 3 conciliaciones limpias con el exchange
+            st.safe_mode_reason = ("conciliación pendiente: el archivo de estado se dañó (¿apagón?) y se reconstruyó; "
+                                   "sin entradas hasta verificar las posiciones")
+            return st
 
     def save(self, path: Path) -> None:
-        atomic_write_text(path, self.model_dump_json(indent=2))
+        atomic_write_text(path, self.model_dump_json(indent=2), backup=True)
 
     # ------------------------------------------------------------ eventos
 

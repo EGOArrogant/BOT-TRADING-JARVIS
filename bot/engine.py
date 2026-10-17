@@ -25,7 +25,7 @@ from bot.core.alerts import Alerter
 from bot.core.clock import Clock, ms_to_dt
 from bot.core import control
 from bot.core.config import Mode, Secrets, Settings
-from bot.core.fsutil import atomic_write_text, read_text_retry
+from bot.core.fsutil import atomic_write_text, read_with_backup
 from bot.core.health import HealthMonitor
 from bot.core.logging_setup import get_logger
 from bot.core.models import AIAction, DataPoint, Position, Side, Signal, Snapshot, Trade
@@ -500,7 +500,7 @@ class Engine:
             positions = self.manager.positions if self.manager else {}
             atomic_write_text(self.paper_path, json.dumps({
                 "saved_at": self.clock.now().isoformat(), "exchange": ex.to_dict(),
-                "positions": [p.model_dump(mode="json") for p in positions.values()]}, default=str))
+                "positions": [p.model_dump(mode="json") for p in positions.values()]}, default=str), backup=True)
         except Exception as exc:  # noqa: BLE001
             log.error("no se pudo guardar el estado de papel", extra={"err": repr(exc)})
 
@@ -514,7 +514,8 @@ class Engine:
             ex.wallet = Decimal(str(self.state.equity))  # versiones anteriores solo guardaban el estado
             return
         try:
-            data = json.loads(read_text_retry(self.paper_path))
+            data = read_with_backup(self.paper_path, json.loads, lambda exc: log.error(
+                "estado de papel dañado: se recuperó del respaldo", extra={"err": repr(exc)[:200]}))
             ex.load_dict(data["exchange"])
         except Exception as exc:  # noqa: BLE001
             log.error("estado de papel ilegible: se sigue con el saldo del estado", extra={"err": repr(exc)})

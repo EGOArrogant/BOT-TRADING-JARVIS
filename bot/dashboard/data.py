@@ -225,7 +225,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
     """`settings` ya trae las rutas por modo (ver `per_mode_storage`)."""
     now = now or datetime.now(UTC)
     st = settings.storage
-    state = BotState.load_or_new(st.state_path, settings.paper.initial_capital, now.date()) \
+    state = BotState.load_or_new(st.state_path, settings.paper.initial_capital, now.date(), repair=False) \
         if st.state_path.exists() else None
     live = snapshot.read(st.reports_dir / snapshot.FILENAME)
     db = _connect(st.db_path)
