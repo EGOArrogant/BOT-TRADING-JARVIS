@@ -1351,7 +1351,9 @@ function renderHealth() {
     return '<li><span class="dot ' + state + '"></span><span>' + esc(name) + '</span><span class="v">' + esc(value) + "</span></li>";
   }
   if (y.ai) rows.push(row(y.ai.code === "ok" ? "ok" : y.ai.code === "falla" ? "bad" : "", "Inteligencia artificial", y.ai.label));
-  (y.sources || []).forEach(function (s) { rows.push(row(s.ok ? "ok" : "bad", s.name, ago(s.age_s))); });
+  (y.sources || []).forEach(function (s) {
+    rows.push(s.pending ? row("", s.name, "conectando…") : row(s.ok ? "ok" : "bad", s.name, ago(s.age_s)));
+  });
   if (y.clock_offset_s != null) rows.push(row(Math.abs(y.clock_offset_s) > 5 ? "warn" : "ok", "Reloj frente a Binance",
     (y.clock_offset_s >= 0 ? "+" : "") + y.clock_offset_s.toFixed(2) + " s (compensado)"));
   if (y.free_gb != null) rows.push(row(y.low_disk ? "bad" : y.free_gb < 15 ? "warn" : "ok", "Espacio libre en disco", y.free_gb + " GB"));
@@ -1531,7 +1533,7 @@ function renderNav() {
   $("nbOps").title = "Operaciones de hoy / máximo";
   var nl = ((D.learning || {}).learning || []).length;
   $("nbLearn").textContent = nl ? String(nl) : "";
-  var y = D.system || {}, bad = (y.sources || []).some(function (s) { return !s.ok; }) || (y.ai && y.ai.code === "falla") || y.low_disk ||
+  var y = D.system || {}, bad = (y.sources || []).some(function (s) { return !s.ok && !s.pending; }) || (y.ai && y.ai.code === "falla") || y.low_disk ||
     D.bitacora.some(function (e) { return e.level === "error"; });
   $("nbSys").classList.toggle("bad", !!bad); $("nbSys").style.display = bad ? "" : "none";
   $("nbSys").title = bad ? "Hay algo que revisar en Sistema" : "";

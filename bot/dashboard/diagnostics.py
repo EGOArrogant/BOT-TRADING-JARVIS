@@ -114,7 +114,7 @@ def error_report(settings: Settings, live_system: dict | None, client_errors: li
     now = now or datetime.now(UTC)
     probs = log_problems(settings.logging.dir, now - timedelta(hours=48))
     copy_issues = integridad.check()
-    sources_down = [s for s in (live_system or {}).get("sources", []) if not s.get("ok")]
+    sources_down = [s for s in (live_system or {}).get("sources", []) if not s.get("ok") and not s.get("pending")]
     lines = [f"Reporte de errores de JARVIS — {now.strftime('%Y-%m-%d %H:%M')} UTC",
              f"Modo: {settings.mode.value} · Python {sys.version.split()[0]} · {platform.system()} {platform.release()}",
              f"Copia del bot: {'completa' if not copy_issues else 'CON PROBLEMAS: ' + '; '.join(copy_issues[:5])}"]

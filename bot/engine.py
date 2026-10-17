@@ -680,10 +680,15 @@ class Engine:
     )
 
     def system_status(self, now: datetime) -> dict[str, Any]:
+        if self.health.started_at is None:
+            self.health.started_at = now
+        starting = (now - self.health.started_at).total_seconds() < self.health.grace_s
+
         def entry(name: str, ts: datetime | None, ttl: float | None) -> dict:
             age = (now - ts).total_seconds() if ts else None
             return {"name": name, "age_s": round(age) if age is not None else None,
-                    "ok": age is not None and (ttl is None or age <= ttl)}
+                    "ok": age is not None and (ttl is None or age <= ttl),
+                    "pending": age is None and starting}  # recién arrancado: conectando, no caído
         ttl = self.s.data.ttl_s
         src = [entry("Precios en vivo (Binance)", self.health.last_seen.get("ws_market"), 30),
                entry("Libro de órdenes (Binance)", self.health.last_seen.get("ws_public"), 30)]
@@ -695,7 +700,7 @@ class Engine:
         if self.c.macro is not None:
             src.append(entry("Calendario macro", self.c.macro.updated_at if self.c.macro.ok else None,
                              ttl.get("macro", 86400) * 1.5))
-        return {**self.system, "sources": src, "safe_mode": self.state.safe_mode,
+        return {**self.system, "sources": src, "starting": starting, "safe_mode": self.state.safe_mode,
                 "safe_mode_reason": self.state.safe_mode_reason}
 
     def write_panel(self, now: datetime) -> None:
