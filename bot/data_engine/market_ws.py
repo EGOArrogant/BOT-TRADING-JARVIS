@@ -120,13 +120,20 @@ class BinanceMarketData:
                         extra={"symbols": missing})
         return {s: found[s] for s in self.states if s in found}
 
-    async def server_offset(self) -> float:
-        """Desfase (s) del reloj local frente a Binance, medido a mitad del viaje de ida y vuelta."""
+    async def server_offset(self, samples: int = 3) -> float:
+        """Desfase (s) del reloj local frente a Binance, a mitad del viaje de ida y vuelta.
+
+        Toma varias lecturas y usa la de viaje más corto (la menos afectada por la red)."""
         import time
-        t0 = time.time()
-        data = await self.http.get_json(f"{self.rest}/fapi/v1/time", limit_key="binance", weight=1)
-        t1 = time.time()
-        return int(data["serverTime"]) / 1000 - (t0 + t1) / 2
+        best: tuple[float, float] | None = None
+        for _ in range(max(1, samples)):
+            t0 = time.time()
+            data = await self.http.get_json(f"{self.rest}/fapi/v1/time", limit_key="binance", weight=1)
+            t1 = time.time()
+            off = int(data["serverTime"]) / 1000 - (t0 + t1) / 2
+            if best is None or t1 - t0 < best[0]:
+                best = (t1 - t0, off)
+        return best[1]
 
     async def load_funding_intervals(self) -> None:
         """/fapi/v1/fundingInfo solo lista símbolos con intervalo ajustado; el resto es 8 h."""

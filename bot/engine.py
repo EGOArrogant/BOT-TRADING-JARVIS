@@ -822,6 +822,9 @@ class Engine:
         )
 
 
+CLOCK_WARN_S = 5.0  # hasta aquí el desfase se compensa sin problema: solo se avisa si es mayor
+
+
 def data_quality_from(fields: dict[str, DataPoint]) -> float:
     snap = Snapshot(symbol="x", ts=datetime.now(UTC), fields={k: v for k, v in fields.items()
                                                               if not k.startswith("ind.")})
@@ -908,7 +911,7 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
             return
         engine.clock._offset = timedelta(seconds=off)
         engine.system["clock_offset_s"] = round(off, 2)
-        if abs(off) > 2:
+        if abs(off) > CLOCK_WARN_S:
             engine.alert(f"el reloj de esta PC difiere {off:+.1f} s de Binance; el bot lo compensa, pero conviene "
                          "sincronizar la hora de Windows", "warning")
 
@@ -978,7 +981,7 @@ async def run_live_like(settings: Settings, secrets: Secrets, alert: Alerter) ->
             os._exit(updater.RESTART_CODE)  # salida limpia: estado y diario ya guardados
 
     comps.extra_tasks += [market.run, lambda: engine._loop(5.0, heartbeat), lambda: engine._loop(1.0, book_sampler),
-                          lambda: engine._loop(3600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols),
+                          lambda: engine._loop(600.0, sync_clock), lambda: engine._loop(3600.0, check_symbols),
                           lambda: engine._loop(5.0, check_restart)]
     if settings.alerts.telegram_enabled and secrets.telegram_bot_token and secrets.telegram_chat_id:
         from bot.core.telegram_commands import TelegramCommands  # /estado, /hoy, /solo_cierre... desde el teléfono

@@ -375,7 +375,7 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   órdenes abiertas, funding y las `Position` del gestor). Sin archivo: saldo = equity del estado.
 - Desatendido: `data_engine/retention.py` (gzip diario, borra aggTrade/book20 > 14 días, guarda de disco),
   `verify_symbols(allow_missing=True)` + revisión horaria (`engine.unavailable`), `evaluate_late_window`
-  (no esperar velas de una moneda caída), reloj compensado con `/fapi/v1/time` cada hora, `Engine.alert`
+  (no esperar velas de una moneda caída), reloj compensado con `/fapi/v1/time` cada 10 min (mejor de 3 lecturas; aviso solo si > 5 s), `Engine.alert`
   registra en `events` (bitácora del panel). El snapshot del panel lleva `system` (fuentes, reloj, disco).
 - Robustez (`metrics/robustness.py`): IC 95 % (bootstrap/Wilson), estrés, rachas y Monte Carlo con semilla fija.
   Puerta de papel ampliada (`gates.paper_gate`): IC inferior de la esperanza > 0 y P(tocar detención) < 5 %.

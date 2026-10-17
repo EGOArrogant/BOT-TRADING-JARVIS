@@ -1336,7 +1336,7 @@ function renderBanner() {
   if (y.low_disk) { items.push("Poco espacio en disco (" + y.free_gb + " GB libres): libera espacio en la PC"); bad = true; }
   if (y.safe_mode) items.push("Modo seguro activo: " + (y.safe_mode_reason || "") + ". No abre operaciones nuevas.");
   if ((y.unavailable || []).length) items.push("Monedas no disponibles en Binance (sin entradas): " + y.unavailable.map(coin).join(", "));
-  if (y.clock_offset_s != null && Math.abs(y.clock_offset_s) > 2)
+  if (y.clock_offset_s != null && Math.abs(y.clock_offset_s) > 5)
     items.push("El reloj de la PC está desfasado " + y.clock_offset_s.toFixed(1) + " s (el bot lo compensa; conviene sincronizar la hora de Windows)");
   $("banner").hidden = !items.length;
   $("banner").className = "card banner" + (bad ? " bad" : "");
@@ -1350,7 +1350,7 @@ function renderHealth() {
   }
   if (y.ai) rows.push(row(y.ai.code === "ok" ? "ok" : y.ai.code === "falla" ? "bad" : "", "Inteligencia artificial", y.ai.label));
   (y.sources || []).forEach(function (s) { rows.push(row(s.ok ? "ok" : "bad", s.name, ago(s.age_s))); });
-  if (y.clock_offset_s != null) rows.push(row(Math.abs(y.clock_offset_s) > 2 ? "warn" : "ok", "Reloj frente a Binance",
+  if (y.clock_offset_s != null) rows.push(row(Math.abs(y.clock_offset_s) > 5 ? "warn" : "ok", "Reloj frente a Binance",
     (y.clock_offset_s >= 0 ? "+" : "") + y.clock_offset_s.toFixed(2) + " s (compensado)"));
   if (y.free_gb != null) rows.push(row(y.low_disk ? "bad" : y.free_gb < 15 ? "warn" : "ok", "Espacio libre en disco", y.free_gb + " GB"));
   if (y.retention) rows.push(row("ok", "Limpieza de datos viejos", "comprimidos " + y.retention.compressed + " · borrados " + y.retention.deleted + " · " + when(y.retention.ts)));
