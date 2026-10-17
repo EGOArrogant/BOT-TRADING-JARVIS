@@ -61,7 +61,12 @@ def run(settings: Settings, secrets: Secrets, ask: Callable[[str], str] = input)
     log.info("arranque", extra={"mode": settings.mode.value, "symbols": settings.exchange.symbols})
     if settings.mode is Mode.PAPER:
         from bot import demo_reset
-        if (moved := demo_reset.check(settings)) is not None:
+        try:
+            moved = demo_reset.check(settings)
+        except Exception as exc:  # noqa: BLE001  (nunca impedir el arranque por esto)
+            log.error("revisión de capital de la demo falló", extra={"err": repr(exc)})
+            moved = None
+        if moved is not None:
             print(f"Capital de la demo: {settings.paper.initial_capital:g} USDT. La demo anterior se guardó en {moved}")
     alert = Alerter(settings.alerts.telegram_enabled, secrets.telegram_bot_token, secrets.telegram_chat_id)
     if settings.mode is Mode.LIVE and not check_live_allowed(secrets, ask, gates.live_allowed(settings.data.dir)):

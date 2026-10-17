@@ -130,7 +130,11 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                     self._send(200, body, "application/json; charset=utf-8")
                 except Exception as exc:  # noqa: BLE001
                     log.error("panel: no se pudo leer el estado", extra={"err": repr(exc)}, exc_info=True)
-                    self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+                    import traceback
+                    where = " ← ".join(f"{fr.filename.replace(chr(92), '/').split('/bot/')[-1]}:{fr.lineno}"
+                                       for fr in traceback.extract_tb(exc.__traceback__)[-3:][::-1])
+                    self._send(500, json.dumps({"error": f"{exc.__class__.__name__}: {exc}", "donde": where},
+                                               ensure_ascii=False).encode(), "application/json; charset=utf-8")
             elif path == "/api/version":
                 try:
                     if not version_cache or time.monotonic() - version_cache["at"] > 60 or "force" in q:

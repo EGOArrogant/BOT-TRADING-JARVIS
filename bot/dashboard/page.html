@@ -1737,11 +1737,19 @@ function render() { renderHeader(); renderActivity(); renderNav(); renderBell();
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {
-    if (!r.ok) throw new Error("el panel respondió " + r.status);
+    if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) {
+      throw new Error("el panel respondió " + r.status + (j.error ? " — " + j.error + (j.donde ? " (en " + j.donde + ")" : "") : ""));
+    });
     return r.json();
-  }).then(function (d) { D = d; $("err").style.display = "none"; render(); })
+  }).then(function (d) {
+    D = d; render();
+    var se = d.section_errors || [];
+    $("err").style.display = se.length ? "block" : "none";
+    if (se.length) $("err").textContent = "Algunas secciones no se pudieron calcular (el resto funciona): " + se.join(" · ") +
+      ". Toca ⚠ para copiar el reporte y pegárselo a Claude.";
+  })
     .catch(function (e) { (window.JERR || []).push(new Date().toISOString().slice(11, 19) + " panel: " + e.message); $("logo").setAttribute("class", "logo bad"); $("err").style.display = "block";
-      $("err").textContent = "No se pudo leer el estado: " + e.message + ". ¿Sigue abierta la ventana del panel?"; });
+      $("err").textContent = "No se pudo leer el estado: " + e.message + ". Toca ⚠ (arriba) → Copiar reporte y pégaselo a Claude."; });
 }
 var rz = null;
 window.addEventListener("resize", function () { clearTimeout(rz); rz = setTimeout(function () { if (D) { renderPrice(); renderEquity(); } }, 150); });

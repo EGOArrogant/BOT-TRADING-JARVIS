@@ -8,6 +8,7 @@ a `bot/data/archivo/<fecha>_capital_<anterior>/`. Solo aplica al modo paper; tes
 from __future__ import annotations
 
 import shutil
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,6 +17,18 @@ from bot.core.logging_setup import get_logger
 
 log = get_logger("bot.demo_reset")
 KEEP_IN_REPORTS = {"panel_clave.txt", "control.json"}  # la clave del celular y los controles siguen igual
+
+
+def _move(src: Path, dst: Path, tries: int = 10, wait_s: float = 1.0) -> None:
+    """En Windows un archivo abierto por otro proceso (el panel) no se puede mover: reintentar unos segundos."""
+    for i in range(tries):
+        try:
+            shutil.move(str(src), str(dst))
+            return
+        except PermissionError:
+            if i == tries - 1:
+                raise
+            time.sleep(wait_s)
 
 
 def marker_path(settings: Settings) -> Path:
@@ -47,10 +60,16 @@ def check(settings: Settings, now: datetime | None = None) -> Path | None:
         label = f"{old:g}" if old is not None else "anterior"
         dest = st.state_path.parent / "archivo" / f"{now.strftime('%Y%m%d-%H%M%S')}_capital_{label}"
         (dest / "reports").mkdir(parents=True, exist_ok=True)
-        for p in files:
-            shutil.move(str(p), str(dest / p.name))
-        for p in reports:
-            shutil.move(str(p), str(dest / "reports" / p.name))
+        try:
+            for p in files:
+                _move(p, dest / p.name)
+            for p in reports:
+                _move(p, dest / "reports" / p.name)
+        except OSError as exc:
+            # No tumbar el arranque: se sigue con lo que haya y se reintenta en el próximo arranque
+            log.error("no se pudo archivar la demo anterior (¿archivo abierto?); se reintenta al próximo arranque",
+                      extra={"err": repr(exc), "archivo": str(dest)})
+            return None
         log.warning("capital de la demo cambiado: demo anterior archivada, se empieza de cero",
                     extra={"capital_anterior": old, "capital_nuevo": capital, "archivo": str(dest)})
     marker.parent.mkdir(parents=True, exist_ok=True)

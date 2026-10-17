@@ -13,12 +13,14 @@ from typing import Any
 
 from bot.core import control
 from bot.core.config import Settings
+from bot.core.logging_setup import get_logger
 from bot.core.state import BotState
 from bot.dashboard import snapshot
 from bot.metrics import discipline, robustness
 from bot.metrics.performance import by_dimension, equity_curve, summarize
 from bot.risk.engine import RiskEngine
 
+log = get_logger("bot.dashboard.data")
 STALE_AFTER = timedelta(minutes=3)  # el bot escribe la foto cada minuto
 
 CANDIDATE_TEXT = {
@@ -128,6 +130,19 @@ def activity(cands: list[dict], entries_24h: int, ai: dict[str, Any], status: di
         head, level = "Sin entradas en 24 h: está esperando una oportunidad clara.", "warn" if cands else "info"
     return {"headline": head, "level": level, "items": items, "candidates": len(cands), "strategies": names,
             "expected": "≈ 1 oportunidad al día en promedio (según 13 meses de datos), algunos días 0 y otros 3"}
+
+
+SECTION_ERRORS: list[str] = []
+
+
+def _safe(name: str, fn, default):
+    """Una sección del panel que falla no debe tumbar todo el panel: se registra y se muestra 'no disponible'."""
+    try:
+        return fn()
+    except Exception as exc:  # noqa: BLE001
+        log.error("panel: sección falló", extra={"section": name, "err": repr(exc)}, exc_info=True)
+        SECTION_ERRORS.append(f"{name}: {exc.__class__.__name__}: {exc}"[:300])
+        return default
 
 
 def notifications(events: list[dict]) -> list[dict[str, Any]]:
@@ -255,10 +270,13 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
             extra = payload.get("reason") or payload.get("symbol") or ""
             bitacora.append({"ts": e["ts"], "level": "warning" if e["kind"] != "reconexion" else "info",
                              "text": EVENT_TEXT[e["kind"]] + (f" ({extra})" if extra else "")})
-    disc = discipline.evaluate(trades30, cands30, events30, capital)
+    SECTION_ERRORS.clear()
+    disc = _safe("disciplina", lambda: discipline.evaluate(trades30, cands30, events30, capital),
+                 {"checks": [], "ok": 0, "judged": 0, "practice": {"n": 0}})
     risk_now, halt = eff.risk.risk_per_trade, settings.risk.max_drawdown
-    stats = {"trades": robustness.analyze(robustness.from_trades(trades), risk_now, halt),
-             "practice": robustness.analyze(robustness.from_counterfactuals(cands30), risk_now, halt)}
+    stats = _safe("estadística", lambda: {"trades": robustness.analyze(robustness.from_trades(trades), risk_now, halt),
+             "practice": robustness.analyze(robustness.from_counterfactuals(cands30), risk_now, halt)},
+                  {"trades": {"n": 0, "enough": False}, "practice": {"n": 0, "enough": False}})
     curve = equity_curve(trades, capital)
     risk = RiskEngine(eff.risk, eff.limits, settings.exchange)
     decisions = []
@@ -295,11 +313,14 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "top_traders": (live or {}).get("top_traders"),
         "system": {**((live or {}).get("system") or {}), "ai": ai_health(ai_last)},
         "bitacora": bitacora[:40],
-        "notifications": notifications(log_rows),
-        "activity": activity(cands24, len([e for e in (state.entries if state else []) if e.ts >= now - timedelta(hours=24)]),
-                             ai_health(ai_last), status_info, [k for k, v in settings.strategies.items() if v.enabled]),
-        "performance": {k: by_dimension(trades, k, capital) if trades else {} for k in ("strategy", "symbol", "side")},
-        "zone": latest_zone(st.reports_dir),
+        "notifications": _safe("notificaciones", lambda: notifications(log_rows), []),
+        "activity": _safe("actividad", lambda: activity(
+            cands24, len([e for e in (state.entries if state else []) if e.ts >= now - timedelta(hours=24)]),
+            ai_health(ai_last), status_info, [k for k, v in settings.strategies.items() if v.enabled]), None),
+        "performance": _safe("rendimiento", lambda: {k: by_dimension(trades, k, capital) if trades else {}
+                                                      for k in ("strategy", "symbol", "side")}, {}),
+        "zone": _safe("reporte del día", lambda: latest_zone(st.reports_dir), None),
+        "section_errors": SECTION_ERRORS[:],
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],
         "decisions": decisions,
         "discipline": disc,

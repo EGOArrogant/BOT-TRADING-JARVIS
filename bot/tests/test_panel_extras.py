@@ -116,3 +116,19 @@ def test_ai_brier_rewards_informative_confidence():
                            "fees": 0.01, "pnl_gross": t["r"], "opened_at": "2026-10-01T00:00:00+00:00",
                            "closed_at": "2026-10-01T02:00:00+00:00"} for t in good], [], 27, 0.005, 0.10)
     assert any(x["title"] == "¿La IA sabe cuánto sabe?" and "sí ayuda" in x["text"] for x in a)
+
+
+def test_demo_reset_never_blocks_startup_when_files_are_locked(tmp_path, monkeypatch):
+    from bot import demo_reset
+    s = _settings(tmp_path, capital=2000)
+    demo_reset.check(s)
+    s.storage.db_path.write_text("db")
+
+    def locked(*a, **k):
+        raise PermissionError("en uso por otro proceso")
+    monkeypatch.setattr(demo_reset.shutil, "move", locked)
+    monkeypatch.setattr(demo_reset.time, "sleep", lambda s: None)
+    assert demo_reset.check(_settings(tmp_path, capital=27)) is None  # no se cae
+    assert s.storage.db_path.exists()
+    monkeypatch.undo()
+    assert demo_reset.check(_settings(tmp_path, capital=27)) is not None  # en el siguiente arranque sí archiva
