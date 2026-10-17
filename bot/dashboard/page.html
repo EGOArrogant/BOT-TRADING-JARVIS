@@ -108,6 +108,10 @@ border:0;border-radius:12px;padding:10px;resize:vertical}
 border-radius:14px;padding:10px 12px;resize:vertical}
 .upd-list{margin:8px 0 10px;padding-left:20px;line-height:1.6}
 .upd-btn{background:var(--good);color:#fff}
+.act{margin-top:14px}.act-head{display:flex;align-items:center;gap:10px;font-size:16px}
+.act-list{margin:8px 0 6px;padding-left:22px;line-height:1.55}.act-list li.bad{color:var(--bad)}
+#actDot{width:10px;height:10px;border-radius:50%;background:var(--off)}#actDot.ok{background:var(--good)}
+#actDot.warn{background:var(--warn)}#actDot.bad{background:var(--bad)}
 /* reportes */
 .rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .rep-item{border-radius:16px;padding:14px 16px;background:var(--fill)}
@@ -449,6 +453,11 @@ button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visi
     <div class="muted small" id="sub">Cargando…</div>
   </div>
   <div class="card small" id="statusDetail" data-view="inicio"></div>
+  <section class="card act" id="actCard" data-view="inicio">
+    <div class="act-head"><span class="dot" id="actDot"></span><b id="actHead">…</b></div>
+    <ul class="act-list" id="actList"></ul>
+    <div class="muted small" id="actNote"></div>
+  </section>
   <div class="card banner" id="banner" hidden></div>
   <section class="card controls" aria-label="Controles" data-view="inicio">
     <div>
@@ -1314,6 +1323,13 @@ function ago(s) {
   return "hace " + Math.round(s / 86400) + " días";
 }
 
+function renderActivity() {
+  var a = D.activity; if (!a) return;
+  $("actDot").className = a.level; $("actHead").textContent = a.headline;
+  $("actList").innerHTML = a.items.map(function (i) { return '<li class="' + esc(i.level) + '">' + esc(i.text) + "</li>"; }).join("");
+  $("actNote").textContent = "Estrategias activas: " + a.strategies + ". Frecuencia esperada: " + a.expected + ".";
+}
+
 function renderBanner() {
   var y = D.system || {}, items = [], bad = false;
   if (y.ai && y.ai.code === "falla") { items.push("IA: " + y.ai.label); bad = true; }
@@ -1717,7 +1733,7 @@ $("ideaCopy").onclick = function () {
 fetch("/api/ideas").then(function (r) { return r.json(); }).then(function (j) { showIdeas(j.ideas); }).catch(function () {});
 checkVersion(false); setInterval(function () { if (!document.hidden) checkVersion(false); }, 30 * 60000);
 
-function render() { renderHeader(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function render() { renderHeader(); renderActivity(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

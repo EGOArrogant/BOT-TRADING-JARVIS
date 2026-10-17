@@ -90,3 +90,17 @@ def test_telegram_setup_finds_chat_and_saves_env(tmp_path):
     env.write_text("ANTHROPIC_API_KEY=x\nTELEGRAM_BOT_TOKEN=\n", encoding="utf-8")
     telegram_setup.set_env({"TELEGRAM_BOT_TOKEN": "T", "TELEGRAM_CHAT_ID": "777"}, env)
     assert env.read_text().splitlines() == ["ANTHROPIC_API_KEY=x", "TELEGRAM_BOT_TOKEN=T", "TELEGRAM_CHAT_ID=777"]
+
+
+def test_activity_explains_why_it_is_not_trading():
+    from bot.dashboard.data import activity
+    cands = [{"status": "rechazado_filtro", "reasons": json.dumps(["ventaja 2.10× < 3.0×"])},
+             {"status": "rechazado_filtro", "reasons": json.dumps(["bloqueo macro: CPI"])},
+             {"status": "rechazado_ia", "reasons": "[]"}]
+    a = activity(cands, 0, {"code": "ok"}, {"code": "operando"}, ["trend_breakout"])
+    assert a["level"] == "warn" and "esperando" in a["headline"]
+    text = " ".join(i["text"] for i in a["items"])
+    assert "cubrir comisiones" in text and "noticia económica" in text and "dijo que no a 1" in text
+    bad = activity([], 0, {"code": "falla", "label": "Sin saldo en Anthropic"}, {"code": "operando"}, ["trend_breakout"])
+    assert bad["level"] == "bad" and "Sin saldo" in bad["items"][0]["text"]
+    assert activity(cands, 2, {"code": "ok"}, {"code": "operando"}, ["trend_breakout"])["level"] == "ok"

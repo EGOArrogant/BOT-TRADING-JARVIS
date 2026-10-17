@@ -91,6 +91,45 @@ def _rows(db: sqlite3.Connection | None, sql: str, args: tuple = ()) -> list[dic
         return []
 
 
+def activity(cands: list[dict], entries_24h: int, ai: dict[str, Any], status: dict[str, Any],
+             strategies: list[str]) -> dict[str, Any]:
+    """¿Por qué no está operando? Explicación simple de las últimas 24 h, la causa principal primero."""
+    from collections import Counter
+
+    from bot.dashboard.reports import STRATEGY, plain_reason
+    st = Counter(c["status"] for c in cands)
+    names = ", ".join(STRATEGY.get(x, x) for x in strategies) or "ninguna (todas apagadas en config.yaml)"
+    items: list[dict[str, str]] = []
+    if status.get("code") in ("apagado", "detenido", "pausado", "solo_cierre"):
+        items.append({"level": "bad", "text": f"{status.get('label')}: {status.get('detail', '')}"})
+    if ai.get("code") == "falla":
+        items.append({"level": "bad", "text": f"La IA no responde: {ai.get('label')}. Sin IA el bot no abre nada (por seguridad)."})
+    if not cands:
+        items.append({"level": "info", "text": f"No apareció ninguna oportunidad en 24 h. Busca: {names}. Es normal que "
+                                                "pasen horas sin señales cuando el mercado va de lado."})
+    reasons: Counter = Counter()
+    for c in cands:
+        if c["status"] in ("rechazado_filtro", "rechazado_riesgo"):
+            for r in json.loads(c.get("reasons") or "[]"):
+                reasons[plain_reason(r)] += 1
+    if reasons:
+        top = "; ".join(f"{k} ({v})" for k, v in reasons.most_common(3))
+        items.append({"level": "warn", "text": f"Sus reglas de seguridad descartaron {st['rechazado_filtro'] + st['rechazado_riesgo']}: {top}."})
+    if st.get("rechazado_ia"):
+        items.append({"level": "warn", "text": f"La IA revisó y dijo que no a {st['rechazado_ia']}: por diseño solo aprueba cuando la "
+                                                "evidencia es clara. Su acierto se mide en Rendimiento → ¿Ventaja real o suerte?"})
+    if st.get("sin_llenado"):
+        items.append({"level": "info", "text": f"{st['sin_llenado']} órdenes no se llenaron (el precio no volvió a su nivel)."})
+    if entries_24h:
+        head, level = f"Operando: {entries_24h} entrada(s) en las últimas 24 h.", "ok"
+    elif items and items[0]["level"] == "bad":
+        head, level = "No está operando por una causa que hay que revisar.", "bad"
+    else:
+        head, level = "Sin entradas en 24 h: está esperando una oportunidad clara.", "warn" if cands else "info"
+    return {"headline": head, "level": level, "items": items, "candidates": len(cands), "strategies": names,
+            "expected": "≈ 1 oportunidad al día en promedio (según 13 meses de datos), algunos días 0 y otros 3"}
+
+
 def notifications(events: list[dict]) -> list[dict[str, Any]]:
     """Campana del panel: entradas, salidas y reportes (y avisos importantes), lo más reciente primero."""
     out = []
@@ -188,6 +227,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
                    for c in _rows(db, "SELECT ts, status, ai, counterfactual FROM candidates WHERE ts >= ?", (since30,))]
         events30 = _rows(db, "SELECT ts, kind FROM events WHERE ts >= ?", (since30,))
         ai_last = _rows(db, "SELECT ts, valid, reason FROM ai_calls ORDER BY ts DESC LIMIT 10")
+        cands24 = _rows(db, "SELECT status, reasons FROM candidates WHERE ts >= ?", ((now - timedelta(hours=24)).isoformat(),))
         log_rows = _rows(db, "SELECT ts, kind, payload FROM events WHERE ts >= ? ORDER BY ts DESC LIMIT 150",
                          ((now - timedelta(days=7)).isoformat(),))
     finally:
@@ -195,6 +235,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
             db.close()
 
     ctl = control_view(settings)
+    status_info = _status(settings, state, live, now, ctl["mode"] == "solo_cierre")
     eff, _ = control.apply(settings, control.Control(aggressiveness=ctl["aggressiveness"]))
     capital = settings.paper.initial_capital
     equity = state.equity if state else capital
@@ -231,7 +272,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "now": now.isoformat(),
         "mode": settings.mode.value,
         "symbols": settings.exchange.symbols,
-        "status": _status(settings, state, live, now, ctl["mode"] == "solo_cierre"),
+        "status": status_info,
         "control": ctl,
         "updated_at": (live or {}).get("updated_at"),
         "kpis": {
@@ -255,6 +296,8 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "system": {**((live or {}).get("system") or {}), "ai": ai_health(ai_last)},
         "bitacora": bitacora[:40],
         "notifications": notifications(log_rows),
+        "activity": activity(cands24, len([e for e in (state.entries if state else []) if e.ts >= now - timedelta(hours=24)]),
+                             ai_health(ai_last), status_info, [k for k, v in settings.strategies.items() if v.enabled]),
         "performance": {k: by_dimension(trades, k, capital) if trades else {} for k in ("strategy", "symbol", "side")},
         "zone": latest_zone(st.reports_dir),
         "trades": [_trade_row(t) for t in reversed(trades[-200:])],
