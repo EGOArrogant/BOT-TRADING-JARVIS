@@ -180,3 +180,23 @@ def test_market_strip_and_order_book_from_public_endpoints(setup):
     assert d["bids"][0] == [100.9, 2.0] and d["asks"] == [[101.1, 3.0]]
     with pytest.raises(ValueError):
         src.ticker("FAKEUSDT")
+
+
+def test_browser_closing_the_tab_is_not_an_error(setup, caplog):
+    """WinError 10054: el navegador corta la conexión a mitad de la respuesta; no debe quedar como error."""
+    import socket
+    s, *_ = setup
+    srv = serve(s, port=0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        for _ in range(5):
+            c = socket.create_connection(srv.server_address)
+            c.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b"\x01\x00\x00\x00\x00\x00\x00\x00")  # cierre con RST
+            c.sendall(b"GET /api/estado HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            c.close()
+        page = urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/").read()
+        assert b"Panel del bot" in page
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    assert not [r for r in caplog.records if r.levelname == "ERROR" and "estado" in r.getMessage()]

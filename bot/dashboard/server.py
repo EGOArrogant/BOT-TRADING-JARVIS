@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import sys
 import threading
 import time
 from datetime import UTC, datetime
@@ -37,6 +38,8 @@ CSRF_HEADER = "X-Jarvis-Panel"  # una web ajena no puede enviarla sin permiso CO
 PAGE = Path(__file__).with_name("page.html")
 CHART_JS = Path(__file__).with_name("vendor") / "lightweight-charts.js"  # TradingView Lightweight Charts (Apache 2.0)
 QR_JS = Path(__file__).with_name("vendor") / "qrcode.js"  # QR Code Generator, Kazuhiko Arase (MIT)
+# Conexión cortada por el navegador (WinError 10053/10054 en Windows, EPIPE/ECONNRESET en Linux)
+CLIENT_GONE = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 DRAW_JS = Path(__file__).with_name("dibujo.js")  # herramientas de dibujo y capa del bot sobre el gráfico
 STATIC = Path(__file__).with_name("static")
 PUBLIC = {"/logo.svg": ("logo.svg", "image/svg+xml"), "/favicon.ico": ("logo.svg", "image/svg+xml"),
@@ -74,12 +77,15 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
-            self.send_response(code)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(code)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
+            except CLIENT_GONE:  # el navegador cerró la pestaña o el celular se bloqueó a mitad: no es un error
+                self.close_connection = True
 
         def _from_pc(self) -> bool:
             return remote.is_loopback(self.client_address[0])
@@ -300,4 +306,12 @@ def serve(settings: Settings, port: int = 8765, host: str | None = None,
     key = remote.load_or_create_key(settings.storage.reports_dir) if phone else None
     host = host or ("0.0.0.0" if phone else "127.0.0.1")
     diagnoser = diagnoser or diagnostics.Diagnoser(ai_key, settings.ai.reflection_model)
-    return ThreadingHTTPServer((host, port), make_handler(settings, klines, key, diagnoser))
+    return _Server((host, port), make_handler(settings, klines, key, diagnoser))
+
+
+class _Server(ThreadingHTTPServer):
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        """Una conexión que el navegador corta (pestaña cerrada, celular bloqueado, recarga) no es un error."""
+        if isinstance(sys.exc_info()[1], CLIENT_GONE):
+            return
+        super().handle_error(request, client_address)
