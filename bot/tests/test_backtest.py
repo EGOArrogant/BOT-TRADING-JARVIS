@@ -77,8 +77,8 @@ def test_real_strategies_run_and_walk_forward_is_fast_enough():
     assert time.time() - t0 < 60
     s = res.summary()
     assert s["max_drawdown"] < 0.5 and s["candidates"] >= 0
-    peak = max(e for _, e in res.equity_curve)
+    peak, s_risk = max(e for _, e in res.equity_curve), S.risk.risk_per_trade
     for t in res.trades:
-        assert t.risk_amount <= peak * 0.005 * 1.01  # nunca más de 0.5 % del capital
+        assert t.risk_amount <= peak * s_risk * 1.01  # nunca más del riesgo por operación configurado
     folds = walk_forward(bt, data, folds=2)
     assert len(folds) == 2

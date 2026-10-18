@@ -26,7 +26,7 @@ def test_default_config_loads_in_paper_mode():
     assert s.mode is Mode.PAPER
     assert s.limits.max_trades_per_day == 5
     assert s.limits.base_trades_per_day == 3
-    assert s.risk.risk_per_trade == 0.005
+    assert 0 < s.risk.risk_per_trade <= 0.01  # 1 % en la demo de 3.000 US$; nunca más que el tope duro
     assert s.risk.max_leverage == 3
     assert s.exchange.symbols == ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "XLMUSDT"]
     assert s.logging.dir.is_absolute()

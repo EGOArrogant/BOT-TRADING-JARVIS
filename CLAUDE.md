@@ -410,6 +410,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Panel en rejilla de 12 columnas a partir de 1100 px (todas las secciones salvo Mercado, que es la terminal);
   clases `dz-*` en `page.html`. Velas en verde/rojo de TradingView (`CANDLE_UP`/`CANDLE_DN`).
 - Demo con capital nuevo: `bot/demo_reset.py` archiva la demo anterior en `bot/data/archivo/` (solo paper).
+- Desde 2026-10-18 (decisión del usuario): demo con 3.000 US$ y `risk_per_trade: 0.01` (el tope duro). Es global en
+  config.yaml: antes de `testnet`/`live` decidir de nuevo con el usuario (0.005 era el valor de diseño). Las pruebas de
+  tamaño fijan su propio 0.5 %.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

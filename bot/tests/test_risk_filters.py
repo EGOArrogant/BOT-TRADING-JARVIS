@@ -25,6 +25,7 @@ from bot.risk.costs import estimate_costs
 from bot.risk.engine import OpenExposure, RiskEngine, SymbolRules, round_step, round_tick
 
 S = load_settings()
+S = S.model_copy(update={"risk": S.risk.model_copy(update={"risk_per_trade": 0.005})})  # fórmula de §9 con 0.5 %
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
 RULES = SymbolRules(tick_size=0.01, step_size=0.001, min_qty=0.001, min_notional=5.0)
 

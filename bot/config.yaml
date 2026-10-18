@@ -17,7 +17,10 @@ exchange:
   recv_window_ms: 5000
 
 risk:
-  risk_per_trade: 0.005          # 0.5 % del capital
+  # 1 % por operación (el tope duro del código), elegido por el usuario el 2026-10-18 para la demo de 3.000 US$:
+  # duplica ganancias y pérdidas para ver antes cómo se comporta. Antes de dinero real, decidir de nuevo (0,5 % era el
+  # valor de diseño; con 1 % y la pérdida diaria de 2 %, dos pérdidas cierran el día).
+  risk_per_trade: 0.01
   max_daily_loss: 0.02           # 2 % -> sin entradas hasta 00:00 UTC
   max_drawdown: 0.10             # 10 % desde el pico -> bot detenido, reinicio manual
   max_consecutive_losses: 4
@@ -130,11 +133,10 @@ logging:
   backup_days: 30
 
 paper:
-  # Capital ficticio del modo demo, en USDT: 27 ≈ 500 pesos mexicanos. Con 0,5 % de riesgo por operación
-  # se arriesgan ~0,14 $ por operación. Binance exige un mínimo por orden (BTC ~100 USDT, ETH ~20 USDT, el resto
-  # ~5 USDT): con este capital BTC casi nunca se podrá operar. Si se cambia, al arrancar se archiva la demo
+  # Capital ficticio del modo demo, en USDT. 3.000 (antes 27 ≈ 500 pesos): para medir si el bot logra 25–50 US$ en un
+  # día bueno. Con 1 % de riesgo se arriesgan 30 US$ por operación. Al cambiarlo, al arrancar se archiva la demo
   # anterior en bot/data/archivo/ y se empieza de cero (bot/demo_reset.py).
-  initial_capital: 27
+  initial_capital: 3000
   latency_ms: 150
 
 storage:
