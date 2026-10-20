@@ -417,6 +417,12 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   simulado sobre los contrafactuales de cada señal (misma entrada/stop/objetivo/tiempo): margen fijo × x5–x25, margen
   aislado, liquidación ≈ 1/apal − 0,5 %. Compara "aprobadas" vs "todas" (sin disciplina) y va a la reflexión semanal
   (`laboratorio_midas`). Nunca envía órdenes ni cambia riesgo, apalancamiento o stops del bot.
+- Cuenta MIDAS (`execution/midas.py`, autorizada por el usuario 2026-10-20): opera con dinero ficticio a x5–x25,
+  aparte de la demo (`reports/<modo>/midas_cuenta.json`). `MidasAccount` lanza error fuera de `Mode.PAPER`; el motor
+  solo la crea en paper. Entra con las señales de las estrategias (`Engine._midas_consider`: todas, o solo las aprobadas
+  por la IA), mantiene stop/objetivo, simula liquidación; `Engine._midas_tick` en cada tick. Panel: `POST
+  /api/midas/control` → `midas_control.json` (encendido, x5–x25, margen, alcance; ilegible = no abre). Avisos `midas`.
+  Reflexión semanal recibe `cuenta_midas`. Con dinero real: NO existe; requeriría código nuevo y aprobación aparte.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

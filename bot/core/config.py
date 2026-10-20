@@ -12,13 +12,15 @@ from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 HARD_MAX_TRADES_PER_DAY = 5
 HARD_MAX_LEVERAGE = 3
 HARD_MAX_RISK_PER_TRADE = 0.01
 HARD_MAX_DAILY_LOSS = 0.05
 HARD_MAX_DRAWDOWN = 0.20
+# MIDAS (cuenta ficticia aparte, autorizada por el usuario 2026-10-20): solo existe en modo demo (paper).
+HARD_MIDAS_LEVERAGES = (5, 10, 15, 20, 25)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "bot" / "config.yaml"
@@ -241,6 +243,33 @@ class StrategyParams(BaseModel):
     max_hold_hours: float = Field(default=6.0, gt=0)
 
 
+class MidasConfig(_Strict):
+    """Cuenta ficticia MIDAS: mismas señales que el bot, margen fijo y apalancamiento alto. Solo en modo demo.
+    El panel puede cambiar encendido, apalancamiento, margen y alcance (`reports/<modo>/midas_control.json`)."""
+
+    enabled: bool = True
+    initial_capital: float = Field(default=500.0, gt=0)
+    margin_per_trade: float = Field(default=20.0, gt=0)
+    leverage: int = 10
+    scope: str = "todas"          # todas = sin disciplina (cualquier señal) · aprobadas = solo las que la IA aprobó
+    max_positions: int = Field(default=3, ge=1, le=6)
+    maint_margin: float = Field(default=0.005, gt=0, lt=0.05)
+
+    @field_validator("leverage")
+    @classmethod
+    def _lev(cls, v: int) -> int:
+        if v not in HARD_MIDAS_LEVERAGES:
+            raise ValueError(f"apalancamiento MIDAS debe ser uno de {HARD_MIDAS_LEVERAGES}")
+        return v
+
+    @field_validator("scope")
+    @classmethod
+    def _scope(cls, v: str) -> str:
+        if v not in ("todas", "aprobadas"):
+            raise ValueError("alcance MIDAS: todas | aprobadas")
+        return v
+
+
 class PaperConfig(_Strict):
     initial_capital: float = Field(gt=0)
     latency_ms: int = Field(default=150, ge=0)
@@ -274,6 +303,7 @@ class Settings(_Strict):
     news: NewsConfig
     strategies: dict[str, StrategyParams]
     paper: PaperConfig
+    midas: MidasConfig = MidasConfig()
     storage: StorageConfig
     risk: RiskConfig
     limits: LimitsConfig

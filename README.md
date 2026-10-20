@@ -70,6 +70,12 @@ derecha **Análisis JARVIS** (qué condiciones de la estrategia se cumplen y cu�
 mismos datos que recibe la IA) o el **Libro** de órdenes en vivo; abajo posiciones, señales, operaciones (clic = ir a
 ese momento del gráfico) y traders destacados.
 
+**Cuenta MIDAS (opera con dinero ficticio):** una cuenta aparte de la demo (500 US$ ficticios) que entra con las
+señales de las estrategias poniendo un margen fijo (20 US$) a x5–x25. Con "todas las señales" deja de lado la
+disciplina; con "solo las que aprueba la IA" entra cuando la IA dice que sí. Mantiene el stop y el objetivo del bot y
+simula la liquidación. Se enciende, apaga y ajusta en la pestaña MIDAS; avisa cada entrada y salida (campana y
+Telegram). Solo existe en modo demo: con dinero real el bot no la carga.
+
 **MIDAS (laboratorio de apalancamiento):** pestaña del panel que toma cada señal del bot (operadas y rechazadas)
 con su misma entrada, stop, objetivo y tiempo, y calcula qué habría pasado poniendo un margen fijo (20 US$ por
 defecto) a x5, x10, x15, x20 y x25, incluidas las liquidaciones. Compara "solo las aprobadas" contra "todas las

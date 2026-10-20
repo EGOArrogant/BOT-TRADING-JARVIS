@@ -71,3 +71,25 @@ def alert(msg: str, level: str) -> Notice:
 
 
 __all__ = ["Notice", "alert", "day", "entry", "exit_", "money"]
+
+
+def midas_entry(pos: dict, balance: float) -> Notice:
+    coin = COIN.get(pos["symbol"], pos["symbol"])
+    long = pos["side"] == "LONG"
+    text = (f"{'Compró' if long else 'Vendió en corto'} {coin} a {price(pos['entry'])} con {amount(pos['margin'])} de margen a "
+            f"x{pos['leverage']} (posición de {amount(pos['notional'])}). Stop {price(pos['stop'])}"
+            + (f" · objetivo {price(pos['take_profit'])}" if pos.get("take_profit") else "")
+            + f" · se liquida en {price(pos['liq'])}. "
+            + ("La IA la aprobó." if pos.get("approved") else "Sin disciplina: entra aunque la demo normal no lo haga.")
+            + f" Saldo MIDAS: {amount(balance)}.")
+    return Notice("midas", f"👑 MIDAS x{pos['leverage']}: {'LONG' if long else 'SHORT'} en {coin}", text, "info")
+
+
+def midas_exit(t: dict, balance: float) -> Notice:
+    coin = COIN.get(t["symbol"], t["symbol"])
+    why = {"liquidada": "se liquidó (perdió todo el margen)", "stop": "tocó el stop", "take_profit": "llegó al objetivo",
+           "tiempo": "pasó su tiempo máximo"}.get(t["reason"], t["reason"])
+    pnl = t["pnl_total"]
+    title = f"👑 MIDAS {'ganó' if pnl > 0 else 'perdió'} {amount(abs(pnl))} en {coin} (x{t['leverage']})"
+    text = f"Cerró porque {why}: {money(pnl)} ({t['ret'] * 100:+.0f} % del margen). Saldo MIDAS: {amount(balance)}."
+    return Notice("midas", title, text, "good" if pnl > 0 else "bad")

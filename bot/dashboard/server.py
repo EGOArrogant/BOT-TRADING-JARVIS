@@ -234,7 +234,8 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
 
         def do_POST(self) -> None:  # noqa: N802
             path = self.path.split("?", 1)[0]
-            if path not in ("/api/control", "/api/errores", "/api/diagnostico", "/api/actualizar", "/api/idea"):
+            if path not in ("/api/control", "/api/errores", "/api/diagnostico", "/api/actualizar", "/api/idea",
+                            "/api/midas/control"):
                 self._send(404, b"no encontrado", "text/plain; charset=utf-8")
                 return
             if not self._local_request():
@@ -258,6 +259,24 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                     threading.Timer(1.5, lambda: os._exit(updater.RESTART_CODE)).start()
                 else:
                     update_lock.release()
+                return
+            if path == "/api/midas/control":
+                from bot.execution import midas as midas_acct
+                if settings.mode.value != "paper":
+                    self._send(403, b'{"error": "MIDAS solo existe en modo demo"}', "application/json")
+                    return
+                try:
+                    f = settings.storage.reports_dir / midas_acct.CONTROL_FILENAME
+                    cur = midas_acct.load_control(f, settings.midas).model_dump()
+                    ctl = midas_acct.MidasControl.model_validate({**cur, **{k: v for k, v in self._json_body(2048).items()
+                                                                           if k in cur}})
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    midas_acct.save_control(f, ctl)
+                except Exception as exc:  # noqa: BLE001
+                    self._send(400, json.dumps({"error": str(exc)}, ensure_ascii=False).encode(), "application/json")
+                    return
+                log.info("panel: MIDAS cambiado", extra=ctl.model_dump())
+                self._send(200, json.dumps({"ok": True, "control": ctl.model_dump()}).encode(), "application/json")
                 return
             if path == "/api/idea":
                 try:

@@ -93,7 +93,8 @@ def _feature_contrast(trades: list[dict], cands: dict[str, dict]) -> dict:
     return out
 
 
-def build_week_payload(journal: Journal, start: datetime, end: datetime, capital: float) -> dict:
+def build_week_payload(journal: Journal, start: datetime, end: datetime, capital: float,
+                       midas_account: dict | None = None) -> dict:
     trades = journal.trades(start, end)
     cands_list = journal.candidates(start, end)
     cands = {c["id"]: c for c in cands_list}
@@ -117,6 +118,9 @@ def build_week_payload(journal: Journal, start: datetime, end: datetime, capital
         # Laboratorio MIDAS (solo simulación): las mismas señales con 20 US$ a x5–x25. Informa qué señales aguantan
         # apalancamiento (stops cortos, poca excursión en contra); nunca autoriza cambiar riesgo ni apalancamiento.
         "laboratorio_midas": _midas_brief(cands_list),
+        # Cuenta MIDAS real con dinero ficticio (x5–x25, aparte): qué tipo de señal aguanta apalancamiento alto
+        "cuenta_midas": {k: (midas_account or {}).get(k) for k in ("balance", "initial_capital", "stats")}
+        if midas_account else None,
     }
 
 
@@ -138,8 +142,9 @@ def validate_hypotheses(raw: list[dict], max_n: int = 3) -> tuple[list[Hypothesi
 
 
 async def run_reflection(journal: Journal, cfg: AIConfig, start: datetime, end: datetime, capital: float,
-                         client: anthropic.AsyncAnthropic | None = None, max_hypotheses: int = 3) -> dict:
-    payload = build_week_payload(journal, start, end, capital)
+                         client: anthropic.AsyncAnthropic | None = None, max_hypotheses: int = 3,
+                         midas_account: dict | None = None) -> dict:
+    payload = build_week_payload(journal, start, end, capital, midas_account)
     client = client or anthropic.AsyncAnthropic(timeout=120, max_retries=2)
     resp = await asyncio.wait_for(client.messages.create(
         model=cfg.reflection_model, max_tokens=8000,

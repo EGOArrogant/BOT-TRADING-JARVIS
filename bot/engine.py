@@ -46,6 +46,7 @@ from bot.data_engine import retention
 from bot.data_engine.top_traders import TopTradersPoller
 from bot.data_engine.volatility import DvolPoller
 from bot.execution.base import Exchange
+from bot.execution import midas as midas_acct
 from bot.execution.executor import Executor
 from bot.execution.paper import PaperExchange
 from bot.filters.checks import check_data, check_macro, run_filters, select_best
@@ -119,6 +120,14 @@ class Engine:
             self.executor = Executor(comps.exchange, comps.states, settings.execution, settings.position, alert=self.alert)
             self.manager = PositionManager(comps.exchange, self.executor, comps.states, settings.position,
                                            on_closed=self._on_closed)
+        # Cuenta MIDAS (dinero ficticio, apalancamiento alto, aparte de la demo): SOLO en modo demo
+        self.midas: midas_acct.MidasAccount | None = None
+        if settings.mode is Mode.PAPER and comps.exchange is not None:
+            try:
+                self.midas = midas_acct.MidasAccount(settings.storage.reports_dir, settings.midas,
+                                                     settings.exchange.fees, settings.mode)
+            except Exception as exc:  # noqa: BLE001  (MIDAS nunca impide que arranque la demo normal)
+                log.error("cuenta MIDAS no disponible", extra={"err": repr(exc)})
         self.health = HealthMonitor(settings.data.dir / "health.json",
                                     {"ws_market": 30, "ws_public": 30, "macro": 36 * 3600})
         self._closed_15m: dict[str, dict[int, float]] = {s: {} for s in comps.states}
@@ -235,6 +244,7 @@ class Engine:
                     reasons.append("símbolo no disponible en Binance (mantenimiento o retiro)")
                 self.journal.record_candidate(sig, REJECTED if reasons else NOT_SELECTED, reasons,
                                               self._flat(fields))
+                self._midas_consider(sig, now, approved=False)
                 if not reasons:
                     passed.append((sig, fields))
             self._shadow(sym, fields, strategies, now, events, macro_ok, macro_upd, exposures)
@@ -323,6 +333,7 @@ class Engine:
             if d.action is AIAction.NO_TRADE:
                 self.journal.update_candidate(sig.id, status=AI_REJECTED, reasons=[f"IA: {res.reason}: {d.thesis}"])
                 return
+            self._midas_consider(sig, now, approved=True)
             # Re-chequeos tras la IA (puede tardar hasta 30 s): confianza, guardias y datos aún frescos
             exec_now = self.clock.now()
             fresh, _ = self._fields(sig.symbol, exec_now)
@@ -431,7 +442,33 @@ class Engine:
         return any(timedelta(0) <= e.ts - now <= timedelta(minutes=self.s.filters.macro_block_before_min)
                    for e in events)
 
+    # ------------------------------------------------------------ MIDAS (cuenta ficticia aparte)
+
+    def _prices(self) -> dict[str, float | None]:
+        return {sym: st.mark_price or st.last_price for sym, st in self.c.states.items()}
+
+    def _midas_consider(self, sig: Signal, now: datetime, approved: bool) -> None:
+        if self.midas is None or sig.symbol in self.unavailable:
+            return
+        try:
+            pos = self.midas.consider(sig, self._prices().get(sig.symbol), now, approved)
+        except Exception as exc:  # noqa: BLE001  (MIDAS nunca afecta a la demo normal)
+            log.error("MIDAS: no se pudo abrir", extra={"err": repr(exc)})
+            return
+        if pos is not None:
+            self.notify(notify.midas_entry(pos, self.midas.balance))
+
+    def _midas_tick(self, now: datetime) -> None:
+        if self.midas is None:
+            return
+        try:
+            for t in self.midas.update(self._prices(), now):
+                self.notify(notify.midas_exit(t, self.midas.balance))
+        except Exception as exc:  # noqa: BLE001
+            log.error("MIDAS: revisión falló", extra={"err": repr(exc)})
+
     async def tick(self, now: datetime) -> None:
+        self._midas_tick(now)
         ex = self.c.exchange
         if isinstance(ex, PaperExchange):
             for sym in self.c.states:
@@ -714,6 +751,8 @@ class Engine:
             snap = panel_snapshot.build(now, self.s.mode.value, self.c.states, positions,
                                         self.c.top_traders.summary() if self.c.top_traders else None, self.views)
             snap["system"] = {**self.system_status(now), "ai_key": bool(self.secrets.anthropic_api_key)}
+            if self.midas is not None:
+                snap["midas"] = self.midas.summary(self._prices())
             panel_snapshot.write(self.s.storage.reports_dir / panel_snapshot.FILENAME, snap)
         except Exception as exc:  # noqa: BLE001
             log.error("foto del panel falló", extra={"err": repr(exc)})
@@ -774,7 +813,8 @@ class Engine:
         try:
             res = await run_reflection(self.journal, self.s.ai, start, end, self.s.paper.initial_capital,
                                        client=self.c.analyst.client,
-                                       max_hypotheses=self.s.learning.max_hypotheses_per_week)
+                                       max_hypotheses=self.s.learning.max_hypotheses_per_week,
+                                       midas_account=self.midas.summary(self._prices()) if self.midas else None)
         except Exception as exc:  # noqa: BLE001
             self.alert(f"reflexión semanal falló: {exc!r}", level="warning")
             return

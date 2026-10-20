@@ -512,6 +512,13 @@ body[data-view="mercado"] .page-head{display:none}
   #trades thead th,#decisions thead th,#positions thead th{position:sticky;top:0;z-index:1;background:var(--card)}
 }
 /* ---------- MIDAS ---------- */
+.ma-ctl{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:flex-end;margin:12px 0}
+.ma-ctl .tabs{margin:4px 0 0}
+#maMargin{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1px solid var(--grid);background:var(--fill);color:var(--ink);margin-top:4px}
+.ma-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.ma-kpis .k{padding:12px 14px;border-radius:16px;background:var(--fill)}
+.ma-kpis .k span{display:block;font-size:12px;color:var(--ink2)}.ma-kpis .k b{font-size:20px;font-variant-numeric:tabular-nums}
+.md-acct{border:1px solid rgba(201,162,39,.45)}
 .md-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
 .md-card{padding:14px;border-radius:18px;background:var(--fill);display:flex;flex-direction:column;gap:4px}
 .md-card .lv{font-size:13px;font-weight:800;letter-spacing:.04em;color:#c9a227}
@@ -577,7 +584,7 @@ body[data-view="mercado"] .page-head{display:none}
           <div class="bell-tabs tabs" id="bellTabs" role="group" aria-label="Tipo">
             <button type="button" data-k="" aria-pressed="true">Todas</button><button type="button" data-k="entrada">Entradas</button>
             <button type="button" data-k="salida">Salidas</button><button type="button" data-k="reporte">Reportes</button>
-            <button type="button" data-k="alerta">Avisos</button></div>
+            <button type="button" data-k="midas">MIDAS</button><button type="button" data-k="alerta">Avisos</button></div>
           <ul class="bell-list" id="bellList"></ul>
           <div class="small muted" id="bellPush"></div>
         </div>
@@ -833,6 +840,27 @@ body[data-view="mercado"] .page-head{display:none}
       <div class="dlg-actions"><button type="button" class="btn" id="ideaSave">Guardar idea</button>
         <button type="button" class="btn ghost" id="ideaCopy">Copiar mis ideas</button></div>
       <pre class="zone" id="ideaList" hidden></pre>
+    </div>
+  </section>
+  <section class="card md-acct" data-view="midas">
+    <div class="row-head">
+      <h2 style="margin:0">👑 Cuenta MIDAS <span class="muted small">opera de verdad con dinero ficticio · aparte de tu demo · nunca con dinero real</span></h2>
+      <div class="tools" id="maCtl">
+        <div class="tabs" id="maOn" role="group" aria-label="MIDAS"><button type="button" data-k="1">Encendido</button><button type="button" data-k="0">Apagado</button></div>
+      </div>
+    </div>
+    <div class="ma-ctl">
+      <div><span class="small muted">Apalancamiento</span><div class="tabs" id="maLev" role="group" aria-label="Apalancamiento"></div></div>
+      <div><label class="small muted" for="maMargin">Margen por entrada</label><div><input type="number" id="maMargin" min="1" step="1" style="width:100px"> <span class="small muted">US$</span>
+        <button type="button" class="btn ghost" id="maMarginSave" hidden>Guardar</button></div></div>
+      <div><span class="small muted">Entra en</span><div class="tabs" id="maScope" role="group" aria-label="Alcance">
+        <button type="button" data-k="todas">Todas las señales</button><button type="button" data-k="aprobadas">Solo las que aprueba la IA</button></div></div>
+      <div class="muted small" id="maMsg"></div>
+    </div>
+    <div class="ma-kpis" id="maKpis"></div>
+    <div class="grid2" style="margin-top:12px">
+      <div><h3 class="md-sub" style="margin-top:0">Posiciones abiertas</h3><div class="scroll" id="maOpen"></div></div>
+      <div><h3 class="md-sub" style="margin-top:0">Últimas cerradas</h3><div class="scroll" id="maClosed"></div></div>
     </div>
   </section>
   <section class="card md-head" data-view="midas">
@@ -1482,6 +1510,66 @@ setInterval(function () {  // la franja y el libro se refrescan solo con Mercado
   if (TERM_TICK % 5 === 0) loadTicker();
   if (TERM_TICK % 2 === 0) loadBook();
 }, 1000);
+
+// ---------------------------------------------------------------- Cuenta MIDAS (opera con dinero ficticio)
+var MA_CTL = null;  // lo último guardado desde aquí, hasta que el bot lo publique
+function maPost(change) {
+  var cur = MA_CTL || (D.midas && D.midas.control) || {};
+  var body = Object.assign({}, cur, change);
+  return fetch("/api/midas/control", {method: "POST", headers: {"Content-Type": "application/json", "X-Jarvis-Panel": "1"},
+    body: JSON.stringify(body)}).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.status); return j; }); })
+    .then(function (j) { MA_CTL = j.control; $("maMsg").textContent = "Guardado. Se aplica en la próxima señal (las posiciones abiertas siguen igual)."; renderMidasAccount(); })
+    .catch(function (e) { $("maMsg").textContent = "No se pudo guardar: " + e.message; });
+}
+function renderMidasAccount() {
+  var m = D && D.midas;
+  if (!m) {
+    $("maKpis").innerHTML = '<div class="empty">La cuenta MIDAS aparece cuando el bot está encendido en modo demo.</div>';
+    $("maOpen").innerHTML = ""; $("maClosed").innerHTML = ""; return;
+  }
+  var ctl = MA_CTL || m.control;
+  if (MA_CTL && m.control && JSON.stringify(m.control) === JSON.stringify(MA_CTL)) MA_CTL = null;
+  $("maOn").querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-pressed", String((b.dataset.k === "1") === !!ctl.enabled));
+    b.onclick = function () { maPost({enabled: b.dataset.k === "1"}); };
+  });
+  $("maLev").innerHTML = [5, 10, 15, 20, 25].map(function (lv) {
+    return '<button type="button" data-k="' + lv + '" aria-pressed="' + (lv === ctl.leverage) + '">x' + lv + "</button>"; }).join("");
+  $("maLev").querySelectorAll("button").forEach(function (b) { b.onclick = function () { maPost({leverage: +b.dataset.k}); }; });
+  $("maScope").querySelectorAll("button").forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.k === ctl.scope));
+    b.onclick = function () { maPost({scope: b.dataset.k}); };
+  });
+  if (document.activeElement !== $("maMargin")) $("maMargin").value = ctl.margin;
+  $("maMargin").oninput = function () { $("maMarginSave").hidden = +$("maMargin").value === ctl.margin; };
+  $("maMarginSave").onclick = function () { $("maMarginSave").hidden = true; maPost({margin: +$("maMargin").value}); };
+  var st = m.stats, gain = m.equity - m.initial_capital;
+  $("maKpis").innerHTML = [
+    ["Saldo MIDAS", money(m.equity), "empezó con " + money(m.initial_capital), ""],
+    ["Ganancia", money(gain, true), (gain / m.initial_capital * 100).toFixed(1) + " %", cls(gain)],
+    ["Operaciones", String(st.n), st.n ? Math.round(st.wins / st.n * 100) + " % ganadoras" : "aún ninguna", ""],
+    ["Liquidadas", String(st.liquidated), "perdieron todo su margen", st.liquidated ? "md-liq" : ""],
+    ["Mejor / peor", money(st.best, true) + " / " + money(st.worst, true), "por operación", ""],
+    ["Libre para entrar", money(m.free), m.positions.length + " de " + m.max_positions + " posiciones", ""]
+  ].map(function (k) { return '<div class="k"><span>' + esc(k[0]) + '</span><b class="' + k[3] + '">' + esc(k[1]) +
+    "</b><span>" + esc(k[2]) + "</span></div>"; }).join("");
+  table($("maOpen"), [
+    {h: "Moneda", f: function (p) { return esc(coin(p.symbol)) + " " + (p.side === "LONG" ? "▲" : "▼") + " x" + p.leverage; }},
+    {h: "Entrada", n: 1, f: function (p) { return esc(price(p.entry)); }},
+    {h: "Ahora", n: 1, f: function (p) { return esc(price(p.price)); }},
+    {h: "Va", n: 1, f: function (p) { return '<b class="' + cls(p.pnl_unrealized) + '">' + esc(money(p.pnl_unrealized, true)) + "</b>"; }},
+    {h: "Stop", n: 1, f: function (p) { return esc(price(p.stop)); }},
+    {h: "Liquida", n: 1, f: function (p) { return '<span class="md-liq">' + esc(price(p.liq)) + "</span>"; }}
+  ], m.positions, ctl.enabled ? "Sin posiciones: espera la próxima señal de las estrategias." : "MIDAS está apagado.");
+  table($("maClosed"), [
+    {h: "Cerró", f: function (t) { return esc(when(t.closed_at)); }},
+    {h: "Moneda", f: function (t) { return esc(coin(t.symbol)) + " " + (t.side === "LONG" ? "▲" : "▼") + " x" + t.leverage; }},
+    {h: "Motivo", f: function (t) { return t.reason === "liquidada" ? '<span class="md-liq">💥 liquidada</span>' :
+      esc({stop: "stop", take_profit: "objetivo", tiempo: "tiempo"}[t.reason] || t.reason); }},
+    {h: "Resultado", n: 1, f: function (t) { return '<b class="' + cls(t.pnl_total) + '">' + esc(money(t.pnl_total, true)) + "</b>"; }},
+    {h: "% margen", n: 1, f: function (t) { return '<span class="' + cls(t.ret) + '">' + (t.ret * 100).toFixed(0) + " %</span>"; }}
+  ], m.closed.slice(0, 30), "Aún no cierra ninguna.");
+}
 
 // ---------------------------------------------------------------- MIDAS (laboratorio de apalancamiento, solo simulación)
 var MD = null, MD_AT = 0, MD_SCOPE = "aprobadas", MD_KEY = "";
@@ -2233,7 +2321,7 @@ $("ideaCopy").onclick = function () {
 fetch("/api/ideas").then(function (r) { return r.json(); }).then(function (j) { showIdeas(j.ideas); }).catch(function () {});
 checkVersion(false); setInterval(function () { if (!document.hidden) checkVersion(false); }, 30 * 60000);
 
-function render() { renderHeader(); renderActivity(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTerm(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
+function render() { renderHeader(); renderActivity(); renderNav(); renderBell(); renderStats(); renderBanner(); renderHealth(); renderBitacora(); renderPerf(); renderTradeTools(); renderZone(); renderDiscipline(); renderControls(); renderKpis(); renderTabs(); renderPrice(); renderTerm(); renderMidasAccount(); renderPhone(); renderTopTraders(); renderEquity(); renderTables(); renderLearning(); }
 
 function load() {
   fetch("/api/estado", {cache: "no-store"}).then(function (r) {

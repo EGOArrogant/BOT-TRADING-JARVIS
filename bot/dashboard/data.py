@@ -386,6 +386,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "candles": (live or {}).get("candles", {}),
         "levels": (live or {}).get("levels", {}),
         "views": (live or {}).get("views", {}),
+        "midas": (live or {}).get("midas"),
         "market": (live or {}).get("market", {}),
         "last": (live or {}).get("last", {}),
         "positions": positions,

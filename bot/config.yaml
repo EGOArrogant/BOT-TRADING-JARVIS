@@ -139,6 +139,19 @@ paper:
   initial_capital: 3000
   latency_ms: 150
 
+# MIDAS: cuenta aparte con dinero ficticio y apalancamiento alto (autorizada por el usuario el 2026-10-20). Usa las
+# señales de las estrategias; con scope "todas" deja de lado la disciplina (filtros, IA, techo del día). Mantiene el
+# stop y el objetivo del bot y simula la liquidación. SOLO existe en modo demo: con dinero real el código no la carga.
+# El panel (pestaña MIDAS) puede encenderla/apagarla y cambiar apalancamiento, margen y alcance.
+midas:
+  enabled: true
+  initial_capital: 500
+  margin_per_trade: 20
+  leverage: 10          # 5 | 10 | 15 | 20 | 25
+  scope: todas          # todas | aprobadas
+  max_positions: 3
+  maint_margin: 0.005
+
 storage:
   db_path: bot/data/bot.sqlite
   reports_dir: bot/reports
