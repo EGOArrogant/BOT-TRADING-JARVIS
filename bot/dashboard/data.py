@@ -147,11 +147,14 @@ def _safe(name: str, fn, default):
         return default
 
 
-def notifications(events: list[dict]) -> list[dict[str, Any]]:
-    """Campana del panel: entradas, salidas y reportes (y avisos importantes), lo más reciente primero."""
+def notifications(events: list[dict], midas: bool = False) -> list[dict[str, Any]]:
+    """Campana del panel: entradas, salidas y reportes (y avisos importantes), lo más reciente primero.
+    Los avisos de la cuenta MIDAS van aparte (`midas=True`): solo se ven en su pestaña, para no confundirlos."""
     out = []
     for e in events:
         payload = json.loads(e["payload"] or "{}")
+        if (e["kind"] == "notif" and payload.get("kind") == "midas") != midas:
+            continue
         if e["kind"] == "notif":
             out.append({"ts": e["ts"], **{k: payload.get(k, "") for k in ("kind", "title", "text", "level")}})
         elif e["kind"] == "alerta" and payload.get("level") in ("warning", "error"):
@@ -338,6 +341,8 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
     for e in log_rows:
         payload = json.loads(e["payload"] or "{}")
         if e["kind"] == "notif":
+            if payload.get("kind") == "midas":
+                continue  # MIDAS se ve solo en su pestaña
             lv = {"good": "info", "bad": "info"}.get(payload.get("level", "info"), payload.get("level", "info"))
             bitacora.append({"ts": e["ts"], "level": lv, "text": f"{payload.get('title', '')} — {payload.get('text', '')}"})
         elif e["kind"] == "alerta":
@@ -394,6 +399,7 @@ def collect(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
         "system": {**((live or {}).get("system") or {}), "ai": ai_health(ai_last)},
         "bitacora": bitacora[:40],
         "notifications": _safe("notificaciones", lambda: notifications(log_rows), []),
+        "midas_notices": _safe("avisos MIDAS", lambda: notifications(log_rows, midas=True)[:30], []),
         "activity": _safe("actividad", lambda: activity(
             cands24, len([e for e in (state.entries if state else []) if e.ts >= now - timedelta(hours=24)]),
             ai_health(ai_last), status_info, [k for k, v in settings.strategies.items() if v.enabled]), None),

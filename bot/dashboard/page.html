@@ -511,6 +511,11 @@ body[data-view="mercado"] .page-head{display:none}
   #trades,#decisions,#bitacora,#repDays,#positions{max-height:calc(100vh - 250px);overflow:auto}
   #trades thead th,#decisions thead th,#positions thead th{position:sticky;top:0;z-index:1;background:var(--card)}
 }
+/* franja de posiciones abiertas del bot normal, arriba del gráfico */
+.tv-pos{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.tv-pos button{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font:inherit;font-size:13px;text-align:left;padding:8px 12px;border-radius:12px;
+  border:1px solid var(--series);background:var(--series-soft);color:var(--ink);cursor:pointer}
+.tv-pos button b{font-size:13.5px}.tv-pos .st{color:var(--bad);font-weight:600}.tv-pos .tp{color:var(--good);font-weight:600}
 /* ---------- MIDAS ---------- */
 .ma-ctl{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:flex-end;margin:12px 0}
 .ma-ctl .tabs{margin:4px 0 0}
@@ -519,6 +524,10 @@ body[data-view="mercado"] .page-head{display:none}
 .ma-kpis .k{padding:12px 14px;border-radius:16px;background:var(--fill)}
 .ma-kpis .k span{display:block;font-size:12px;color:var(--ink2)}.ma-kpis .k b{font-size:20px;font-variant-numeric:tabular-nums}
 .md-acct{border:1px solid rgba(201,162,39,.45)}
+.ma-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.ma-chart{padding:10px 12px;border-radius:16px;background:var(--fill)}
+.ma-chart svg{width:100%;height:170px;display:block;margin-top:6px}
+.ma-notes{max-height:320px;overflow:auto}
 .md-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
 .md-card{padding:14px;border-radius:18px;background:var(--fill);display:flex;flex-direction:column;gap:4px}
 .md-card .lv{font-size:13px;font-weight:800;letter-spacing:.04em;color:#c9a227}
@@ -534,6 +543,28 @@ body[data-view="mercado"] .page-head{display:none}
   body:not([data-view="mercado"]) main>.md-lessons{grid-column:span 5}
   body:not([data-view="mercado"]) main>.md-trades{grid-column:span 7}
   #mdTrades{max-height:calc(100vh - 250px);overflow:auto}
+}
+/* ---------- Celular: todo se lee bajando (sin deslizar de lado) ---------- */
+@media (max-width:600px){
+  /* tablas → tarjetas: cada fila es un bloque con "dato: valor" */
+  table:not(.keep-table),table:not(.keep-table) tbody,table:not(.keep-table) tr,table:not(.keep-table) td{display:block;width:100%}
+  table:not(.keep-table) thead{display:none}
+  table:not(.keep-table) tr{padding:10px 12px;margin:0 0 10px;border-radius:14px;background:var(--fill)}
+  table:not(.keep-table) td{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:4px 0;border:0;
+    white-space:normal;text-align:right;min-width:0!important}
+  table:not(.keep-table) td::before{content:attr(data-label);flex:none;max-width:45%;color:var(--ink3);font-size:12.5px;font-weight:600;text-align:left}
+  table:not(.keep-table) td.w{flex-direction:column;align-items:flex-start;text-align:left}
+  table:not(.keep-table) td:empty{display:none}
+  .scroll{overflow-x:visible}
+  .term-bottom tr.go:hover td{background:none}
+  /* franja de mercado en dos columnas */
+  .term-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;overflow:visible}
+  /* menús que no se salgan de la pantalla */
+  .tv-pop{max-width:calc(100vw - 32px)}
+  #tfPop,#indPop{left:auto;right:0}
+  .tv-bar{flex-wrap:wrap}
+  .ma-ctl{flex-direction:column;align-items:stretch}
+  .ma-ctl .tabs{display:flex;flex-wrap:wrap}
 }
 </style>
 </head>
@@ -584,7 +615,7 @@ body[data-view="mercado"] .page-head{display:none}
           <div class="bell-tabs tabs" id="bellTabs" role="group" aria-label="Tipo">
             <button type="button" data-k="" aria-pressed="true">Todas</button><button type="button" data-k="entrada">Entradas</button>
             <button type="button" data-k="salida">Salidas</button><button type="button" data-k="reporte">Reportes</button>
-            <button type="button" data-k="midas">MIDAS</button><button type="button" data-k="alerta">Avisos</button></div>
+            <button type="button" data-k="alerta">Avisos</button></div>
           <ul class="bell-list" id="bellList"></ul>
           <div class="small muted" id="bellPush"></div>
         </div>
@@ -674,6 +705,7 @@ body[data-view="mercado"] .page-head{display:none}
             <button type="button" id="tvFit" title="Ver todo">Ajustar</button>
             <button type="button" id="tvFull" title="Pantalla completa">⛶</button></div>
         </div>
+        <div class="tv-pos" id="tvPos" hidden></div>
         <div class="tv-wrap" id="tvWrap" hidden>
           <div class="tv-legend" id="tvLegend"></div>
           <div class="tv-chart" id="tvChart"></div>
@@ -858,10 +890,14 @@ body[data-view="mercado"] .page-head{display:none}
       <div class="muted small" id="maMsg"></div>
     </div>
     <div class="ma-kpis" id="maKpis"></div>
+    <h3 class="md-sub">Posiciones abiertas de MIDAS en el gráfico</h3>
+    <div class="ma-charts" id="maCharts"></div>
     <div class="grid2" style="margin-top:12px">
       <div><h3 class="md-sub" style="margin-top:0">Posiciones abiertas</h3><div class="scroll" id="maOpen"></div></div>
       <div><h3 class="md-sub" style="margin-top:0">Últimas cerradas</h3><div class="scroll" id="maClosed"></div></div>
     </div>
+    <h3 class="md-sub">Avisos de MIDAS <span class="muted small">(solo aquí: no salen en la campana ni en el gráfico del bot normal)</span></h3>
+    <ul class="bell-list ma-notes" id="maNotes"></ul>
   </section>
   <section class="card md-head" data-view="midas">
     <div class="row-head">
@@ -1055,7 +1091,7 @@ var TF_MS = {"1m": 6e4, "3m": 18e4, "5m": 3e5, "15m": 9e5, "30m": 18e5, "1h": 36
 var IND = [["vol", "Volumen", null], ["ema20", "EMA 20", "#ff9f0a"], ["ema50", "EMA 50", "#af52de"], ["ema200", "EMA 200", "#5ac8fa"],
   ["bb", "Bandas de Bollinger (20, 2)", "#8e8e93"], ["vwap", "VWAP del día", "#ff2d55"], ["rsi", "RSI 14 (abajo)", "#ffcc00"]];
 var TV = {cfg: {tf: "15m", kind: "velas", ind: {vol: true, ema20: true, ema50: true}}, chart: null, s: {}, bars: [], key: "",
-  lines: {}, priceLines: [], timer: null, fitNext: true};
+  lines: {}, priceLines: [], keep: [], timer: null, fitNext: true};
 try { var tvc = JSON.parse(localStorage.getItem("jarvis-tv") || "{}"); if (tvc.tf && TF_MS[tvc.tf]) TV.cfg.tf = tvc.tf;
   if (tvc.kind) TV.cfg.kind = tvc.kind; if (tvc.ind) TV.cfg.ind = tvc.ind;
   TV.lines = JSON.parse(localStorage.getItem("jarvis-tv-lineas") || "{}"); } catch (e) {}
@@ -1078,9 +1114,17 @@ function tvTheme() {
 function tvInit() {
   var LC = window.LightweightCharts;
   TV.chart = LC.createChart($("tvChart"), {autoSize: true, crosshair: {mode: LC.CrosshairMode.Normal},
+    handleScroll: {mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false},
     timeScale: {timeVisible: true, secondsVisible: false, rightOffset: 4}, localization: {locale: "es-MX", priceFormatter: price}});
-  TV.s.candle = TV.chart.addCandlestickSeries({priceLineVisible: true});
-  TV.s.line = TV.chart.addLineSeries({lineWidth: 2, priceLineVisible: true, visible: false});
+  // La escala incluye siempre la entrada y el stop de la posición abierta (para que se vean al entrar)
+  function keepInView(orig) {
+    var r = orig();
+    if (!r || !r.priceRange || !TV.keep.length) return r;
+    return {priceRange: {minValue: Math.min.apply(null, [r.priceRange.minValue].concat(TV.keep)),
+      maxValue: Math.max.apply(null, [r.priceRange.maxValue].concat(TV.keep))}, margins: r.margins};
+  }
+  TV.s.candle = TV.chart.addCandlestickSeries({priceLineVisible: true, autoscaleInfoProvider: keepInView});
+  TV.s.line = TV.chart.addLineSeries({lineWidth: 2, priceLineVisible: true, visible: false, autoscaleInfoProvider: keepInView});
   TV.s.vol = TV.chart.addHistogramSeries({priceScaleId: "vol", priceFormat: {type: "volume"}, lastValueVisible: false, priceLineVisible: false});
   ["ema20", "ema50", "ema200", "vwap"].forEach(function (k) {
     var c = IND.filter(function (x) { return x[0] === k; })[0][2];
@@ -1102,6 +1146,7 @@ function tvInit() {
     positions: function () { return (D && D.positions) || []; }, levels: function () { return (D && D.levels) || {}; },
     cssv: cssv, price: price, money: money, esc: esc, coin: coin, strategy: function (k) { return PERF_NAMES[k] || k || ""; },
     oldLines: function () { return Object.keys(TV.lines || {}).length ? TV.lines : null; },
+    onLayers: function () { tvPaint(); },
     onBot: function (j) { BOTDATA = j; renderAnalysis(); renderBottom(); },
     clearOldLines: function () { TV.lines = {}; try { localStorage.removeItem("jarvis-tv-lineas"); } catch (e) {} }
   });
@@ -1213,7 +1258,8 @@ function tvSnap(ms) {  // hora de la vela que contiene ms (los marcadores deben 
 function tvMarks(main) {
   var marks = [], good = cssv("--good"), bad = cssv("--bad"), blue = cssv("--series");
   function add(ms, m) { var t = tvSnap(ms); if (t != null) { m.time = t; marks.push(m); } }
-  D.trades.filter(function (t) { return t.symbol === SEL; }).forEach(function (t) {
+  var past = window.JDraw && JDraw.layer ? JDraw.layer("past") : false;  // las pasadas solo si se piden
+  D.trades.filter(function (t) { return past && t.symbol === SEL; }).forEach(function (t) {
     add(Date.parse(t.opened_at), {position: t.side === "LONG" ? "belowBar" : "aboveBar", shape: t.side === "LONG" ? "arrowUp" : "arrowDown",
       color: blue, text: t.side === "LONG" ? "Long" : "Short"});
     add(Date.parse(t.closed_at), {position: t.side === "LONG" ? "aboveBar" : "belowBar", shape: "circle", color: t.pnl_net >= 0 ? good : bad,
@@ -1221,18 +1267,42 @@ function tvMarks(main) {
   });
   D.positions.filter(function (p) { return p.symbol === SEL; }).forEach(function (p) {
     add(Date.parse(p.opened_at), {position: p.side === "LONG" ? "belowBar" : "aboveBar", shape: p.side === "LONG" ? "arrowUp" : "arrowDown",
-      color: blue, text: "Abierta"});
+      color: blue, text: (p.side === "LONG" ? "LONG" : "SHORT") + " abierta"});
   });
   marks.sort(function (a, b) { return a.time - b.time; });
   TV.s.candle.setMarkers(main === TV.s.candle ? marks : []); TV.s.line.setMarkers(main === TV.s.line ? marks : []);
   TV.priceLines.forEach(function (x) { x[0].removePriceLine(x[1]); });
   TV.priceLines = [];
+  TV.keep = [];
   D.positions.filter(function (p) { return p.symbol === SEL; }).forEach(function (p) {
-    [[p.entry, blue, "Entrada"], [p.stop, bad, "Stop"], [p.take_profit, good, "Objetivo"]].forEach(function (l) {
+    [[p.entry, blue, p.side + " entrada"], [p.stop, bad, "Stop-loss"], [p.take_profit, good, "Objetivo"]].forEach(function (l) {
       if (l[0] == null) return;
-      TV.priceLines.push([main, main.createPriceLine({price: l[0], color: l[1], lineWidth: 1, lineStyle: l[2] === "Entrada" ? 0 : 2,
+      TV.priceLines.push([main, main.createPriceLine({price: l[0], color: l[1], lineWidth: 2, lineStyle: l[2] === "Stop-loss" || l[2] === "Objetivo" ? 2 : 0,
         axisLabelVisible: true, title: l[2]})]);
     });
+    TV.keep.push(p.entry, p.stop);
+  });
+  renderPosStrip();
+}
+
+function renderPosStrip() {  // posiciones abiertas del bot normal (MIDAS se ve solo en su pestaña)
+  var ps = (D && D.positions) || [], el = $("tvPos");
+  el.hidden = !ps.length;
+  el.innerHTML = ps.map(function (p, i) {
+    var r = null, risk = Math.abs(p.entry - (p.initial_stop || p.stop));
+    if (risk && p.mark) r = (p.side === "LONG" ? p.mark - p.entry : p.entry - p.mark) / risk;
+    return '<button type="button" data-i="' + i + '" title="Ver en el gráfico"><b>' + (p.side === "LONG" ? "▲ LONG " : "▼ SHORT ") + esc(coin(p.symbol)) +
+      "</b><span>entrada " + esc(price(p.entry)) + '</span><span class="st">stop ' + esc(price(p.stop)) + "</span>" +
+      (p.take_profit ? '<span class="tp">objetivo ' + esc(price(p.take_profit)) + "</span>" : "") +
+      '<span class="' + cls(p.pnl_unrealized) + '">va ' + esc(money(p.pnl_unrealized, true)) + (r != null ? " (" + (r >= 0 ? "+" : "") + r.toFixed(2) + "R)" : "") +
+      "</span>" + (p.symbol === SEL ? "" : '<span class="muted">· ver →</span>') + "</button>";
+  }).join("");
+  el.querySelectorAll("button").forEach(function (b) {
+    b.onclick = function () {
+      var p = ps[+b.dataset.i];
+      if (p.symbol !== SEL) { SEL = p.symbol; renderTabs(); renderPrice(); renderTerm(); }
+      setTimeout(function () { if (window.JDraw && JDraw.focus) JDraw.focus(Date.parse(p.opened_at)); }, 600);
+    };
   });
 }
 
@@ -1521,6 +1591,38 @@ function maPost(change) {
     .then(function (j) { MA_CTL = j.control; $("maMsg").textContent = "Guardado. Se aplica en la próxima señal (las posiciones abiertas siguen igual)."; renderMidasAccount(); })
     .catch(function (e) { $("maMsg").textContent = "No se pudo guardar: " + e.message; });
 }
+function maChart(p) {  // velas de 15 min de esa moneda con la entrada, el stop, el objetivo y la liquidación de MIDAS
+  var c = (((D.candles || {})[p.symbol] || {})["15m"] || []).slice(-96);
+  if (c.length < 5) return '<div class="muted small">Sin velas todavía para ' + esc(coin(p.symbol)) + ".</div>";
+  var W = 600, H = 170, lo = Infinity, hi = -Infinity;
+  c.forEach(function (b) { lo = Math.min(lo, b[3]); hi = Math.max(hi, b[2]); });
+  [p.entry, p.stop, p.take_profit].forEach(function (v) { if (v) { lo = Math.min(lo, v); hi = Math.max(hi, v); } });
+  var span = hi - lo, liqIn = p.liq > lo - span * 0.35 && p.liq < hi + span * 0.35;
+  if (liqIn) { lo = Math.min(lo, p.liq); hi = Math.max(hi, p.liq); }
+  var pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  function y(v) { return (H - (v - lo) / (hi - lo) * H).toFixed(1); }
+  var bw = W / c.length, out = "";
+  c.forEach(function (b, i) {
+    var x = (i + 0.5) * bw, up = b[4] >= b[1], col = up ? CANDLE_UP : CANDLE_DN;
+    out += '<line x1="' + x.toFixed(1) + '" x2="' + x.toFixed(1) + '" y1="' + y(b[2]) + '" y2="' + y(b[3]) + '" stroke="' + col + '" stroke-width="1"/>' +
+      '<rect x="' + (x - bw * 0.35).toFixed(1) + '" width="' + (bw * 0.7).toFixed(1) + '" y="' + y(Math.max(b[1], b[4])) + '" height="' +
+      Math.max(1, Math.abs(y(b[1]) - y(b[4]))).toFixed(1) + '" fill="' + col + '"/>';
+  });
+  function line(v, col, label, dash) {
+    return '<line x1="0" x2="' + W + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + col + '" stroke-width="1.6"' + (dash ? ' stroke-dasharray="5 4"' : "") + "/>" +
+      '<text x="4" y="' + (y(v) - 3) + '" fill="' + col + '" font-size="11" font-weight="700">' + esc(label + " " + price(v)) + "</text>";
+  }
+  var t0 = Date.parse(p.opened_at), k = -1;
+  c.forEach(function (b, i) { if (b[0] <= t0) k = i; });
+  out += line(p.entry, cssv("--series"), (p.side === "LONG" ? "▲ LONG" : "▼ SHORT") + " entrada", false) + line(p.stop, CANDLE_DN, "Stop", true);
+  if (p.take_profit) out += line(p.take_profit, CANDLE_UP, "Objetivo", true);
+  if (liqIn) out += line(p.liq, "#ff2d55", "💥 Liquidación", true);
+  if (k >= 0) out += '<circle cx="' + ((k + 0.5) * bw).toFixed(1) + '" cy="' + y(p.entry) + '" r="5" fill="' + cssv("--series") + '" stroke="#fff" stroke-width="1.5"/>';
+  return '<div class="ma-chart"><div class="small"><b>' + esc(coin(p.symbol)) + " x" + p.leverage + "</b> · " + esc(money(p.margin)) + " de margen · va " +
+    '<b class="' + cls(p.pnl_unrealized) + '">' + esc(money(p.pnl_unrealized, true)) + "</b>" + (liqIn ? "" : ' <span class="muted">· se liquida en ' + esc(price(p.liq)) + " (fuera de vista)</span>") +
+    '</div><svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none">' + out + "</svg></div>";
+}
+
 function renderMidasAccount() {
   var m = D && D.midas;
   if (!m) {
@@ -1553,6 +1655,12 @@ function renderMidasAccount() {
     ["Libre para entrar", money(m.free), m.positions.length + " de " + m.max_positions + " posiciones", ""]
   ].map(function (k) { return '<div class="k"><span>' + esc(k[0]) + '</span><b class="' + k[3] + '">' + esc(k[1]) +
     "</b><span>" + esc(k[2]) + "</span></div>"; }).join("");
+  $("maCharts").innerHTML = m.positions.length ? m.positions.map(maChart).join("") :
+    '<div class="muted small">Cuando MIDAS abra una posición, aquí verás su entrada, stop, objetivo y precio de liquidación.</div>';
+  var notes = (D.midas_notices || []);
+  $("maNotes").innerHTML = notes.length ? notes.map(function (n) {
+    return '<li class="' + esc(n.level) + '"><div class="t">' + esc(when(n.ts)) + '</div><div class="tt">' + esc(n.title) + '</div><div class="small">' + esc(n.text) + "</div></li>";
+  }).join("") : '<li class="muted">Aquí aparecen las entradas y salidas de MIDAS.</li>';
   table($("maOpen"), [
     {h: "Moneda", f: function (p) { return esc(coin(p.symbol)) + " " + (p.side === "LONG" ? "▲" : "▼") + " x" + p.leverage; }},
     {h: "Entrada", n: 1, f: function (p) { return esc(price(p.entry)); }},
@@ -1727,7 +1835,7 @@ function table(el, cols, rows, empty) {
   el.innerHTML = "<table><thead><tr>" + cols.map(function (c) {
     return "<th" + (c.n ? ' class="n"' : "") + ">" + esc(c.h) + "</th>"; }).join("") + "</tr></thead><tbody>" +
     rows.map(function (r) { return "<tr>" + cols.map(function (c) {
-      return "<td" + (c.n ? ' class="n"' : c.w ? ' class="w"' : "") + ">" + c.f(r) + "</td>"; }).join("") + "</tr>"; }).join("") +
+      return "<td" + (c.n ? ' class="n"' : c.w ? ' class="w"' : "") + ' data-label="' + esc(c.h) + '">' + c.f(r) + "</td>"; }).join("") + "</tr>"; }).join("") +
     "</tbody></table>";
 }
 

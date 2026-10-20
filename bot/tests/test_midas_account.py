@@ -105,3 +105,15 @@ def test_engine_runs_midas_only_in_demo_and_panel_controls_it(setup):
     finally:
         srv.shutdown()
         srv.server_close()
+
+
+def test_midas_notices_only_in_its_own_tab(setup):
+    from bot.dashboard.data import collect
+    s, states, ex, now = setup
+    eng = make_engine(s, states, ex, FakeAnalyst(), now)
+    px = states["ETHUSDT"].last_price or 2500
+    eng._midas_consider(sig(entry=px, stop=px * 0.98, tp=None), now, approved=False)
+    d = collect(s, utc_now())
+    assert d["midas_notices"] and d["midas_notices"][0]["kind"] == "midas"
+    assert all(n["kind"] != "midas" for n in d["notifications"])          # no sale en la campana general
+    assert all("MIDAS" not in b["text"] for b in d["bitacora"])           # ni en la bitácora

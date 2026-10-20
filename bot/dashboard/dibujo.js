@@ -55,13 +55,16 @@
     ["ruler", [["ruler", "Regla (medir)"]]],
     ["zoom", [["zoom", "Zoom: arrastra sobre la zona"]]]
   ];
+  // En el celular, deslizar hacia arriba/abajo sobre el gráfico mueve la página (no el gráfico)
+  var SCROLL_ON = {mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false};
   var POINTS = {trend: 2, ray: 2, xline: 2, fib: 2, ruler: 2, zoom: 2, channel: 3, pitchfork: 3};
-  var LAYERS = [["trades", "Operaciones: entrada, stop y objetivo"], ["signals", "Señales que descartó (y por qué)"],
+  var LAYERS = [["trades", "Operación abierta: entrada, stop y objetivo"], ["past", "Operaciones pasadas"],
+    ["signals", "Señales que descartó (y por qué)"],
     ["range", "Rango de ruptura que vigila"], ["sr", "Soportes y resistencias (1 h)"], ["fib", "Fibonacci del último tramo (1 h)"]];
 
   var H = null;  // ganchos de la página
   var S = {tool: "cursor", groupPick: {}, emoji: "🚀", color: COLORS[0], magnet: false, locked: false, hidden: false,
-    layers: {trades: true, signals: true, range: true, sr: false, fib: false}, all: {}, sel: null, pending: null,
+    layers: {trades: true, past: false, signals: false, range: true, sr: false, fib: false}, all: {}, sel: null, pending: null,
     temp: null, drag: null, bot: null, botSym: null, info: null, raf: 0, lastUp: 0};
 
   function load() {
@@ -268,7 +271,8 @@
     var P = pane(), good = H.cssv("--good"), bad = H.cssv("--bad"), blue = H.cssv("--series"), warn = H.cssv("--warn") || "#ff9f0a";
     var ink3 = H.cssv("--ink3"), sym = H.sym(), lv = (H.levels() || {})[sym], hits = [];
     var now = Date.now();
-    if (lv && S.layers.range && lv.range_15m) {
+    var hasOpen = (H.positions() || []).some(function (p) { return p.symbol === sym; });
+    if (lv && S.layers.range && lv.range_15m && !hasOpen) {  // con posición abierta no busca otra entrada aquí
       var r = lv.range_15m, xs = X(r.from), xe = P.w;
       [[r.high, "LONG si una vela de 15 min cierra arriba de " + H.price(r.high), good], [r.low, "SHORT si cierra abajo de " + H.price(r.low), bad]].forEach(function (l) {
         var y = Y(l[0]);
@@ -306,7 +310,7 @@
     });
     if (S.layers.trades) {
       var boxes = [];
-      if (data) data.trades.forEach(function (t) { boxes.push({t: t, open: false}); });
+      if (data && S.layers.past) data.trades.forEach(function (t) { boxes.push({t: t, open: false}); });
       (H.positions() || []).filter(function (p) { return p.symbol === sym; }).forEach(function (p) { boxes.push({t: p, open: true}); });
       boxes.forEach(function (bx) {
         var t = bx.t, t0 = Date.parse(t.opened_at), t1 = bx.open ? Math.max(now, t0 + (t.max_hold_hours || 6) * 36e5) : Date.parse(t.closed_at);
@@ -410,7 +414,7 @@
     S.tool = t; S.pending = null;
     if (t !== "cursor") S.sel = null;
     var c = H.chart();
-    c.applyOptions({handleScroll: t === "cursor", handleScale: t === "cursor"});
+    c.applyOptions({handleScroll: t === "cursor" ? SCROLL_ON : false, handleScale: t === "cursor"});
     S.wrap.classList.toggle("jd-drawing", t !== "cursor");
     S.svg.classList.toggle("jd-active", t !== "cursor");
     schedule();
@@ -445,7 +449,7 @@
       menu(b, "<h4>Lo que hace JARVIS</h4>" + LAYERS.map(function (l) {
         return '<label data-v="' + l[0] + '"><input type="checkbox"' + (S.layers[l[0]] ? " checked" : "") + "> " + l[1] + "</label>";
       }).join("") + '<p class="jd-tip">Toca una caja o un rombo del gráfico para ver por qué entró o por qué no.</p>', function (v, el2) {
-        var cb = el2.querySelector("input"); S.layers[v] = cb.checked; save(); schedule();
+        var cb = el2.querySelector("input"); S.layers[v] = cb.checked; save(); schedule(); if (H.onLayers) H.onLayers();
       });
       return;
     }
@@ -499,7 +503,7 @@
     S.sel = id;
     S.drag = {d: d, i: t.hasAttribute("data-i") ? +t.getAttribute("data-i") : -1, start: toPoint(pt[0], pt[1]),
       orig: JSON.parse(JSON.stringify(d.pts)), moved: false};
-    H.chart().applyOptions({handleScroll: false, handleScale: false});
+    H.chart().applyOptions({handleScroll: false, handleScale: false});  // mientras se arrastra un dibujo
     schedule();
   }
   function onMove(e) {
@@ -529,7 +533,7 @@
     var pt = local(e);
     if (S.drag) {
       var moved = S.drag.moved; S.drag = null; S.svg.classList.remove("jd-active");
-      H.chart().applyOptions({handleScroll: true, handleScale: true});
+      H.chart().applyOptions({handleScroll: SCROLL_ON, handleScale: true});
       if (moved) save();
       schedule(); return;
     }
@@ -582,14 +586,14 @@
     var t = h.item, side = t.side === "LONG" ? "LONG (a la subida)" : "SHORT (a la baja)", strat = H.strategy(t.strategy);
     var when = new Date(Date.parse(h.kind === "signal" ? t.ts : t.opened_at)).toLocaleString("es-MX", {dateStyle: "short", timeStyle: "short"});
     if (h.kind === "signal") {
-      return "<h4>Señal " + H.esc(side) + " · " + H.esc(t.status) + "</h4><p class=\"muted\">" + H.esc(when) + " · " + H.esc(strat) + "</p><table>" +
+      return "<h4>Señal " + H.esc(side) + " · " + H.esc(t.status) + "</h4><p class=\"muted\">" + H.esc(when) + " · " + H.esc(strat) + "</p><table class=\"keep-table\">" +
         row("Entrada propuesta", H.price(t.entry)) + row("Stop", H.price(t.stop)) + (t.take_profit ? row("Objetivo", H.price(t.take_profit)) : "") +
         (t.level ? row(t.side === "LONG" ? "Rompió el máximo de 6 h" : "Rompió el mínimo de 6 h", H.price(t.level)) : "") + "</table>" +
         ((t.reasons || []).length ? "<p><b>Por qué no entró:</b> " + H.esc(t.reasons.join("; ")) + "</p>" : "") + aiBlock(t.ai);
     }
     var risk = t.entry && (t.initial_stop || t.stop) ? Math.abs(t.entry - (t.initial_stop || t.stop)) : null;
     var rr = risk && t.take_profit ? Math.abs(t.take_profit - t.entry) / risk : null;
-    return "<h4>" + (h.kind === "open" ? "Operación abierta " : "Operación ") + H.esc(side) + "</h4><p class=\"muted\">" + H.esc(when) + " · " + H.esc(strat) + "</p><table>" +
+    return "<h4>" + (h.kind === "open" ? "Operación abierta " : "Operación ") + H.esc(side) + "</h4><p class=\"muted\">" + H.esc(when) + " · " + H.esc(strat) + "</p><table class=\"keep-table\">" +
       row("Entrada", H.price(t.entry)) + row("Stop inicial", H.price(t.initial_stop || t.stop)) +
       (h.kind === "open" && t.stop !== t.initial_stop ? row("Stop ahora", H.price(t.stop)) : "") +
       (t.take_profit ? row("Objetivo", H.price(t.take_profit) + (rr ? " (" + rr.toFixed(1) + " a 1)" : "")) : "") +
@@ -660,6 +664,7 @@
     init: init,
     refresh: function () { if (H) { fetchBot(false); schedule(); } },
     symbolChanged: function () { if (H) { S.sel = null; S.pending = null; S.temp = null; S.info.hidden = true; S.bot = null; fetchBot(true); schedule(); } },
+    layer: function (k) { return !!S.layers[k]; },
     themeChanged: function () { if (H) { S.bar.dataset.k = ""; schedule(); } },
     focus: function (ms) {  // centra el gráfico en ese momento (desde las tablas de abajo)
       var l = H && msToLogical(ms);

@@ -423,6 +423,10 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   por la IA), mantiene stop/objetivo, simula liquidación; `Engine._midas_tick` en cada tick. Panel: `POST
   /api/midas/control` → `midas_control.json` (encendido, x5–x25, margen, alcance; ilegible = no abre). Avisos `midas`.
   Reflexión semanal recibe `cuenta_midas`. Con dinero real: NO existe; requeriría código nuevo y aprobación aparte.
+- Gráfico: la posición abierta del bot normal siempre se ve (franja `#tvPos`, líneas con título, `autoscaleInfoProvider`
+  incluye entrada y stop); operaciones pasadas solo con la capa "past" de JARVIS (apagada por defecto). MIDAS nunca se
+  dibuja en el gráfico ni sale en la campana/bitácora (`data.notifications(midas=True)` → `midas_notices`, pestaña MIDAS).
+  Celular: tablas como tarjetas (`td[data-label]`, salvo `.keep-table`), toque vertical sobre el gráfico mueve la página.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).
