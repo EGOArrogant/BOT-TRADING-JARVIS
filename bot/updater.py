@@ -135,12 +135,14 @@ def _install_deps(root: Path) -> str:
     return "no se pudieron instalar dependencias (si el bot no arranca, ejecuta instalar.bat)"
 
 
-def apply(root: Path = ROOT, client: httpx.Client | None = None, install: bool = True) -> dict[str, Any]:
+def apply(root: Path = ROOT, client: httpx.Client | None = None, install: bool = True,
+          restart: bool = True) -> dict[str, Any]:
+    """restart=False: no pide el reinicio (quien llama lo pide después, p. ej. tras contestar por Telegram)."""
     with _session(client) as c:
-        return _apply(root, c, install)
+        return _apply(root, c, install, restart)
 
 
-def _apply(root: Path, client: httpx.Client, install: bool) -> dict[str, Any]:
+def _apply(root: Path, client: httpx.Client, install: bool, restart: bool = True) -> dict[str, Any]:
     info = check(root, client)
     if not info["available"]:
         return {"ok": True, "updated": False, "message": "Ya tienes la versión más reciente."}
@@ -170,7 +172,8 @@ def _apply(root: Path, client: httpx.Client, install: bool) -> dict[str, Any]:
     deps = "sin cambios"
     if install and (root / "pyproject.toml").read_text(encoding="utf-8") != old_pyproject:
         deps = _install_deps(root)
-    request_restart(root)
+    if restart:
+        request_restart(root)
     return {"ok": True, "updated": True, "files": copied, "deps": deps, "changes": info["changes"],
             "message": "Actualizado. El bot y el panel se reinician solos en unos segundos."}
 

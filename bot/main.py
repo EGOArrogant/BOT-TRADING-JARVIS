@@ -13,7 +13,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
+import threading
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -216,7 +219,18 @@ def cmd_panel(settings: Settings, port: int, phone: bool = False, ai_key: str | 
         print("Modo celular activo: en el panel de la PC, sección 'Ver en tu celular', escanea el código QR con el iPhone.")
         print("Si Windows pregunta si permites el acceso a la red, elige 'Redes privadas' y 'Permitir acceso'.")
     from bot import updater
-    reopened = updater.restart_requested(datetime.now(UTC) - timedelta(seconds=90))  # tras actualizar: la página ya está abierta
+    started = datetime.now(UTC)
+    reopened = updater.restart_requested(started - timedelta(seconds=90))  # tras actualizar: la página ya está abierta
+
+    def watch_restart() -> None:
+        """Actualización pedida desde otro lado (Telegram /actualizar, el motor): el panel también se reinicia."""
+        while not updater.restart_requested(started):
+            time.sleep(3)
+        print("\n  Actualización lista: reiniciando el panel con la versión nueva...", flush=True)
+        time.sleep(2)  # deja terminar la respuesta en curso
+        os._exit(updater.RESTART_CODE)
+
+    threading.Thread(target=watch_restart, name="panel-restart", daemon=True).start()
     try:
         if not reopened:
             webbrowser.open(url)

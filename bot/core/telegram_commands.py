@@ -9,7 +9,12 @@ comando abre operaciones ni cambia límites de riesgo: lo más que hace es lo mi
     /hoy         resumen del día en palabras simples
     /solo_cierre no abrir nada nuevo (sigue cuidando lo abierto)
     /operar      volver a buscar oportunidades
+    /clave       enlace y clave para entrar al panel desde el celular (solo si el modo celular está activo)
+    /actualizar  baja la versión nueva y reinicia el bot y el panel (lo mismo que el botón del panel)
     /ayuda       esta lista
+
+/clave manda la clave del panel por Telegram: solo al chat del dueño, y el enlace solo funciona en la red de casa o
+por Tailscale (el panel nunca se expone a internet).
 """
 
 from __future__ import annotations
@@ -17,12 +22,15 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import httpx
 
+from bot import updater
 from bot.core import control
 from bot.core.logging_setup import get_logger
+from bot.dashboard import remote
 from bot.dashboard.reports import COIN, amount, day_report, money, num, price
 
 log = get_logger("bot.telegram")
@@ -33,18 +41,25 @@ HELP = ("Comandos de JARVIS:\n"
         "/hoy — resumen del día en palabras simples\n"
         "/solo_cierre — no abrir nada nuevo (sigue cuidando lo abierto)\n"
         "/operar — volver a buscar oportunidades\n"
+        "/clave — enlace y clave para entrar al panel desde el celular\n"
+        "/actualizar — instalar la versión nueva (el bot y el panel se reinician solos)\n"
         "/ayuda — esta lista")
+PANEL_PORT = 8765  # el de abrir_panel.bat
+SLOW = {"/actualizar"}  # van a internet: se atienden en otro hilo para no frenar el motor
 
 
 class TelegramCommands:
     def __init__(self, token: str, chat_id: str, engine: Any, http: httpx.AsyncClient | None = None,
-                 now: Callable[[], datetime] = lambda: datetime.now(UTC)):
+                 now: Callable[[], datetime] = lambda: datetime.now(UTC), root: Path = updater.ROOT,
+                 update_client: Any = None):
         self.url = f"https://api.telegram.org/bot{token}/"
         self.chat_id = str(chat_id)
         self.engine = engine
         self.http = http
         self.now = now
         self.offset: int | None = None
+        self.root, self.update_client = root, update_client
+        self.restart_after_reply = False
 
     # ------------------------------------------------------------ respuestas
     def handle(self, text: str) -> str:
@@ -61,6 +76,10 @@ class TelegramCommands:
             return self.set_mode("solo_cierre")
         if cmd == "/operar":
             return self.set_mode("operar")
+        if cmd == "/clave":
+            return self.panel_key()
+        if cmd == "/actualizar":
+            return self.update()
         return "No conozco ese comando.\n\n" + HELP
 
     def status(self) -> str:
@@ -115,6 +134,34 @@ class TelegramCommands:
             return "🟠 Listo: Solo cierre. No abrirá operaciones nuevas; sigue cuidando las abiertas. /operar para volver."
         return "🟢 Listo: Operando. Vuelve a buscar oportunidades con las reglas de seguridad de siempre."
 
+    def panel_key(self) -> str:
+        if not (self.root / "celular_activado.txt").exists():
+            return ("El modo celular está apagado en la PC. Para usarlo: en la PC ejecuta activar_celular.bat y luego "
+                    "abrir_panel.bat.")
+        key = remote.load_or_create_key(self.engine.s.storage.reports_dir)
+        ips = remote.local_ips()
+        links = "\n".join(f"{'Tailscale' if ip['kind'] == 'tailscale' else 'Wi-Fi de casa'}: "
+                          f"http://{ip['ip']}:{PANEL_PORT}/?t={key}" for ip in ips) or "(no encontré la dirección de la PC)"
+        log.info("telegram: se envió el acceso al panel")
+        return (f"🔑 Clave del panel: {key}\n\nEnlaces (ábrelos en el celular):\n{links}\n\n"
+                "Si ya ves la pantalla de \"Panel protegido\", pega la clave ahí. El enlace de Wi-Fi de casa solo "
+                "funciona conectado a esa red; fuera de casa necesitas Tailscale. No reenvíes este mensaje.")
+
+    def update(self) -> str:
+        """Igual que el botón Actualizar del panel. El reinicio se pide después de contestar (`restart_after_reply`)."""
+        try:
+            out = updater.apply(self.root, self.update_client, restart=False)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("telegram: no se pudo actualizar", extra={"err": repr(exc)})
+            return f"❌ No se pudo actualizar: {exc}. El bot sigue con la versión actual."
+        if not out.get("updated"):
+            return "✅ Ya tienes la versión más reciente."
+        self.restart_after_reply = True
+        titles = "\n".join(f"• {c['title']}" for c in (out.get("changes") or [])[:8])
+        log.info("telegram: actualizado, se reinicia")
+        return ("⬆️ Actualizado. El bot y el panel se reinician solos en unos segundos; en el celular la página se "
+                f"recarga sola con la versión nueva.\n{titles}").rstrip()
+
     # ------------------------------------------------------------ red
     async def poll_once(self) -> int:
         http = self.http or httpx.AsyncClient(timeout=40)
@@ -130,9 +177,16 @@ class TelegramCommands:
                 msg = u.get("message") or {}
                 if str((msg.get("chat") or {}).get("id")) != self.chat_id:
                     continue  # solo el dueño
-                reply = self.handle(msg.get("text", ""))
+                text = msg.get("text", "")
+                slow = (text or "").strip().split(" ")[0].split("@")[0].lower() in SLOW
+                reply = await asyncio.to_thread(self.handle, text) if slow else self.handle(text)
                 await http.post(self.url + "sendMessage", json={"chat_id": self.chat_id, "text": f"JARVIS · {reply}"[:4000]})
                 handled += 1
+            if self.restart_after_reply:
+                # Confirma a Telegram que ya se leyó (si no, tras reiniciar volvería a llegar /actualizar) y reinicia
+                await http.post(self.url + "getUpdates", json={"offset": self.offset, "timeout": 0})
+                self.restart_after_reply = False
+                updater.request_restart(self.root)
             return handled
         finally:
             if self.http is None:

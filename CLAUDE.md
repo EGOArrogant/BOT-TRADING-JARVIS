@@ -397,7 +397,9 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Actualizar desde el panel (`bot/updater.py`, `/api/version`, `POST /api/actualizar`): git pull o ZIP de GitHub,
   nunca toca `.env`, `bot/data`, `bot/reports`, `.venv`; luego `reiniciar.flag` → el motor guarda y sale con código 10
   (`RESTART_CODE`) y los .bat/systemd lo rearrancan. Ideas del usuario: `POST /api/idea` → `reports/<modo>/ideas.md`.
-- Telegram entrante (`core/telegram_commands.py`): solo TELEGRAM_CHAT_ID; /estado /posiciones /hoy /solo_cierre /operar.
+- Telegram entrante (`core/telegram_commands.py`): solo TELEGRAM_CHAT_ID; /estado /posiciones /hoy /solo_cierre /operar,
+  /clave (enlace + clave del panel, solo con `celular_activado.txt`) y /actualizar (`updater.apply(restart=False)`,
+  contesta, confirma el offset y luego pide el reinicio). El panel vigila `reiniciar.flag` y también sale con código 10.
   Ningún comando abre operaciones. Servidor: `deploy/instalar_servidor.sh` (systemd jarvis-bot/jarvis-panel, Tailscale,
   iptables: puerto del panel solo por tailscale0).
 - Investigación: `bot/research/ic.py` (IC por indicador con BH-FDR), `bot/backtest/lookahead.py` (fugas de futuro,

@@ -75,3 +75,8 @@ def test_incomplete_download_is_rejected(install):
     with pytest.raises(RuntimeError, match="incompleto"):
         updater.apply(install, _client(_zip({"bot/engine.py": "x"})), install=False)
     assert (install / "bot" / "engine.py").read_text() == "viejo"
+
+
+def test_apply_can_leave_the_restart_to_the_caller(install):
+    out = updater.apply(install, _client(_zip(NEW)), install=False, restart=False)
+    assert out["updated"] and not updater.restart_flag(install).exists()  # Telegram contesta primero y luego reinicia

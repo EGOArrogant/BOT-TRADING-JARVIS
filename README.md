@@ -35,7 +35,7 @@ Instala todo, revisa que Binance responda desde ahí, crea los servicios `jarvis
 y Tailscale: el panel solo se abre desde tus dispositivos de Tailscale y con la clave del QR que muestra al final.
 Con el bot en el servidor, apaga el de la PC (dos copias con el mismo Telegram chocan).
 
-**Comandos de Telegram:** `/estado`, `/posiciones`, `/hoy`, `/solo_cierre`, `/operar`, `/ayuda`. Solo responde a tu chat;
+**Comandos de Telegram:** `/estado`, `/posiciones`, `/hoy`, `/solo_cierre`, `/operar`, `/clave` (enlace y clave del panel para el celular, si el modo celular está activo), `/actualizar` (instala la versión nueva; el bot y el panel se reinician solos), `/ayuda`. Solo responde a tu chat;
 ningún comando abre operaciones ni cambia límites.
 
 **Investigación de estrategias (2026-10):** 13 meses de datos de Binance (velas 15 min, open interest, funding, F&G,
