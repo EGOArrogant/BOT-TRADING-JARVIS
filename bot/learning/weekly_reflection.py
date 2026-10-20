@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from bot.core.config import AIConfig
 from bot.core.logging_setup import get_logger
+from bot.learning import midas
 from bot.learning.hypotheses import TUNABLE_PARAMS, Hypothesis
 from bot.learning.journal import Journal
 from bot.metrics import discipline, robustness
@@ -113,7 +114,16 @@ def build_week_payload(journal: Journal, start: datetime, end: datetime, capital
         "robustez_operaciones": robustness.analyze(robustness.from_trades(trades), 0.005, 0.10),
         "robustez_practica": robustness.analyze(robustness.from_counterfactuals(cands_list), 0.005, 0.10),
         "parametros_ajustables": {k: sorted(v) for k, v in TUNABLE_PARAMS.items()},
+        # Laboratorio MIDAS (solo simulación): las mismas señales con 20 US$ a x5–x25. Informa qué señales aguantan
+        # apalancamiento (stops cortos, poca excursión en contra); nunca autoriza cambiar riesgo ni apalancamiento.
+        "laboratorio_midas": _midas_brief(cands_list),
     }
+
+
+def _midas_brief(cands: list[dict]) -> dict:
+    sim = midas.simulate(cands, 20.0, 0.0007)
+    return {scope: [{k: s[k] for k in ("leverage", "n", "wins", "liquidated", "total", "max_drawdown")}
+                    for s in sim[scope]["by_leverage"]] for scope in midas.SCOPES} | {"lecciones": sim["lessons"]}
 
 
 def validate_hypotheses(raw: list[dict], max_n: int = 3) -> tuple[list[Hypothesis], list[str]]:

@@ -140,10 +140,13 @@ def test_chart_candles_any_timeframe_with_cache_and_validation(setup):
     try:
         assert len(urllib.request.urlopen(base + "/grafico.js").read()) > 100_000
         assert b"JDraw" in urllib.request.urlopen(base + "/dibujo.js").read()
+        md = json.loads(urllib.request.urlopen(base + "/api/midas?margin=20&days=30").read())
+        assert md["margin"] == 20 and md["leverages"] == [5, 10, 15, 20, 25] and "aprobadas" in md and "todas" in md
         assert json.loads(urllib.request.urlopen(base + "/api/senales?symbol=ETHUSDT").read())["trades"] == []
         assert json.loads(urllib.request.urlopen(base + "/api/velas?symbol=ETHUSDT&interval=1d").read())[0][4] == 1.5
         for q, code in (("velas?symbol=FAKEUSDT&interval=1h", 400), ("velas?symbol=ETHUSDT&interval=7m", 400),
-                        ("velas?symbol=XLMUSDT&interval=1h", 502), ("senales?symbol=FAKEUSDT", 400)):
+                        ("velas?symbol=XLMUSDT&interval=1h", 502), ("senales?symbol=FAKEUSDT", 400),
+                        ("midas?margin=0", 400), ("midas?days=abc", 400)):
             try:
                 urllib.request.urlopen(base + "/api/" + q)
                 raise AssertionError(q)

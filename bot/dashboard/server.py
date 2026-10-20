@@ -26,7 +26,7 @@ from typing import Any
 from bot.core import control
 from bot.core.config import Settings
 from bot.core.logging_setup import get_logger
-from bot.dashboard.data import chart_signals, collect
+from bot.dashboard.data import chart_signals, collect, midas_view
 from bot import updater
 from bot.dashboard import diagnostics, remote, reports, snapshot
 from bot.dashboard.klines import KlineSource
@@ -175,6 +175,18 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                     self._send(502, json.dumps({"error": repr(exc)}).encode(), "application/json")
                     return
                 self._send(200, json.dumps(_clean(body), separators=(",", ":")).encode(), "application/json")
+            elif path == "/api/midas":
+                try:
+                    body = json.dumps(_clean(midas_view(settings, float(q.get("margin", ["20"])[0]),
+                                                        int(q.get("days", ["30"])[0]))), default=str).encode()
+                except ValueError as exc:
+                    self._send(400, json.dumps({"error": str(exc)}).encode(), "application/json")
+                    return
+                except Exception as exc:  # noqa: BLE001
+                    log.error("panel: MIDAS falló", extra={"err": repr(exc)}, exc_info=True)
+                    self._send(500, json.dumps({"error": repr(exc)}).encode(), "application/json")
+                    return
+                self._send(200, body, "application/json; charset=utf-8")
             elif path == "/dibujo.js":
                 self._send(200, draw_js, "text/javascript; charset=utf-8")
             elif path == "/api/senales":

@@ -70,6 +70,12 @@ derecha **Análisis JARVIS** (qué condiciones de la estrategia se cumplen y cu�
 mismos datos que recibe la IA) o el **Libro** de órdenes en vivo; abajo posiciones, señales, operaciones (clic = ir a
 ese momento del gráfico) y traders destacados.
 
+**MIDAS (laboratorio de apalancamiento):** pestaña del panel que toma cada señal del bot (operadas y rechazadas)
+con su misma entrada, stop, objetivo y tiempo, y calcula qué habría pasado poniendo un margen fijo (20 US$ por
+defecto) a x5, x10, x15, x20 y x25, incluidas las liquidaciones. Compara "solo las aprobadas" contra "todas las
+señales (sin disciplina)" y saca lecciones en palabras simples, que también recibe la reflexión semanal. Solo
+simula: nunca envía órdenes ni cambia el riesgo del bot.
+
 **Gráfico del panel (Mercado):** herramientas de dibujo como TradingView en la barra de la izquierda (arriba en el
 celular): línea de tendencia, rayo, horizontal, vertical, canal, tridente, Fibonacci, pincel, texto, emoji, posición
 larga/corta (con R:R), regla, zoom, imán, bloquear, ocultar y borrar. Se guardan por moneda en ese navegador. El botón

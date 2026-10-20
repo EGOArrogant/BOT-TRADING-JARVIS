@@ -413,6 +413,10 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
 - Desde 2026-10-18 (decisión del usuario): demo con 3.000 US$ y `risk_per_trade: 0.01` (el tope duro). Es global en
   config.yaml: antes de `testnet`/`live` decidir de nuevo con el usuario (0.005 era el valor de diseño). Las pruebas de
   tamaño fijan su propio 0.5 %.
+- MIDAS (`learning/midas.py`, `/api/midas` = `data.midas_view`, vista `#midas`): laboratorio de apalancamiento SOLO
+  simulado sobre los contrafactuales de cada señal (misma entrada/stop/objetivo/tiempo): margen fijo × x5–x25, margen
+  aislado, liquidación ≈ 1/apal − 0,5 %. Compara "aprobadas" vs "todas" (sin disciplina) y va a la reflexión semanal
+  (`laboratorio_midas`). Nunca envía órdenes ni cambia riesgo, apalancamiento o stops del bot.
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

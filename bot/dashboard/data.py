@@ -246,6 +246,36 @@ def chart_signals(settings: Settings, symbol: str, now: datetime | None = None, 
     return {"symbol": symbol, "signals": signals, "trades": out_trades}
 
 
+def midas_view(settings: Settings, margin: float = 20.0, days: int = 30, now: datetime | None = None) -> dict[str, Any]:
+    """Laboratorio MIDAS (solo simulación): las señales de los últimos `days` días a x5–x25 con `margin` por entrada."""
+    from bot.learning import midas
+
+    if not 1 <= margin <= 100_000:
+        raise ValueError("margen fuera de rango")
+    days = max(1, min(int(days), 365))
+    now = now or datetime.now(UTC)
+    db = _connect(settings.storage.db_path)
+    try:
+        rows = _rows(db, "SELECT id, ts, symbol, strategy, side, entry, stop, take_profit, max_hold_hours, status, "
+                         "counterfactual FROM candidates WHERE ts >= ? ORDER BY ts",
+                     ((now - timedelta(days=days)).isoformat(),))
+    finally:
+        if db is not None:
+            db.close()
+    cands = []
+    for r in rows:
+        r["counterfactual"] = json.loads(r["counterfactual"] or "null")
+        if r["counterfactual"] is None and datetime.fromisoformat(r["ts"]) + timedelta(
+                hours=(r["max_hold_hours"] or 6) + 0.25) < now:
+            continue  # vencida sin resultado (el bot estaba apagado): no se puede evaluar
+        cands.append(r)
+    live = snapshot.read(settings.storage.reports_dir / snapshot.FILENAME) or {}
+    fees = settings.exchange.fees
+    out = midas.simulate(cands, margin, fees.maker + fees.taker, last=live.get("last") or {}, now=now)
+    out["days"] = days
+    return out
+
+
 def _learning(db: sqlite3.Connection | None, min_cases: int, min_trades: int) -> dict[str, list]:
     learning: list[dict] = []
     pending: list[dict] = []

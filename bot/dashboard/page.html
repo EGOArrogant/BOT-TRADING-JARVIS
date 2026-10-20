@@ -511,6 +511,23 @@ body[data-view="mercado"] .page-head{display:none}
   #trades,#decisions,#bitacora,#repDays,#positions{max-height:calc(100vh - 250px);overflow:auto}
   #trades thead th,#decisions thead th,#positions thead th{position:sticky;top:0;z-index:1;background:var(--card)}
 }
+/* ---------- MIDAS ---------- */
+.md-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:12px}
+.md-card{padding:14px;border-radius:18px;background:var(--fill);display:flex;flex-direction:column;gap:4px}
+.md-card .lv{font-size:13px;font-weight:800;letter-spacing:.04em;color:#c9a227}
+.md-card .tot{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.md-card .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink2)}
+.md-card .row b{color:var(--ink);font-variant-numeric:tabular-nums}
+.md-card svg{width:100%;height:42px;margin-top:4px}
+.md-sub{font-size:15px;margin:16px 0 6px}
+.md-list{margin:0;padding-left:20px;line-height:1.5}.md-list li{margin:6px 0}
+#mdMargin{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1px solid var(--grid);background:var(--fill);color:var(--ink)}
+.md-liq{color:var(--bad);font-weight:700}
+@media (min-width:1100px){
+  body:not([data-view="mercado"]) main>.md-lessons{grid-column:span 5}
+  body:not([data-view="mercado"]) main>.md-trades{grid-column:span 7}
+  #mdTrades{max-height:calc(100vh - 250px);overflow:auto}
+}
 </style>
 </head>
 <body>
@@ -544,6 +561,7 @@ body[data-view="mercado"] .page-head{display:none}
       <a href="#reportes" data-v="reportes"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span class="lb">Reportes</span><span class="nb dot" id="nbRep"></span></a>
       <a href="#rendimiento" data-v="rendimiento" class="more-item"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V12M10 20V6M15 20v-9M20 20V9"/></svg><span class="lb">Rendimiento</span></a>
       <a href="#aprendizaje" data-v="aprendizaje" class="more-item"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z"/><path d="M10 21h4"/></svg><span class="lb">Aprendizaje</span><span class="nb" id="nbLearn"></span></a>
+      <a href="#midas" data-v="midas" class="more-item"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/><path d="M5 19h14"/></svg><span class="lb">MIDAS</span></a>
       <a href="#sistema" data-v="sistema" class="more-item"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span class="lb">Sistema</span><span class="nb dot" id="nbSys"></span></a>
       <button type="button" class="nav-more" id="navMore" aria-haspopup="true" aria-expanded="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg><span class="lb">Más</span><span class="nb dot" id="nbMore"></span></button>
       <span class="nav-ind" id="navInd" aria-hidden="true"></span>
@@ -816,6 +834,33 @@ body[data-view="mercado"] .page-head{display:none}
         <button type="button" class="btn ghost" id="ideaCopy">Copiar mis ideas</button></div>
       <pre class="zone" id="ideaList" hidden></pre>
     </div>
+  </section>
+  <section class="card md-head" data-view="midas">
+    <div class="row-head">
+      <h2 style="margin:0">MIDAS <span class="muted small">laboratorio de apalancamiento · solo simulación: nunca envía órdenes</span></h2>
+      <div class="tools">
+        <label class="small muted" for="mdMargin">Margen por entrada</label>
+        <input type="number" id="mdMargin" min="1" max="100000" step="1" value="20" style="width:90px"> <span class="small muted">US$</span>
+        <select id="mdDays" aria-label="Periodo"><option value="7">7 días</option><option value="30" selected>30 días</option><option value="90">90 días</option></select>
+      </div>
+    </div>
+    <p class="muted small" style="margin:8px 0 10px">Toma cada señal del bot con su misma entrada, stop, objetivo y tiempo, y calcula qué habría pasado
+      poniendo ese margen a x5–x25 (margen aislado: si el precio llega a la liquidación antes que al stop, se pierde el margen).
+      El bot real no cambia: sigue con su riesgo y su apalancamiento máximo de 3×.</p>
+    <div class="tabs" id="mdScope" role="group" aria-label="Qué señales">
+      <button type="button" data-k="aprobadas" aria-pressed="true">Solo las que el bot aprobó</button>
+      <button type="button" data-k="todas">Todas las señales (sin disciplina)</button></div>
+    <div class="md-grid" id="mdCards"><div class="muted">Cargando…</div></div>
+  </section>
+  <section class="card md-lessons" data-view="midas">
+    <h2>Lo que enseña MIDAS</h2>
+    <ul class="md-list" id="mdLessons"></ul>
+    <h3 class="md-sub">En curso <span class="muted small">(señales de ahora, con el precio actual)</span></h3>
+    <div class="scroll" id="mdLive"></div>
+  </section>
+  <section class="card md-trades" data-view="midas">
+    <h2>Señales simuladas <span class="muted small">(resultado de cada entrada a cada apalancamiento)</span></h2>
+    <div class="scroll" id="mdTrades"></div>
   </section>
   <section class="card dz-side" id="phoneCard" data-view="sistema" hidden>
     <h2>Ver en tu celular</h2>
@@ -1438,6 +1483,71 @@ setInterval(function () {  // la franja y el libro se refrescan solo con Mercado
   if (TERM_TICK % 2 === 0) loadBook();
 }, 1000);
 
+// ---------------------------------------------------------------- MIDAS (laboratorio de apalancamiento, solo simulación)
+var MD = null, MD_AT = 0, MD_SCOPE = "aprobadas", MD_KEY = "";
+var MD_STATUS = {operado: "Operó", rechazado_filtro: "Filtros", rechazado_ia: "La IA dijo no", rechazado_riesgo: "Riesgo",
+  no_seleccionado: "Había uno mejor", sin_llenado: "Sin llenado"};
+try { var mdc = JSON.parse(localStorage.getItem("jarvis-midas") || "{}"); if (mdc.margin) $("mdMargin").value = mdc.margin;
+  if (mdc.days) $("mdDays").value = mdc.days; if (mdc.scope) MD_SCOPE = mdc.scope; } catch (e) {}
+function mdSave() { try { localStorage.setItem("jarvis-midas", JSON.stringify({margin: $("mdMargin").value, days: $("mdDays").value, scope: MD_SCOPE})); } catch (e) {} }
+function loadMidas(force) {
+  var m = Math.max(1, Math.min(100000, +$("mdMargin").value || 20)), d = $("mdDays").value, key = m + "|" + d;
+  if (!force && MD && key === MD_KEY && Date.now() - MD_AT < 60000) { renderMidas(); return; }
+  fetch("/api/midas?margin=" + m + "&days=" + d, {cache: "no-store"}).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) { MD = j; MD_AT = Date.now(); MD_KEY = key; renderMidas(); })
+    .catch(function (e) { $("mdCards").innerHTML = '<div class="neg">No se pudo calcular MIDAS (' + esc(e.message) + ").</div>"; });
+}
+function mdSpark(curve) {
+  if (!curve || curve.length < 2) return "";
+  var ys = curve.map(function (p) { return p[1]; }), lo = Math.min(0, Math.min.apply(null, ys)), hi = Math.max(0, Math.max.apply(null, ys)), rg = hi - lo || 1;
+  var pts = ys.map(function (y, i) { return (i / (ys.length - 1) * 100).toFixed(1) + "," + (40 - (y - lo) / rg * 38).toFixed(1); }).join(" ");
+  var z = (40 - (0 - lo) / rg * 38).toFixed(1), last = ys[ys.length - 1];
+  return '<svg viewBox="0 0 100 42" preserveAspectRatio="none"><line x1="0" y1="' + z + '" x2="100" y2="' + z + '" stroke="var(--grid)" stroke-width="1"/>' +
+    '<polyline points="' + pts + '" fill="none" stroke="' + (last >= 0 ? CANDLE_UP : CANDLE_DN) + '" stroke-width="1.8" vector-effect="non-scaling-stroke"/></svg>';
+}
+function renderMidas() {
+  if (!MD) return;
+  $("mdScope").querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.k === MD_SCOPE)); });
+  var sc = MD[MD_SCOPE], m = MD.margin;
+  if (!sc.by_leverage[0].n) {
+    $("mdCards").innerHTML = '<div class="empty">Todavía no hay señales con resultado en este periodo. Cada señal tarda hasta su tiempo máximo (12–48 h) en resolverse.</div>';
+  } else {
+    $("mdCards").innerHTML = sc.by_leverage.map(function (s) {
+      var liq = MD.liq_distance[s.leverage];
+      return '<div class="md-card"><span class="lv">x' + s.leverage + " · " + esc(money(m * s.leverage)) + ' de posición</span>' +
+        '<span class="tot ' + cls(s.total) + '">' + esc(money(s.total, true)) + "</span>" +
+        '<span class="row">Operaciones <b>' + s.n + " · " + Math.round((s.win_rate || 0) * 100) + "% ganadoras</b></span>" +
+        '<span class="row">Mejor / peor <b>' + esc(money(s.best, true)) + " / " + esc(money(s.worst, true)) + "</b></span>" +
+        '<span class="row">Caída máxima <b>' + esc(money(-s.max_drawdown)) + "</b></span>" +
+        '<span class="row">Liquidadas <b class="' + (s.liquidated ? "md-liq" : "") + '">' + s.liquidated + "</b></span>" +
+        '<span class="row">Se liquida si va en contra <b>' + (liq * 100).toFixed(1) + "%</b></span>" + mdSpark(s.curve) + "</div>";
+    }).join("");
+  }
+  $("mdLessons").innerHTML = (MD.lessons.length ? MD.lessons : ["Aún no hay suficientes señales resueltas para sacar conclusiones."])
+    .map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
+  var lvs = MD.leverages;
+  table($("mdLive"), [
+    {h: "Hora", f: function (c) { return esc(when(c.ts)); }},
+    {h: "Moneda", f: function (c) { return esc(coin(c.symbol)) + " " + esc(c.side === "LONG" ? "▲" : "▼"); }},
+    {h: "Bot", f: function (c) { return esc(MD_STATUS[c.status] || c.status); }}
+  ].concat(lvs.map(function (lv) { return {h: "x" + lv, n: 1, f: function (c) { var v = c.pnl[lv];
+    return v == null ? "—" : '<span class="' + cls(v) + '">' + esc(money(v, true)) + "</span>"; }}; })),
+    MD.live.filter(function (c) { return MD_SCOPE === "todas" || c.status === "operado"; }), "Ninguna señal en curso ahora.");
+  table($("mdTrades"), [
+    {h: "Hora", f: function (t) { return esc(when(t.ts)); }},
+    {h: "Moneda", f: function (t) { return esc(coin(t.symbol)) + " " + esc(t.side === "LONG" ? "▲" : "▼"); }},
+    {h: "Bot", f: function (t) { return esc(MD_STATUS[t.status] || t.status); }},
+    {h: "Movimiento", n: 1, f: function (t) { return '<span class="' + cls(t.move_pct) + '">' + esc(pct(t.move_pct, true)) + "</span>"; }}
+  ].concat(lvs.map(function (lv) { return {h: "x" + lv, n: 1, f: function (t) {
+    return t.liquidated.indexOf(lv) >= 0 ? '<span class="md-liq" title="Liquidada antes del stop">💥 ' + esc(money(t.pnl[lv], true)) + "</span>"
+      : '<span class="' + cls(t.pnl[lv]) + '">' + esc(money(t.pnl[lv], true)) + "</span>"; }}; })),
+    sc.trades, "Sin señales resueltas en este periodo.");
+}
+$("mdScope").querySelectorAll("button").forEach(function (b) { b.onclick = function () { MD_SCOPE = b.dataset.k; mdSave(); renderMidas(); }; });
+$("mdMargin").onchange = function () { mdSave(); loadMidas(true); };
+$("mdDays").onchange = function () { mdSave(); loadMidas(true); };
+setInterval(function () { if (VIEW === "midas" && !document.hidden) loadMidas(true); }, 60000);
+
 // ---------------------------------------------------------------- Ver en tu celular (solo se muestra en la PC)
 var ACCESS = null;
 function renderPhone() {
@@ -1868,7 +1978,7 @@ function renderStats() {
 
 // ---------------------------------------------------------------- Secciones (barra superior)
 var VIEWS = {inicio: "Inicio", mercado: "Mercado", operaciones: "Operaciones", reportes: "Reportes", rendimiento: "Rendimiento",
-  aprendizaje: "Aprendizaje", sistema: "Sistema"};
+  aprendizaje: "Aprendizaje", midas: "MIDAS", sistema: "Sistema"};
 var VIEW = null;
 function currentView() { var h = (location.hash || "").slice(1); return VIEWS[h] ? h : "inicio"; }
 function moveInd() {
@@ -1902,6 +2012,7 @@ function showView(v, first) {
     if (v === "sistema") renderPhone();
   }
   if (v === "reportes") loadReports();
+  if (v === "midas") loadMidas();
 }
 window.addEventListener("hashchange", function () { showView(currentView()); });
 window.addEventListener("resize", moveInd);
