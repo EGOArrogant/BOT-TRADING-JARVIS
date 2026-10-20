@@ -11,6 +11,7 @@ necesita la clave del panel (ver `dashboard/remote.py`).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -49,7 +50,14 @@ LOCKED_PAGE = """<!doctype html><html lang="es"><meta charset="utf-8"><meta name
 <title>JARVIS</title><link rel="icon" href="/logo.svg"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <body style="font-family:-apple-system,sans-serif;padding:32px;max-width:520px;margin:auto;line-height:1.5">
 <img src="/logo.svg" width="72" height="72" alt=""><h1>JARVIS · Panel</h1><p>Para ver el panel en este dispositivo, abre el panel en tu PC y escanea con la cámara
-el código QR de la sección <b>Ver en tu celular</b>.</p></body></html>""".encode()
+el código QR de la sección <b>Ver en tu celular</b>.</p>
+<p>O pega aquí la clave que aparece debajo del código QR:</p>
+<form onsubmit="var k=document.getElementById('k').value.trim();if(k){try{localStorage.setItem('jarvis-k',k)}catch(e){}location.replace('/?t='+encodeURIComponent(k))}return false">
+<input id="k" autocomplete="off" style="font-size:17px;padding:10px;width:100%;box-sizing:border-box;border-radius:10px;border:1px solid #999">
+<button style="margin-top:10px;font-size:17px;padding:10px 18px;border-radius:10px;border:0;background:#0a84ff;color:#fff">Entrar</button></form>
+<script>/* si este celular ya entró antes (app en la pantalla de inicio), vuelve a entrar solo */
+try{var k=localStorage.getItem('jarvis-k');if(k&&location.search.indexOf('t=')<0&&!sessionStorage.getItem('jarvis-try')){
+sessionStorage.setItem('jarvis-try','1');location.replace('/?t='+encodeURIComponent(k))}}catch(e){}</script></body></html>""".encode()
 
 
 def _clean(x: Any) -> Any:
@@ -66,6 +74,11 @@ def _clean(x: Any) -> Any:
 def make_handler(settings: Settings, klines: KlineSource | None = None, remote_key: str | None = None,
                  diagnoser: diagnostics.Diagnoser | None = None) -> type[BaseHTTPRequestHandler]:
     page = PAGE.read_bytes()
+    # Huella de esta versión del panel: si cambia (actualización), las páginas abiertas se recargan solas
+    build = hashlib.sha256(page + DRAW_JS.read_bytes() + CHART_JS.read_bytes()).hexdigest()[:12]
+    page = page.replace(b'<script src="/grafico.js"></script>', f'<script src="/grafico.js?v={build}"></script>'.encode()) \
+        .replace(b'<script src="/dibujo.js"></script>', f'<script src="/dibujo.js?v={build}"></script>'.encode()) \
+        .replace(b"<head>", f'<head>\n<meta name="jarvis-build" content="{build}">'.encode(), 1)
     chart_js = CHART_JS.read_bytes()
     qr_js = QR_JS.read_bytes()
     draw_js = DRAW_JS.read_bytes()
@@ -76,9 +89,11 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
     update_lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
-        def _send(self, code: int, body: bytes, ctype: str) -> None:
+        def _send(self, code: int, body: bytes, ctype: str, extra: dict[str, str] | None = None) -> None:
             try:
                 self.send_response(code)
+                for k, v in (extra or {}).items():
+                    self.send_header(k, v)
                 self.send_header("Content-Type", ctype)
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
@@ -119,7 +134,17 @@ def make_handler(settings: Settings, klines: KlineSource | None = None, remote_k
                     self._send(403, b'{"error": "solo desde este equipo"}', "application/json")
                 return
             if path in ("/", "/index.html"):
-                self._send(200, page, "text/html; charset=utf-8")
+                if self._from_pc():
+                    self._send(200, page, "text/html; charset=utf-8")
+                else:
+                    # Celular: renueva la cookie (no caduca mientras se use) y deja la clave a la página para que la
+                    # recuerde (localStorage) por si el iPhone borra la cookie de la app de la pantalla de inicio
+                    self._send(200, page.replace(b'<meta name="jarvis-build"', f'<meta name="jarvis-k" content="{remote_key}">\n'
+                                                 '<meta name="jarvis-build"'.encode(), 1), "text/html; charset=utf-8",
+                               {"Set-Cookie": f"{remote.COOKIE}={remote_key}; Max-Age=31536000; Path=/; HttpOnly; "
+                                              "SameSite=Strict"})
+            elif path == "/api/build":
+                self._send(200, json.dumps({"build": build}).encode(), "application/json")
             elif path == "/api/acceso":
                 # Solo la PC ve la clave: con ella arma el QR para el celular
                 if not self._from_pc():

@@ -427,6 +427,11 @@ Cuando no estés seguro de un endpoint, límite o comportamiento del exchange, c
   incluye entrada y stop); operaciones pasadas solo con la capa "past" de JARVIS (apagada por defecto). MIDAS nunca se
   dibuja en el gráfico ni sale en la campana/bitácora (`data.notifications(midas=True)` → `midas_notices`, pestaña MIDAS).
   Celular: tablas como tarjetas (`td[data-label]`, salvo `.keep-table`), toque vertical sobre el gráfico mueve la página.
+- Siempre la versión nueva: el updater baja el ZIP por SHA exacto; el servidor calcula una huella (`build`) de
+  page.html + dibujo.js + grafico.js, la pone en `<meta name="jarvis-build">` y en `?v=` de los scripts, y la sirve en
+  `/api/build`; la página la consulta cada 30 s, al volver a primer plano y en `pageshow`, y se recarga sola si cambió.
+  Celular: la cookie se renueva al abrir la página y la clave queda en localStorage (`jarvis-k`); la página bloqueada
+  entra sola con ella o acepta la clave pegada (se muestra bajo el QR en la PC).
 - Cambios aprendidos aprobados: `bot/strategy_overrides.yaml` (lista blanca en `learning/hypotheses.py`).
 - Endpoints verificados 2026-10-15 (por búsqueda; developers.binance.com no era accesible desde el entorno):
   - WS de futuros separados en `/public` (depth, bookTicker) y `/market` (aggTrade, kline, markPrice).

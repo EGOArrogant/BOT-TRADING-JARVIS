@@ -566,6 +566,7 @@ body[data-view="mercado"] .page-head{display:none}
   .ma-ctl{flex-direction:column;align-items:stretch}
   .ma-ctl .tabs{display:flex;flex-wrap:wrap}
 }
+.upd-toast{position:fixed;z-index:200;left:50%;top:16px;transform:translateX(-50%);padding:12px 18px;border-radius:14px;background:var(--series);color:#fff;font-weight:700;box-shadow:var(--shadow)}
 </style>
 </head>
 <body>
@@ -1777,9 +1778,13 @@ function renderPhone() {
       esc(x[1]) + "</b></div></div>";
   });
   if (!home && !ts) html += '<div class="neg">No encontré la dirección de esta PC en la red. ¿Está conectada al Wi-Fi o al cable?</div>';
+  var anyUrl = (home || ts || {}).url, key = "";
+  try { key = anyUrl ? new URL(anyUrl).searchParams.get("t") || "" : ""; } catch (e) {}
+  if (key) html += '<div class="small" style="margin:8px 0">Clave (solo si el celular te la pide alguna vez): <code style="user-select:all">' + esc(key) + "</code></div>";
   html += "<ol><li>Abre la <b>cámara</b> del iPhone y apunta al código QR. Toca el aviso amarillo que aparece.</li>" +
     "<li>El iPhone y la PC deben estar en el <b>mismo Wi-Fi</b>" + (ts ? " (o usa el código de Tailscale fuera de casa)" : "") + ".</li>" +
     "<li>Para tenerlo como app: en Safari toca <b>Compartir</b> → <b>Agregar a pantalla de inicio</b>.</li>" +
+    "<li>Solo se escanea una vez: el celular recuerda la clave y cuando actualizas el bot (desde aquí o desde el celular) la página se recarga sola con la versión nueva.</li>" +
     "<li>Solo funciona mientras la PC esté encendida con el bot. Nadie más puede entrar sin este código.</li>" +
     (ts ? "" : '<li class="muted">Para verlo fuera de casa (datos móviles): instala <b>Tailscale</b> (gratis) en la PC y en el iPhone con la misma cuenta y reinicia el panel; aparecerá un segundo código.</li>') +
     "</ol>";
@@ -2401,15 +2406,45 @@ function renderUpdate() {
     "No toca tu dinero, tu .env ni tus datos; el bot se reinicia solo y las posiciones abiertas siguen protegidas por su stop.</span>";
   $("updGo").onclick = doUpdate;
 }
+// ---------------------------------------------------------------- Siempre la versión más nueva
+// Cada versión del panel tiene una huella (meta jarvis-build). Si el panel se actualizó (desde la PC o el celular),
+// las páginas abiertas lo notan y se recargan solas: en el celular no hace falta volver a escanear el QR.
+var PAGE_BUILD = (document.querySelector('meta[name="jarvis-build"]') || {}).content || "";
+var BUILD_RELOADING = false;
+function checkBuild(now) {
+  if (BUILD_RELOADING || !PAGE_BUILD) return;
+  fetch("/api/build", {cache: "no-store"}).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function (j) {
+      if (!j.build || j.build === PAGE_BUILD) return;
+      try {  // ya se recargó por esta versión y la página sigue vieja: no insistir (evita ciclos)
+        if (sessionStorage.getItem("jarvis-reload") === j.build) return;
+        sessionStorage.setItem("jarvis-reload", j.build);
+      } catch (e) {}
+      BUILD_RELOADING = true;
+      var d = document.createElement("div");
+      d.className = "upd-toast"; d.textContent = "Versión nueva de JARVIS instalada · cargándola…";
+      document.body.appendChild(d);
+      setTimeout(function () { location.replace(location.pathname + "?v=" + j.build + location.hash); }, now ? 300 : 1500);
+    }).catch(function () {});
+}
+try { var mk = document.querySelector('meta[name="jarvis-k"]'); if (mk && mk.content) localStorage.setItem("jarvis-k", mk.content); } catch (e) {}
+setInterval(function () { if (!document.hidden) checkBuild(false); }, 30000);
+document.addEventListener("visibilitychange", function () { if (!document.hidden) checkBuild(false); });
+window.addEventListener("pageshow", function (e) { if (e.persisted) checkBuild(false); });  // iPhone: página "congelada"
+window.addEventListener("focus", function () { checkBuild(false); });
+if (/[?&]v=/.test(location.search)) history.replaceState(null, "", location.pathname + location.hash);
+
 function doUpdate() {
   if (!confirm("¿Actualizar JARVIS ahora? El bot y el panel se reiniciarán solos en unos segundos.")) return;
   $("updBody").innerHTML = "Descargando e instalando la versión nueva…";
   post("/api/actualizar", {}).then(function (r) {
     $("updBody").innerHTML = '<b class="pos">' + esc(r.message) + "</b>";
     if (!r.updated) return;
-    var down = false, t = setInterval(function () {  // esperar a que el panel vuelva y recargar la página
-      fetch("/api/estado", {cache: "no-store"}).then(function (x) { if (x.ok && down) { clearInterval(t); location.reload(); } })
-        .catch(function () { down = true; });
+    $("updBody").innerHTML += '<div class="muted small">Esperando a que el panel vuelva con la versión nueva…</div>';
+    var tries = 0, t = setInterval(function () {  // recarga en cuanto el panel responda con la versión nueva
+      tries++;
+      checkBuild(true);
+      if (tries > 90) { clearInterval(t); $("updBody").innerHTML += '<div class="neg small">El panel tarda en volver: cierra y abre abrir_panel.bat en la PC.</div>'; }
     }, 2000);
   }).catch(function (e) { $("updBody").innerHTML = '<span class="neg">' + esc(e.message) + "</span>"; });
 }

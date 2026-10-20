@@ -149,7 +149,8 @@ def _apply(root: Path, client: httpx.Client, install: bool) -> dict[str, Any]:
         _git(root, "pull", "--ff-only", "origin", BRANCH)
         copied = None
     else:
-        r = client.get(f"https://codeload.github.com/{REPO}/zip/refs/heads/{BRANCH}", timeout=120)
+        # Por SHA exacto (no "lo último de main"): GitHub puede servir una copia vieja de la rama unos minutos
+        r = client.get(f"https://codeload.github.com/{REPO}/zip/{info['remote']['sha']}", timeout=120)
         r.raise_for_status()
         data = r.content
         with tempfile.TemporaryDirectory() as tmp:

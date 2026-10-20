@@ -28,6 +28,7 @@ def _client(zip_bytes: bytes, head=SHA_NEW) -> httpx.Client:
         if req.url.host == "api.github.com":
             return httpx.Response(200, json=commits)
         if req.url.host == "codeload.github.com":
+            assert req.url.path.endswith(f"/zip/{head}")  # por SHA exacto, nunca "lo último de la rama"
             return httpx.Response(200, content=zip_bytes)
         return httpx.Response(404)
     return httpx.Client(transport=httpx.MockTransport(handler))

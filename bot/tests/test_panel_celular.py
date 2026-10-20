@@ -85,3 +85,22 @@ def test_key_is_stable_and_random(tmp_path):
     assert remote.load_or_create_key(tmp_path / "otro") != k1
     assert remote.cookie_value(f"a=1; {remote.COOKIE}=abc; b=2") == "abc"
     assert not remote.key_ok("", k1) and remote.key_ok(k1, k1)
+
+
+def test_pages_reload_themselves_after_an_update_and_phone_stays_logged_in(phone_server):
+    s, start, phone = phone_server
+    port = start(True)
+    key = (s.storage.reports_dir / remote.FILENAME).read_text().strip()
+    cl = Client(port)
+    status, headers, body = cl.req("GET", "/", {"Cookie": f"{remote.COOKIE}={key}"})
+    page = body.decode()
+    build = json.loads(cl.req("GET", "/api/build", {"Cookie": f"{remote.COOKIE}={key}"})[2])["build"]
+    assert status == 200 and f'name="jarvis-build" content="{build}"' in page
+    assert f"/dibujo.js?v={build}" in page and f"/grafico.js?v={build}" in page   # sin caché vieja de los scripts
+    assert f'name="jarvis-k" content="{key}"' in page                            # el celular recuerda la clave
+    assert "Max-Age=31536000" in headers.get("Set-Cookie", "")                   # la cookie se renueva al usarla
+    locked = cl.req("GET", "/")[2].decode()
+    assert "jarvis-k" in locked and "Entrar" in locked                           # sin cookie: entra con la clave guardada
+    phone["on"] = False                                                          # desde la PC
+    pc_page = Client(port).req("GET", "/", {"Host": f"127.0.0.1:{port}"})[2].decode()
+    assert '<meta name="jarvis-k"' not in pc_page                                # la PC no la necesita
